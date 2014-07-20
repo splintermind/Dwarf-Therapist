@@ -24,6 +24,7 @@ THE SOFTWARE.
 #define DWARF_MODEL_H
 
 #include <QtWidgets>
+#include <QStandardItem>
 #include "columntypes.h"
 
 class Dwarf;
@@ -33,22 +34,25 @@ class GridView;
 class Squad;
 class ViewColumn;
 
-/*
-class CreatureGroup : public QStandardItem {
-    Q_OBJECT
+class CreatureGroup {
 public:
-    CreatureGroup();
     CreatureGroup(const QString &text);
-    CreatureGroup(const QIcon &icon, const QString &text);
-    virtual ~CreatureGroup();
 
     QList<QStandardItem*> build_row();
     void add_member(Dwarf *d);
+    void remove_member(Dwarf *d);
+    bool has_member(Dwarf *d);
     int type() const {return QStandardItem::UserType + 1;}
+    int id() const { return m_id; }
+    const QString& name() const { return label; }
 private:
+    static int last_id;
+
     QList<int> m_member_ids;
+    QString label;
+    QIcon icon;
+    int m_id;
 };
-*/
 
 class DwarfModel : public QStandardItemModel {
     Q_OBJECT
@@ -59,6 +63,7 @@ public:
         GB_CASTE,
         GB_CASTE_TAG,
         GB_CURRENT_JOB,
+        GB_CUSTOM_GROUP,
         GB_HAPPINESS,
         GB_HAS_NICKNAME,
         GB_HIGHEST_MOODABLE,
@@ -126,6 +131,9 @@ public:
     QList<Squad *> active_squads();
     Squad* get_squad(int id);
 
+    QList<CreatureGroup *> active_groups();
+    CreatureGroup* get_group(int id);
+
     int total_row_count;
     bool clearing_data;
 
@@ -155,6 +163,7 @@ private:
     GridView *m_gridview;
     QFont m_font;
     QChar m_symbol;
+    QList<CreatureGroup *> m_groups;
 
 //    int m_global_sort_col;
 //    QString m_global_sort_view;

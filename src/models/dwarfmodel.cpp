@@ -48,6 +48,32 @@ THE SOFTWARE.
 #include "dwarfjob.h"
 #include "unithealth.h"
 
+int CreatureGroup::last_id = 1;
+
+CreatureGroup::CreatureGroup(const QString &text) :
+    label(text), m_id(last_id++)
+{
+}
+
+QList<QStandardItem*> CreatureGroup::build_row(){
+    return QList<QStandardItem*>();
+}
+
+void CreatureGroup::add_member(Dwarf *d){
+    if (m_member_ids.indexOf(d->id()) != -1) {
+        return;
+    }
+    m_member_ids.append(d->id());
+}
+
+void CreatureGroup::remove_member(Dwarf *d){
+    m_member_ids.removeAll(d->id());
+}
+
+bool CreatureGroup::has_member(Dwarf *d){
+    return m_member_ids.indexOf(d->id()) != -1;
+}
+
 DwarfModel::DwarfModel(QObject *parent)
     : QStandardItemModel(parent)
     , m_df(0)
@@ -59,6 +85,10 @@ DwarfModel::DwarfModel(QObject *parent)
 {
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
     read_settings();
+
+    m_groups.append(new CreatureGroup(tr("Group 1")));
+    m_groups.append(new CreatureGroup(tr("Group B")));
+    m_groups.append(new CreatureGroup(tr("Group iii")));
 }
 
 DwarfModel::~DwarfModel() {
@@ -118,6 +148,18 @@ QList<Squad*> DwarfModel::active_squads(){
 }
 Squad* DwarfModel::get_squad(int id){
     return m_df->get_squad(id);
+}
+
+QList<CreatureGroup*> DwarfModel::active_groups(){
+    return m_groups;
+}
+CreatureGroup* DwarfModel::get_group(int id){
+    foreach (CreatureGroup* g, m_groups) {
+        if (g->id() == id)
+            return g;
+    }
+
+    return NULL;
 }
 
 void DwarfModel::update_header_info(int id, COLUMN_TYPE type){
@@ -345,6 +387,17 @@ void DwarfModel::build_rows() {
                         m_grouped_dwarves[tr("Losers")].append(d);
                 }else if(m_group_by == GB_HAPPINESS){
                     m_grouped_dwarves[d->happiness_name(d->get_happiness())].append(d);
+                } else if(m_group_by == GB_CUSTOM_GROUP){
+                    bool is_grouped = false;
+                    foreach (CreatureGroup *g, m_groups) {
+                        if (g->has_member(d)) {
+                            m_grouped_dwarves[g->name()].append(d);
+                            is_grouped = true;
+                        }
+                    }
+                    if (!is_grouped) {
+                        m_grouped_dwarves[tr("Ungrouped")].append(d);
+                    }
                 }else if(m_group_by == GB_CURRENT_JOB){
                     QString job_desc = GameDataReader::ptr()->get_job(d->current_job_id())->description;
                     //if the job is some kind of reaction that doesn't use a material, use the reaction's name
@@ -503,8 +556,6 @@ void DwarfModel::build_row(const QString &key) {
     QColor curse_col = DT->user_settings()->value("options/colors/cursed", QColor(125,97,186, 200)).value<QColor>();
     QBrush cursed_bg = build_gradient_brush(curse_col,curse_col.alpha(),0,QPoint(0,0),QPoint(1,0));
     QBrush cursed_bg_light = build_gradient_brush(curse_col, 50,0,QPoint(0,0),QPoint(1,0)); //keep a weakly highlighted version
-
-
 
     foreach(Dwarf *d, m_grouped_dwarves.value(key)) {
         QStandardItem *i_name = new QStandardItem(d->nice_name());

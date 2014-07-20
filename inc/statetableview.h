@@ -123,6 +123,7 @@ private:
     QMenu *m;
     QMenu *custom_prof_menu;
     QMenu *squads_menu;
+    QMenu *groups_menu;
     QMenu *debug_menu;
 
     QAction *m_prof_name;
@@ -133,6 +134,8 @@ private:
     QAction *m_remove_labors;
 
     QAction *m_unassign_squad;
+
+    QAction *m_unassign_group;
 
     QAction *m_clear;
     QAction *m_commit;
@@ -147,6 +150,8 @@ private:
         void set_squad_name();
         void assign_to_squad();
         void remove_squad();
+        void add_to_group();
+        void remove_from_group();
         void vscroll_value_changed(int value);
         void hscroll_value_changed(int value);
         void toggle_all_row_labors();

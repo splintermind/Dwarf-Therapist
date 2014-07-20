@@ -192,6 +192,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->cb_group_by->addItem(tr("Age"), DwarfModel::GB_AGE);
     ui->cb_group_by->addItem(tr("Caste"), DwarfModel::GB_CASTE);
     ui->cb_group_by->addItem(tr("Current Job"), DwarfModel::GB_CURRENT_JOB);
+    ui->cb_group_by->addItem(tr("Custom Group"), DwarfModel::GB_CUSTOM_GROUP);
     ui->cb_group_by->addItem(tr("Happiness"), DwarfModel::GB_HAPPINESS);
     ui->cb_group_by->addItem(tr("Has Nickname"),DwarfModel::GB_HAS_NICKNAME);
     ui->cb_group_by->addItem(tr("Health"),DwarfModel::GB_HEALTH);

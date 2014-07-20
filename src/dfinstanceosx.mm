@@ -381,6 +381,10 @@ bool DFInstance::authorize() {
         dir.cdUp();
         chdir(dir.absolutePath().toLocal8Bit());
         fflush(stdout);
+
+        // Authorization for remote memory access on OS X trips Qt's setuid detection.
+        QCoreApplication::setSetuidAllowed(true);
+
         return true;
     }
 
