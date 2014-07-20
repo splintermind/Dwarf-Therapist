@@ -258,13 +258,13 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
         m->removeAction(m_unassign_squad);
         m->removeAction(m_unassign_group);
 
+        QAction *add;
         if (!m_model->active_groups().empty()) {
             groups_menu->setEnabled(true);
             groups_menu->setTitle(tr("Custom Groups..."));
             groups_menu->clear();
 
             foreach (CreatureGroup* g, m_model->active_groups()){
-                QAction *add;
                 if (!g->has_member(d)) {
                     add = groups_menu->addAction(tr("Add to %1").arg(g->name()), this, SLOT(add_to_group()));
                 } else {
@@ -273,10 +273,12 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
                 add->setEnabled(true);
                 add->setData(g->id());
             }
+            add = groups_menu->addAction(tr("Add custom group"), this, SLOT(add_custom_group()));
+            add->setEnabled(true);
+
         } else {
-            groups_menu->setTitle(tr("No custom groups"));
-            groups_menu->setEnabled(false);
-            groups_menu->clear();
+            add = m->addAction(tr("Add custom group"), this, SLOT(add_custom_group()));
+            add->setEnabled(true);
         }
 
         m->addMenu(groups_menu);
@@ -539,6 +541,17 @@ void StateTableView::set_squad_name(){
     }
 }
 
+void StateTableView::add_custom_group(){
+    bool ok;
+    QString new_group = QInputDialog::getText(this, tr("New Custom Group"),
+                                              tr("Enter name for new custom group."), QLineEdit::Normal,
+                                              tr(""), &ok);
+    if (!ok)
+        return;
+
+    m_model->add_new_group(new_group);
+}
+
 void StateTableView::add_to_group(){
     QAction *a = qobject_cast<QAction*>(QObject::sender());
     CreatureGroup *new_group = m_model->get_group(a->data().toInt());
@@ -558,6 +571,8 @@ void StateTableView::add_to_group(){
             new_group->add_member(d);
         }
     }
+
+    DT->get_main_window()->get_view_manager()->redraw_current_tab();
 }
 
 void StateTableView::remove_from_group(){
@@ -579,6 +594,8 @@ void StateTableView::remove_from_group(){
             old_group->remove_member(d);
         }
     }
+
+    DT->get_main_window()->get_view_manager()->redraw_current_tab();
 }
 
 
