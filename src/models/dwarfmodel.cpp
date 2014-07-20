@@ -51,7 +51,7 @@ THE SOFTWARE.
 int CreatureGroup::last_id = 1;
 
 CreatureGroup::CreatureGroup(const QString &text) :
-    label(text), m_id(last_id++)
+    m_name(text), m_id(last_id++)
 {
 }
 
@@ -153,6 +153,7 @@ Squad* DwarfModel::get_squad(int id){
 QList<CreatureGroup*> DwarfModel::active_groups(){
     return m_groups;
 }
+
 CreatureGroup* DwarfModel::get_group(int id){
     foreach (CreatureGroup* g, m_groups) {
         if (g->id() == id)
@@ -160,6 +161,12 @@ CreatureGroup* DwarfModel::get_group(int id){
     }
 
     return NULL;
+}
+
+CreatureGroup* DwarfModel::add_new_group(const QString &name){
+    CreatureGroup *g = new CreatureGroup(name);
+    m_groups.append(g);
+    return g;
 }
 
 void DwarfModel::update_header_info(int id, COLUMN_TYPE type){

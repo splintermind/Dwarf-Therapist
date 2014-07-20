@@ -44,12 +44,12 @@ public:
     bool has_member(Dwarf *d);
     int type() const {return QStandardItem::UserType + 1;}
     int id() const { return m_id; }
-    const QString& name() const { return label; }
+    const QString& name() const { return m_name; }
 private:
     static int last_id;
 
     QList<int> m_member_ids;
-    QString label;
+    QString m_name;
     QIcon icon;
     int m_id;
 };
@@ -135,6 +135,7 @@ public:
 
     QList<CreatureGroup *> active_groups();
     CreatureGroup* get_group(int id);
+    CreatureGroup* add_new_group(const QString &name);
 
     int total_row_count;
     bool clearing_data;
