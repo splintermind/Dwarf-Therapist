@@ -125,6 +125,8 @@ StateTableView::StateTableView(QWidget *parent)
 
     squads_menu = new QMenu(m);
     m_unassign_squad = new QAction(QIcon(QString::fromUtf8(":/img/minus-circle.png")),"",m);
+    groups_menu = new QMenu(m);
+    m_unassign_group = new QAction(QIcon(QString::fromUtf8(":/img/minus-circle.png")), "", m);
     m->addSeparator();
     debug_menu = new QMenu(m);
     debug_menu->setTitle(tr("Memory Tools"));
@@ -252,8 +254,33 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
 
         //remove any dynamically changed menus
         m->removeAction(squads_menu->menuAction());
+        m->removeAction(groups_menu->menuAction());
         m->removeAction(debug_menu->menuAction());
         m->removeAction(m_unassign_squad);
+        m->removeAction(m_unassign_group);
+
+        if (!m_model->active_groups().empty()) {
+            groups_menu->setEnabled(true);
+            groups_menu->setTitle(tr("Custom Groups..."));
+            groups_menu->clear();
+
+            foreach (CreatureGroup* g, m_model->active_groups()){
+                QAction *add;
+                if (!g->has_member(d)) {
+                    add = groups_menu->addAction(tr("Add to %1").arg(g->name()), this, SLOT(add_to_group()));
+                } else {
+                    add = groups_menu->addAction(tr("Remove from %1").arg(g->name()), this, SLOT(remove_from_group()));
+                }
+                add->setEnabled(true);
+                add->setData(g->id());
+            }
+        } else {
+            groups_menu->setTitle(tr("No custom groups"));
+            groups_menu->setEnabled(false);
+            groups_menu->clear();
+        }
+
+        m->addMenu(groups_menu);
 
         if(!d->is_animal()){
 
@@ -512,6 +539,49 @@ void StateTableView::set_squad_name(){
         }
     }
 }
+
+void StateTableView::add_to_group(){
+    QAction *a = qobject_cast<QAction*>(QObject::sender());
+    CreatureGroup *new_group = m_model->get_group(a->data().toInt());
+    if (new_group == 0) {
+        return;
+    }
+
+    int id = -1;
+    const QItemSelection sel = selectionModel()->selection();
+    if (sel.count() <= 0)
+        return;
+
+    foreach (QModelIndex i, sel.indexes()) {
+        if (i.column() == 0 && !i.data(DwarfModel::DR_IS_AGGREGATE).toBool()) {
+            id = i.data(DwarfModel::DR_ID).toInt();
+            Dwarf *d = m_model->get_dwarf_by_id(id);
+            new_group->add_member(d);
+        }
+    }
+}
+
+void StateTableView::remove_from_group(){
+    QAction *a = qobject_cast<QAction*>(QObject::sender());
+    CreatureGroup *old_group = m_model->get_group(a->data().toInt());
+    if (old_group == 0) {
+        return;
+    }
+
+    int id = -1;
+    const QItemSelection sel = selectionModel()->selection();
+    if (sel.count() <= 0)
+        return;
+
+    foreach (QModelIndex i, sel.indexes()) {
+        if (i.column() == 0 && !i.data(DwarfModel::DR_IS_AGGREGATE).toBool()) {
+            id = i.data(DwarfModel::DR_ID).toInt();
+            Dwarf *d = m_model->get_dwarf_by_id(id);
+            old_group->remove_member(d);
+        }
+    }
+}
+
 
 void StateTableView::assign_to_squad(){
     QAction *a = qobject_cast<QAction*>(QObject::sender());
