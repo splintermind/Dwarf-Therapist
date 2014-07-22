@@ -169,6 +169,10 @@ CreatureGroup* DwarfModel::add_new_group(const QString &name){
     return g;
 }
 
+void DwarfModel::delete_group(int id){
+    m_groups.removeAll(get_group(id));
+}
+
 void DwarfModel::update_header_info(int id, COLUMN_TYPE type){
     int index = 0;
     QSettings *s = DT->user_settings();

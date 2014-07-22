@@ -124,6 +124,7 @@ private:
     QMenu *custom_prof_menu;
     QMenu *squads_menu;
     QMenu *groups_menu;
+    QMenu *remove_groups_menu;
     QMenu *debug_menu;
 
     QAction *m_prof_name;
@@ -152,6 +153,7 @@ private:
         void remove_squad();
         void add_to_group();
         void add_custom_group();
+        void remove_custom_group();
         void remove_from_group();
         void vscroll_value_changed(int value);
         void hscroll_value_changed(int value);
