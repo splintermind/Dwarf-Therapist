@@ -156,7 +156,7 @@ void DwarfTherapist::load_translator() {
 }
 
 void DwarfTherapist::read_settings() {
-    LOGI << "beginning to read settings";
+    LOGI << "beginning to read settings from " << m_user_settings->fileName();
     m_reading_settings = true; // don't allow writes while we're reading...
 
     // HACK!
@@ -241,6 +241,8 @@ void DwarfTherapist::write_settings() {
 
         m_user_settings->endGroup();
     }
+
+    save_custom_groups();
 }
 void DwarfTherapist::save_custom_prof(CustomProfession *cp){
     QString key = cp->get_save_name();
@@ -266,6 +268,14 @@ void DwarfTherapist::save_custom_prof(CustomProfession *cp){
     m_user_settings->endGroup();
 }
 
+void DwarfTherapist::save_custom_groups() {
+    m_user_settings->beginGroup("custom_groups");
+    m_user_settings->remove("");
+    foreach (CreatureGroup *g, m_main_window->get_model()->active_groups()) {
+        m_user_settings->setValue(g->name(), g->id());
+    }
+    m_user_settings->endGroup();
+}
 
 /* PROFESSIONS */
 void DwarfTherapist::import_existing_professions() {
