@@ -28,8 +28,15 @@ THE SOFTWARE.
 int CustomGroup::last_id = 1;
 
 CustomGroup::CustomGroup(const QString &text, int id) :
-    m_name(text), m_id(id ? id : last_id++)
+    m_name(text)
 {
+    if (id) {
+        m_id = id;
+        if (id >= last_id)
+            last_id = id+1;
+    } else {
+        m_id = last_id++;
+    }
 }
 
 void CustomGroup::add_member(Dwarf *d){
