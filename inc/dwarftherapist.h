@@ -37,6 +37,7 @@ class QListWidgetItem;
 class OptionsMenu;
 class QSettings;
 class CustomProfession;
+class CustomGroup;
 class Dwarf;
 class Word;
 class LogManager;
@@ -51,6 +52,11 @@ public:
     CustomProfession *get_custom_profession(QString name);
     CustomProfession *get_custom_prof_icon(int prof_id) {return m_custom_prof_icns.value(prof_id);}
     QMap<int, CustomProfession*> &get_custom_prof_icons() {return m_custom_prof_icns;}
+
+    QList<CustomGroup *> get_custom_groups();
+    CustomGroup *get_custom_group(int id);
+    CustomGroup *add_custom_group(const QString &name, int id = 0);
+    void delete_custom_group(int id);
 
     MainWindow *get_main_window() {return m_main_window;}
 
@@ -95,6 +101,7 @@ private:
     QVector<Word *> m_language;
     QVector<CustomProfession*> m_custom_professions;
     QMap<int, CustomProfession*> m_custom_prof_icns;
+    QList<CustomGroup *> m_custom_groups;
     QSettings *m_user_settings;
     MainWindow *m_main_window;
     OptionsMenu *m_options_menu;
