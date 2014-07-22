@@ -54,7 +54,7 @@ public:
 
     QList<CustomGroup *> get_custom_groups();
     CustomGroup *get_custom_group(int id);
-    CustomGroup *add_custom_group(const QString &name, int id = 0);
+    CustomGroup *add_custom_group(const QString &name, int id = 0, bool save_settings = true);
     void delete_custom_group(int id);
 
     MainWindow *get_main_window() {return m_main_window;}

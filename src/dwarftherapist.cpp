@@ -215,7 +215,7 @@ void DwarfTherapist::read_settings() {
         QStringList group_names = m_user_settings->childKeys();
         foreach (QString name, group_names) {
             int id = m_user_settings->value(name).toInt();
-            CustomGroup *g = DT->add_custom_group(name, id);
+            DT->add_custom_group(name, id, false); // don't re-save settings here; sort of gross.
         }
     }
     m_user_settings->endGroup();
@@ -286,6 +286,24 @@ void DwarfTherapist::save_custom_groups() {
         m_user_settings->setValue(g->name(), g->id());
     }
     m_user_settings->endGroup();
+
+    m_user_settings->beginGroup("custom_group_assignments");
+    m_user_settings->remove("");
+    m_user_settings->beginWriteArray(get_DFInstance()->fortress_unique_identifier());
+    int i = 0;
+    foreach (CustomGroup *g, m_custom_groups) {
+        const QList<int> &members = g->members();
+        m_user_settings->setArrayIndex(i++);
+        m_user_settings->beginWriteArray(QString::number(g->id()), g->members().length());
+        int j = 0;
+        foreach (int id, members) {
+            m_user_settings->setArrayIndex(j++);
+            m_user_settings->setValue(QString::number(id), id);
+        }
+        m_user_settings->endArray(); // list of ids in the group
+    }
+    m_user_settings->endArray(); // fortress_name
+    m_user_settings->endGroup(); // custom_group_assignments
 }
 
 /* PROFESSIONS */
@@ -530,10 +548,11 @@ CustomGroup* DwarfTherapist::get_custom_group(int id){
     return NULL;
 }
 
-CustomGroup* DwarfTherapist::add_custom_group(const QString &name, int id) {
+CustomGroup* DwarfTherapist::add_custom_group(const QString &name, int id, bool save_settings) {
     CustomGroup *g = new CustomGroup(name, id);
     m_custom_groups.append(g);
-    write_settings();
+    if (save_settings)
+        write_settings();
     return g;
 }
 
