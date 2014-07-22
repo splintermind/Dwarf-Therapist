@@ -576,7 +576,7 @@ void StateTableView::add_to_group(){
             new_group->add_member(d);
         }
     }
-
+    DT->write_settings();
     DT->get_main_window()->get_view_manager()->redraw_current_tab();
 }
 
