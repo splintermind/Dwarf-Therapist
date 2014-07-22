@@ -209,6 +209,16 @@ void DwarfTherapist::read_settings() {
     }
     m_user_settings->endGroup();
 
+    m_user_settings->beginGroup("custom_groups");
+    {
+        QStringList group_names = m_user_settings->childKeys();
+        foreach (QString name, group_names) {
+            int id = m_user_settings->value(name).toInt();
+            CreatureGroup *g = m_main_window->get_model()->add_new_group(name, id);
+        }
+    }
+    m_user_settings->endGroup();
+
     m_allow_labor_cheats = m_user_settings->value("options/allow_labor_cheats", false).toBool();
     m_hide_non_adults = m_user_settings->value("options/hide_children_and_babies",false).toBool();
 

@@ -36,7 +36,7 @@ class ViewColumn;
 
 class CreatureGroup {
 public:
-    CreatureGroup(const QString &text);
+    CreatureGroup(const QString &text, int id = 0);
 
     QList<QStandardItem*> build_row();
     void add_member(Dwarf *d);
@@ -135,7 +135,7 @@ public:
 
     QList<CreatureGroup *> active_groups();
     CreatureGroup* get_group(int id);
-    CreatureGroup* add_new_group(const QString &name);
+    CreatureGroup* add_new_group(const QString &name, int id = 0);
     void delete_group(int id);
 
     int total_row_count;

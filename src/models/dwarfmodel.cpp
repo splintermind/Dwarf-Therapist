@@ -50,8 +50,8 @@ THE SOFTWARE.
 
 int CreatureGroup::last_id = 1;
 
-CreatureGroup::CreatureGroup(const QString &text) :
-    m_name(text), m_id(last_id++)
+CreatureGroup::CreatureGroup(const QString &text, int id) :
+    m_name(text), m_id(id ? id : last_id++)
 {
 }
 
@@ -85,10 +85,6 @@ DwarfModel::DwarfModel(QObject *parent)
 {
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
     read_settings();
-
-    m_groups.append(new CreatureGroup(tr("Group 1")));
-    m_groups.append(new CreatureGroup(tr("Group B")));
-    m_groups.append(new CreatureGroup(tr("Group iii")));
 }
 
 DwarfModel::~DwarfModel() {
@@ -163,7 +159,7 @@ CreatureGroup* DwarfModel::get_group(int id){
     return NULL;
 }
 
-CreatureGroup* DwarfModel::add_new_group(const QString &name){
+CreatureGroup* DwarfModel::add_new_group(const QString &name, int id){
     CreatureGroup *g = new CreatureGroup(name);
     m_groups.append(g);
     return g;
