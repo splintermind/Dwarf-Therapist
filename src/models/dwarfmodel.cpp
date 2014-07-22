@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "dwarftherapist.h"
 #include "defaultfonts.h"
 
+#include "customgroup.h"
 #include "columntypes.h"
 #include "gridview.h"
 #include "viewcolumnset.h"
@@ -47,32 +48,6 @@ THE SOFTWARE.
 #include "gamedatareader.h"
 #include "dwarfjob.h"
 #include "unithealth.h"
-
-int CreatureGroup::last_id = 1;
-
-CreatureGroup::CreatureGroup(const QString &text, int id) :
-    m_name(text), m_id(id ? id : last_id++)
-{
-}
-
-QList<QStandardItem*> CreatureGroup::build_row(){
-    return QList<QStandardItem*>();
-}
-
-void CreatureGroup::add_member(Dwarf *d){
-    if (m_member_ids.indexOf(d->id()) != -1) {
-        return;
-    }
-    m_member_ids.append(d->id());
-}
-
-void CreatureGroup::remove_member(Dwarf *d){
-    m_member_ids.removeAll(d->id());
-}
-
-bool CreatureGroup::has_member(Dwarf *d){
-    return m_member_ids.indexOf(d->id()) != -1;
-}
 
 DwarfModel::DwarfModel(QObject *parent)
     : QStandardItemModel(parent)
@@ -144,29 +119,6 @@ QList<Squad*> DwarfModel::active_squads(){
 }
 Squad* DwarfModel::get_squad(int id){
     return m_df->get_squad(id);
-}
-
-QList<CreatureGroup*> DwarfModel::active_groups(){
-    return m_groups;
-}
-
-CreatureGroup* DwarfModel::get_group(int id){
-    foreach (CreatureGroup* g, m_groups) {
-        if (g->id() == id)
-            return g;
-    }
-
-    return NULL;
-}
-
-CreatureGroup* DwarfModel::add_new_group(const QString &name, int id){
-    CreatureGroup *g = new CreatureGroup(name);
-    m_groups.append(g);
-    return g;
-}
-
-void DwarfModel::delete_group(int id){
-    m_groups.removeAll(get_group(id));
 }
 
 void DwarfModel::update_header_info(int id, COLUMN_TYPE type){
@@ -402,7 +354,7 @@ void DwarfModel::build_rows() {
 =======
                 } else if(m_group_by == GB_CUSTOM_GROUP){
                     bool is_grouped = false;
-                    foreach (CreatureGroup *g, m_groups) {
+                    foreach (CustomGroup *g, DT->get_custom_groups()) {
                         if (g->has_member(d)) {
                             m_grouped_dwarves[g->name()].append(d);
                             is_grouped = true;

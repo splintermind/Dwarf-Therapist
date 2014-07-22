@@ -34,26 +34,6 @@ class GridView;
 class Squad;
 class ViewColumn;
 
-class CreatureGroup {
-public:
-    CreatureGroup(const QString &text, int id = 0);
-
-    QList<QStandardItem*> build_row();
-    void add_member(Dwarf *d);
-    void remove_member(Dwarf *d);
-    bool has_member(Dwarf *d);
-    int type() const {return QStandardItem::UserType + 1;}
-    int id() const { return m_id; }
-    const QString& name() const { return m_name; }
-private:
-    static int last_id;
-
-    QList<int> m_member_ids;
-    QString m_name;
-    QIcon icon;
-    int m_id;
-};
-
 class DwarfModel : public QStandardItemModel {
     Q_OBJECT
 public:
@@ -133,11 +113,6 @@ public:
     QList<Squad *> active_squads();
     Squad* get_squad(int id);
 
-    QList<CreatureGroup *> active_groups();
-    CreatureGroup* get_group(int id);
-    CreatureGroup* add_new_group(const QString &name, int id = 0);
-    void delete_group(int id);
-
     int total_row_count;
     bool clearing_data;
 
@@ -167,7 +142,6 @@ private:
     GridView *m_gridview;
     QFont m_font;
     QChar m_symbol;
-    QList<CreatureGroup *> m_groups;
 
 //    int m_global_sort_col;
 //    QString m_global_sort_view;

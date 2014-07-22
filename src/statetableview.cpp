@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include "happinesscolumn.h"
 #include "dwarftherapist.h"
 #include "customprofession.h"
+#include "customgroup.h"
 #include "viewmanager.h"
 #include "squad.h"
 #include "gamedatareader.h"
@@ -264,10 +265,10 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
         groups_menu->clear();
         remove_groups_menu = new QMenu(groups_menu);
         remove_groups_menu->setTitle("Remove Groups");
-        remove_groups_menu->setEnabled(!m_model->active_groups().empty());
+        remove_groups_menu->setEnabled(!DT->get_custom_groups().empty());
 
-        if (!m_model->active_groups().empty()) {
-            foreach (CreatureGroup* g, m_model->active_groups()){
+        if (!DT->get_custom_groups().empty()) {
+            foreach (CustomGroup* g, DT->get_custom_groups()){
                 if (!g->has_member(d)) {
                     add = groups_menu->addAction(tr("Add to %1").arg(g->name()), this, SLOT(add_to_group()));
                 } else {
@@ -554,13 +555,13 @@ void StateTableView::add_custom_group(){
     if (!ok)
         return;
 
-    m_model->add_new_group(new_group);
+    DT->add_custom_group(new_group);
     DT->write_settings();
 }
 
 void StateTableView::add_to_group(){
     QAction *a = qobject_cast<QAction*>(QObject::sender());
-    CreatureGroup *new_group = m_model->get_group(a->data().toInt());
+    CustomGroup *new_group = DT->get_custom_group(a->data().toInt());
     if (new_group == 0) {
         return;
     }
@@ -583,7 +584,7 @@ void StateTableView::add_to_group(){
 
 void StateTableView::remove_from_group(){
     QAction *a = qobject_cast<QAction*>(QObject::sender());
-    CreatureGroup *old_group = m_model->get_group(a->data().toInt());
+    CustomGroup *old_group = DT->get_custom_group(a->data().toInt());
     if (old_group == 0) {
         return;
     }
@@ -606,7 +607,7 @@ void StateTableView::remove_from_group(){
 
 void StateTableView::remove_custom_group(){
     QAction *a = qobject_cast<QAction*>(QObject::sender());
-    m_model->delete_group(a->data().toInt());
+    DT->delete_custom_group(a->data().toInt());
     DT->write_settings();
     DT->get_main_window()->get_view_manager()->redraw_current_tab();
 }

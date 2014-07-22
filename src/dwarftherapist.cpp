@@ -27,6 +27,7 @@ THE SOFTWARE.
 #include "optionsmenu.h"
 #include "version.h"
 #include "customprofession.h"
+#include "customgroup.h"
 #include "dwarfmodel.h"
 #include "dwarfmodelproxy.h"
 #include "dwarf.h"
@@ -214,7 +215,7 @@ void DwarfTherapist::read_settings() {
         QStringList group_names = m_user_settings->childKeys();
         foreach (QString name, group_names) {
             int id = m_user_settings->value(name).toInt();
-            CreatureGroup *g = m_main_window->get_model()->add_new_group(name, id);
+            CustomGroup *g = DT->add_custom_group(name, id);
         }
     }
     m_user_settings->endGroup();
@@ -281,7 +282,7 @@ void DwarfTherapist::save_custom_prof(CustomProfession *cp){
 void DwarfTherapist::save_custom_groups() {
     m_user_settings->beginGroup("custom_groups");
     m_user_settings->remove("");
-    foreach (CreatureGroup *g, m_main_window->get_model()->active_groups()) {
+    foreach (CustomGroup *g, m_custom_groups) {
         m_user_settings->setValue(g->name(), g->id());
     }
     m_user_settings->endGroup();
@@ -516,4 +517,26 @@ void DwarfTherapist::update_specific_header(int id, COLUMN_TYPE type){
         get_main_window()->get_view_manager()->redraw_specific_header(id,type);
 }
 
+QList<CustomGroup*> DwarfTherapist::get_custom_groups() {
+    return m_custom_groups;
+}
+
+CustomGroup* DwarfTherapist::get_custom_group(int id){
+    foreach (CustomGroup* g, m_custom_groups) {
+        if (g->id() == id)
+            return g;
+    }
+
+    return NULL;
+}
+
+CustomGroup* DwarfTherapist::add_custom_group(const QString &name, int id) {
+    CustomGroup *g = new CustomGroup(name, id);
+    m_custom_groups.append(g);
+    return g;
+}
+
+void DwarfTherapist::delete_custom_group(int id){
+    m_custom_groups.removeAll(get_custom_group(id));
+}
 

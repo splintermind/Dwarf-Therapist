@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 TEMPLATE = app
 TARGET = DwarfTherapist
 QT += network \
@@ -246,7 +247,8 @@ HEADERS += inc/win_structs.h \
     inc/ecdf.h \
     inc/contextmenuhelper.h \
     inc/belief.h \
-    inc/unitbelief.h
+    inc/unitbelief.h \
+    inc/customgroup.h
 SOURCES += src/viewmanager.cpp \
     src/uberdelegate.cpp \
     src/truncatingfilelogger.cpp \
@@ -330,7 +332,8 @@ SOURCES += src/viewmanager.cpp \
     src/itemweaponsubtype.cpp \
     src/ecdf.cpp \
     src/rolestats.cpp \
-    src/belief.cpp
+    src/belief.cpp \
+    src/customgroup.cpp
 FORMS += ui/scriptdialog.ui \
     ui/scannerdialog.ui \
     ui/pendingchanges.ui \
@@ -348,3 +351,4 @@ FORMS += ui/scriptdialog.ui \
     ui/roledialog.ui \
     ui/optimizereditor.ui
 RESOURCES += images.qrc
+
