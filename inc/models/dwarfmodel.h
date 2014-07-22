@@ -136,6 +136,7 @@ public:
     QList<CreatureGroup *> active_groups();
     CreatureGroup* get_group(int id);
     CreatureGroup* add_new_group(const QString &name);
+    void delete_group(int id);
 
     int total_row_count;
     bool clearing_data;

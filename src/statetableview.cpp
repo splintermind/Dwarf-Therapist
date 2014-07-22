@@ -260,11 +260,13 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
         m->removeAction(m_unassign_group);
 
         QAction *add;
-        if (!m_model->active_groups().empty()) {
-            groups_menu->setEnabled(true);
-            groups_menu->setTitle(tr("Custom Groups..."));
-            groups_menu->clear();
+        groups_menu->setTitle("Custom groups...");
+        groups_menu->clear();
+        remove_groups_menu = new QMenu(groups_menu);
+        remove_groups_menu->setTitle("Remove Groups");
+        remove_groups_menu->setEnabled(!m_model->active_groups().empty());
 
+        if (!m_model->active_groups().empty()) {
             foreach (CreatureGroup* g, m_model->active_groups()){
                 if (!g->has_member(d)) {
                     add = groups_menu->addAction(tr("Add to %1").arg(g->name()), this, SLOT(add_to_group()));
@@ -273,14 +275,16 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
                 }
                 add->setEnabled(true);
                 add->setData(g->id());
-            }
-            add = groups_menu->addAction(tr("Add custom group"), this, SLOT(add_custom_group()));
-            add->setEnabled(true);
 
-        } else {
-            add = m->addAction(tr("Add custom group"), this, SLOT(add_custom_group()));
-            add->setEnabled(true);
+                add = remove_groups_menu->addAction(tr("Delete group %1").arg(g->name()), this, SLOT(remove_custom_group()));
+                add->setData(g->id());
+            }
+            groups_menu->addSeparator();
         }
+
+        add = groups_menu->addAction(tr("Add custom group"), this, SLOT(add_custom_group()));
+        add->setEnabled(true);
+        groups_menu->addMenu(remove_groups_menu);
 
         m->addMenu(groups_menu);
 
@@ -599,6 +603,11 @@ void StateTableView::remove_from_group(){
     DT->get_main_window()->get_view_manager()->redraw_current_tab();
 }
 
+void StateTableView::remove_custom_group(){
+    QAction *a = qobject_cast<QAction*>(QObject::sender());
+    m_model->delete_group(a->data().toInt());
+    DT->get_main_window()->get_view_manager()->redraw_current_tab();
+}
 
 void StateTableView::assign_to_squad(){
     QAction *a = qobject_cast<QAction*>(QObject::sender());
