@@ -554,6 +554,7 @@ void StateTableView::add_custom_group(){
         return;
 
     m_model->add_new_group(new_group);
+    DT->write_settings();
 }
 
 void StateTableView::add_to_group(){
@@ -605,6 +606,7 @@ void StateTableView::remove_from_group(){
 void StateTableView::remove_custom_group(){
     QAction *a = qobject_cast<QAction*>(QObject::sender());
     m_model->delete_group(a->data().toInt());
+    DT->write_settings();
     DT->get_main_window()->get_view_manager()->redraw_current_tab();
 }
 

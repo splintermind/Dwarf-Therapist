@@ -82,7 +82,8 @@ public:
         void add_custom_profession();
         void add_custom_profession(CustomProfession *cp);
         void read_settings();
-        void write_settings();        
+        void write_settings();
+        void save_custom_groups();
         void import_existing_professions();
         void edit_custom_profession();
         void edit_custom_profession(QTreeWidgetItem *);
