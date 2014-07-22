@@ -532,10 +532,13 @@ CustomGroup* DwarfTherapist::get_custom_group(int id){
 CustomGroup* DwarfTherapist::add_custom_group(const QString &name, int id) {
     CustomGroup *g = new CustomGroup(name, id);
     m_custom_groups.append(g);
+    write_settings();
     return g;
 }
 
 void DwarfTherapist::delete_custom_group(int id){
     m_custom_groups.removeAll(get_custom_group(id));
+    write_settings();
+    m_main_window->get_view_manager()->redraw_current_tab();
 }
 
