@@ -209,16 +209,6 @@ void DwarfTherapist::read_settings() {
     }
     m_user_settings->endGroup();
 
-    m_user_settings->beginGroup("custom_groups");
-    {
-        QStringList group_names = m_user_settings->childKeys();
-        foreach (QString name, group_names) {
-            int id = m_user_settings->value(name).toInt();
-            DT->add_custom_group(name, id, false); // don't re-save settings here; sort of gross.
-        }
-    }
-    m_user_settings->endGroup();
-
     m_allow_labor_cheats = m_user_settings->value("options/allow_labor_cheats", false).toBool();
     m_hide_non_adults = m_user_settings->value("options/hide_children_and_babies",false).toBool();
 
@@ -233,6 +223,11 @@ void DwarfTherapist::read_settings() {
     DwarfStats::set_att_potential_weight(DT->user_settings()->value("options/default_attribute_potential_weight",0.5f).toFloat());
     DwarfStats::set_skill_rate_weight(DT->user_settings()->value("options/default_skill_rate_weight",0.25f).toFloat());
     LOGI << "finished reading settings";
+}
+
+void DwarfTherapist::on_connect() {
+    load_custom_groups();
+    m_main_window->get_view_manager()->redraw_current_tab();
 }
 
 void DwarfTherapist::write_settings() {
@@ -278,31 +273,79 @@ void DwarfTherapist::save_custom_prof(CustomProfession *cp){
     m_user_settings->endGroup();
 }
 
+/*
+ * All Groups/1/name=Group1
+ * All Groups/2/name=Group2
+ * All Groups/size=2
+ * MyFort/1/name=Group1
+ * MyFort/1/members=15000,17463,15663,19884
+ * MyFort/2/name=Group2
+ * MyFort/2/members=17847,15663
+ * OtherFort/1/name=Group2
+ * OtherFort/1/members=77875,15000,19888
+ */
 void DwarfTherapist::save_custom_groups() {
     m_user_settings->beginGroup("custom_groups");
-    m_user_settings->remove("");
-    foreach (CustomGroup *g, m_custom_groups) {
-        m_user_settings->setValue(g->name(), g->id());
-    }
-    m_user_settings->endGroup();
-
-    m_user_settings->beginGroup("custom_group_assignments");
-    m_user_settings->remove("");
-    m_user_settings->beginWriteArray(get_DFInstance()->fortress_unique_identifier());
     int i = 0;
+    m_user_settings->remove("All Groups");
+    m_user_settings->beginWriteArray("All Groups", m_custom_groups.length());
     foreach (CustomGroup *g, m_custom_groups) {
-        const QList<int> &members = g->members();
         m_user_settings->setArrayIndex(i++);
-        m_user_settings->beginWriteArray(QString::number(g->id()), g->members().length());
-        int j = 0;
-        foreach (int id, members) {
-            m_user_settings->setArrayIndex(j++);
-            m_user_settings->setValue(QString::number(id), id);
-        }
-        m_user_settings->endArray(); // list of ids in the group
+        m_user_settings->setValue("name", g->name());
     }
-    m_user_settings->endArray(); // fortress_name
-    m_user_settings->endGroup(); // custom_group_assignments
+    m_user_settings->endArray(); // "All Groups"
+
+    const QString &fortid = get_DFInstance()->fortress_unique_identifier();
+    m_user_settings->beginWriteArray(fortid, m_custom_groups.length());
+    i = 0;
+    foreach (CustomGroup *g, m_custom_groups) {
+        m_user_settings->setArrayIndex(i++);
+        m_user_settings->setValue("name", g->name());
+        QString memberstring = "";
+        foreach (int id, g->members()) {
+            memberstring += QString::number(id);
+            memberstring += ",";
+        }
+        m_user_settings->setValue("members", memberstring);
+    }
+    m_user_settings->endArray(); // fortid
+
+    m_user_settings->endGroup(); // custom_groups
+}
+
+void DwarfTherapist::load_custom_groups() {
+    m_user_settings->beginGroup("custom_groups");
+    int i;
+    int count = m_user_settings->beginReadArray("All Groups");
+    for (i = 0; i < count; i++) {
+        m_user_settings->setArrayIndex(i);
+        add_custom_group(m_user_settings->value("name").toString(), 0, false);
+    }
+    m_user_settings->endArray(); // "All Groups"
+
+    const QString &fortid = get_DFInstance()->fortress_unique_identifier();
+    count = m_user_settings->beginReadArray(fortid);
+    for (i = 0; i < count; i++) {
+        m_user_settings->setArrayIndex(i);
+        const QString &name = m_user_settings->value("name").toString();
+        CustomGroup *g = get_custom_group(name);
+        if (!g) // has been deleted when connected to a different fort
+            continue;
+        const QString &memberstring = m_user_settings->value("members").toString();
+        const QStringList memberstrings = memberstring.split(',', QString::SkipEmptyParts);
+        foreach (const QString &member, memberstrings) {
+            int id = member.toInt();
+            Dwarf *d = get_dwarf_by_id(id);
+            if (!d) {
+                LOGI << "no dwarf with id " << id << " (" << member << ")";
+                continue;
+            }
+            g->add_member(d);
+        }
+        LOGI << "adding group " << name << ": " << memberstring;
+    }
+    m_user_settings->endArray(); // fortid
+    m_user_settings->endGroup(); // "custom_groups"
 }
 
 /* PROFESSIONS */
@@ -541,6 +584,15 @@ QList<CustomGroup*> DwarfTherapist::get_custom_groups() {
 CustomGroup* DwarfTherapist::get_custom_group(int id){
     foreach (CustomGroup* g, m_custom_groups) {
         if (g->id() == id)
+            return g;
+    }
+
+    return NULL;
+}
+
+CustomGroup* DwarfTherapist::get_custom_group(const QString &name) {
+    foreach (CustomGroup *g, m_custom_groups) {
+        if (g->name() == name)
             return g;
     }
 
