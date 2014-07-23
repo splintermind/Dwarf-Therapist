@@ -365,6 +365,7 @@ void MainWindow::connect_to_df() {
             if (DT->user_settings()->value("options/read_on_startup", true).toBool()) {
                 read_dwarves();
             }
+            DT->on_connect();
         }
         if(m_df)
             this->setWindowTitle(QString("%1 %2").arg(tr("Dwarf Therapist - ")).arg(m_df->fortress_name()));

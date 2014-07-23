@@ -54,6 +54,7 @@ public:
 
     QList<CustomGroup *> get_custom_groups();
     CustomGroup *get_custom_group(int id);
+    CustomGroup *get_custom_group(const QString &name);
     CustomGroup *add_custom_group(const QString &name, int id = 0, bool save_settings = true);
     void delete_custom_group(int id);
 
@@ -73,6 +74,7 @@ public:
     bool hide_non_adults() {return m_hide_non_adults;}
     LogManager *get_log_manager() {return m_log_mgr;}
     DFInstance *get_DFInstance() {return m_main_window->get_DFInstance();}
+    void on_connect();
 
     bool multiple_castes;
     bool show_skill_learn_rates;    
@@ -89,6 +91,7 @@ public:
         void read_settings();
         void write_settings();
         void save_custom_groups();
+        void load_custom_groups();
         void import_existing_professions();
         void edit_custom_profession();
         void edit_custom_profession(QTreeWidgetItem *);
