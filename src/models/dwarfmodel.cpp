@@ -47,6 +47,7 @@ THE SOFTWARE.
 #include "gamedatareader.h"
 #include "dwarfjob.h"
 #include "unithealth.h"
+#include "customprofession.h"
 
 DwarfModel::DwarfModel(QObject *parent)
     : QStandardItemModel(parent)
@@ -667,7 +668,7 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
     }
 
     COLUMN_TYPE type = static_cast<COLUMN_TYPE>(idx.data(DwarfModel::DR_COL_TYPE).toInt());
-    if (type != CT_LABOR && type != CT_FLAGS && type != CT_ROLE)
+    if (type != CT_LABOR && type != CT_FLAGS && type != CT_ROLE && type != CT_SUPER_LABOR)
         return;
 
     Q_ASSERT(item);
@@ -713,20 +714,37 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
             m_dwarves[dwarf_id]->toggle_labor(labor_id);
         else if (type == CT_FLAGS)
             m_dwarves[dwarf_id]->toggle_flag_bit(labor_id);
-        else if (type == CT_ROLE){
-            QVariantList labors = item->data(DwarfModel::DR_SPECIAL_FLAG).toList();
-            int limit = ceil((double)labors.count() / 2.0f);
-            int enabled = 0;
+        else if (type == CT_ROLE || type == CT_SUPER_LABOR){
             Dwarf *d  = m_dwarves[dwarf_id];
-            bool enabling = true;
-            foreach(QVariant id, labors){
-                if(d->labor_enabled(id.toInt()))
-                    enabled++;
+            bool cp_applied = false;
+            if(type == CT_SUPER_LABOR){
+                QString new_prof_name = idx.data(DwarfModel::DR_LABOR_ID).toString();
+                if(!new_prof_name.isEmpty()){
+                    CustomProfession *cp = DT->get_custom_profession(new_prof_name);
+                    if(cp){
+                        if(d->custom_profession_name() == cp->get_name()){
+                            d->reset_custom_profession(true);
+                        }else{
+                            d->apply_custom_profession(cp);
+                        }
+                        cp_applied = true;
+                    }
+                }
             }
-            if((enabled < limit && enabled > 0) || enabled == labors.count())
-                enabling = false;
-            foreach(QVariant id, labors){
-                d->set_labor(id.toInt(),enabling,false);
+            if(!cp_applied){
+                QVariantList labors = item->data(DwarfModel::DR_SPECIAL_FLAG).toList();
+                int limit = ceil((double)labors.count() / 2.0f);
+                int enabled = 0;
+                bool enabling = true;
+                foreach(QVariant id, labors){
+                    if(d->labor_enabled(id.toInt()))
+                        enabled++;
+                }
+                if((enabled < limit && enabled > 0) || enabled == labors.count())
+                    enabling = false;
+                foreach(QVariant id, labors){
+                    d->set_labor(id.toInt(),enabling,false);
+                }
             }
         }
     }

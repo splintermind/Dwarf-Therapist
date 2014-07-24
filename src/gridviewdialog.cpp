@@ -41,6 +41,7 @@ THE SOFTWARE.
 #include "trainedcolumn.h"
 #include "healthcolumn.h"
 #include "equipmentcolumn.h"
+#include "superlaborcolumn.h"
 
 #include "defines.h"
 #include "statetableview.h"
@@ -54,6 +55,7 @@ THE SOFTWARE.
 #include "attribute.h"
 #include "unithealth.h"
 #include "healthcategory.h"
+#include "superlabor.h"
 
 GridViewDialog::GridViewDialog(ViewManager *mgr, GridView *view, QWidget *parent)
     : QDialog(parent)
@@ -451,6 +453,15 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
     a = m->addAction("Spacer", this, SLOT(add_spacer_column()));
     a->setToolTip(tr("Adds a non-selectable spacer to this set. You can set a custom width and color on spacer columns."));
 
+    //SUPER LABOURS
+    QMenu *m_super_labors = m_cmh->create_title_menu(m,tr("Super Labor Column"),tr("Columns which toggle multiple labors at a time."));
+    m_cmh->add_sub_menus(m_super_labors,2);
+    foreach(SuperLabor *sl, DT->get_super_labors()) {
+        QMenu *menu_to_use = m_cmh->find_menu(m_super_labors,sl->get_name());
+        QAction *a = menu_to_use->addAction(sl->get_name(), this, SLOT(add_super_labor_column()));
+        a->setData(sl->get_name());
+    }
+
     //TRAINED (animals)
     a = m->addAction("Trained Level", this, SLOT(add_trained_column()));
     a->setToolTip(tr("Adds a column showing the trained level of an animal."));
@@ -522,6 +533,7 @@ void GridViewDialog::add_equipment_column(){
     }
     draw_columns_for_set(m_active_set);
 }
+
 void GridViewDialog::add_happiness_column() {
     if (!m_active_set)
         return;
@@ -547,6 +559,20 @@ void GridViewDialog::add_labor_column() {
         return;
     }
     new LaborColumn(l->name, l->labor_id, l->skill_id, m_active_set, m_active_set);
+    draw_columns_for_set(m_active_set);
+}
+
+void GridViewDialog::add_super_labor_column() {
+    if (!m_active_set)
+        return;
+    QAction *a = qobject_cast<QAction*>(QObject::sender());
+    QString name = a->data().toString();
+    SuperLabor *sl = DT->get_super_labor(name);
+    if (!sl) {
+        LOGE << tr("Failed to find super labor %1!").arg(name);
+        return;
+    }
+    new SuperLaborColumn(name,name,m_active_set,m_active_set);
     draw_columns_for_set(m_active_set);
 }
 

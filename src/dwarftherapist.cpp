@@ -27,6 +27,7 @@ THE SOFTWARE.
 #include "optionsmenu.h"
 #include "version.h"
 #include "customprofession.h"
+#include "superlabor.h"
 #include "dwarfmodel.h"
 #include "dwarfmodelproxy.h"
 #include "dwarf.h"
@@ -178,6 +179,10 @@ void DwarfTherapist::read_settings() {
         cp->deleteLater();
     }
     m_custom_professions.clear();
+    foreach(SuperLabor *sl, m_super_labors) {
+        sl->deleteLater();
+    }
+    m_super_labors.clear();
 
     m_user_settings->beginGroup("custom_professions");
     {
@@ -205,6 +210,21 @@ void DwarfTherapist::read_settings() {
                 m_custom_prof_icns.insert(cp->prof_id(), cp); //either it's a profession icon override
             else
                 m_custom_professions << cp; //or it's an actual custom profession
+
+            //add an automatic superlabor for the custom profession
+            m_super_labors.insert(cp->get_name(), new SuperLabor(cp,this));
+        }
+    }
+    m_user_settings->endGroup();
+
+    //read in the custom superlabors
+    m_user_settings->beginGroup("super_labors");
+    {
+        foreach(QString sl_name, m_user_settings->childGroups()) {
+            m_user_settings->beginGroup(sl_name);
+            SuperLabor *sl = new SuperLabor(*m_user_settings,this);
+            m_super_labors.insert(sl->get_name(),sl);
+            m_user_settings->endGroup();
         }
     }
     m_user_settings->endGroup();

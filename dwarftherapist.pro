@@ -246,7 +246,9 @@ HEADERS += inc/win_structs.h \
     inc/ecdf.h \
     inc/contextmenuhelper.h \
     inc/belief.h \
-    inc/unitbelief.h
+    inc/unitbelief.h \
+    inc/superlabor.h \
+    inc/grid_view/superlaborcolumn.h
 SOURCES += src/viewmanager.cpp \
     src/uberdelegate.cpp \
     src/truncatingfilelogger.cpp \
@@ -330,7 +332,8 @@ SOURCES += src/viewmanager.cpp \
     src/itemweaponsubtype.cpp \
     src/ecdf.cpp \
     src/rolestats.cpp \
-    src/belief.cpp
+    src/belief.cpp \
+    src/grid_view/superlaborcolumn.cpp
 FORMS += ui/scriptdialog.ui \
     ui/scannerdialog.ui \
     ui/pendingchanges.ui \

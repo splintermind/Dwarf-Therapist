@@ -1272,8 +1272,6 @@ void Dwarf::read_soul_aspects() {
 }
 
 
-/******* OTHER CRAP*/
-
 QString Dwarf::profession() {
     if (!m_pending_custom_profession.isEmpty())
         return m_pending_custom_profession;
@@ -1286,8 +1284,6 @@ bool Dwarf::active_military() {
     Profession *p = GameDataReader::ptr()->get_profession(m_raw_profession);
     return p && p->is_military();
 }
-
-
 
 DWARF_HAPPINESS Dwarf::happiness_from_score(int score) {
     if (score < 1)
@@ -1899,6 +1895,11 @@ bool Dwarf::is_labor_state_dirty(int labor_id) {
     return m_labors[labor_id] != m_pending_labors[labor_id];
 }
 
+bool Dwarf::is_custom_profession_dirty(QString name){
+    return ((name == m_pending_custom_profession || name == m_custom_profession) &&
+            m_pending_custom_profession != m_custom_profession);
+}
+
 QVector<int> Dwarf::get_dirty_labors() {
     QVector<int> labors;
     Q_ASSERT(m_labors.size() == m_pending_labors.size());
@@ -2130,18 +2131,31 @@ void Dwarf::set_custom_profession_text(const QString &prof_text) {
     m_pending_custom_profession = prof_text;
 }
 
-int Dwarf::apply_custom_profession(CustomProfession *cp) {
-    foreach(int labor_id, m_pending_labors.uniqueKeys()) {
-        //only turn off all labours if it's NOT a mask
-        if(!cp->is_mask())
+void Dwarf::apply_custom_profession(CustomProfession *cp) {
+    //clear all labors if the custom profession is not being applied as a mask
+    if(!cp->is_mask()){
+        foreach(int labor_id, m_pending_labors.uniqueKeys()) {
             set_labor(labor_id, false,false);
+        }
     }
+    //enable the custom profession's labors
     foreach(int labor_id, cp->get_enabled_labors()) {
-        set_labor(labor_id, true,false); // only turn on what this prof has enabled...
+        set_labor(labor_id, true,false);
     }
     m_pending_custom_profession = cp->get_name();
+}
 
-    return get_dirty_labors().size();
+void Dwarf::reset_custom_profession(bool reset_labors){
+    CustomProfession *cp = DT->get_custom_profession(m_pending_custom_profession);
+    if(cp){
+        if(reset_labors && !cp->is_mask()){
+            m_pending_labors = m_labors;
+        }
+        foreach(int labor_id, cp->get_enabled_labors()){
+            set_labor(labor_id,false,false);
+        }
+    }
+     m_pending_custom_profession = "";
 }
 
 QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
@@ -2151,14 +2165,14 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
     d_item->setData(0, Qt::UserRole, id());
     if (m_caged != m_unit_flags.at(0)) {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
-        i->setText(0, tr("Caged change to %1").arg(hexify(m_caged)));
+        i->setText(0, tr("Caged changed to %1").arg(hexify(m_caged)));
         i->setIcon(0, QIcon(":img/book_edit.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
     }
     if (m_butcher != m_unit_flags.at(1)) {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
-        i->setText(0, tr("Butcher change to %1").arg(hexify(m_butcher)));
+        i->setText(0, tr("Butcher changed to %1").arg(hexify(m_butcher)));
         i->setIcon(0, QIcon(":img/book_edit.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
@@ -2168,7 +2182,7 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
         QString nick = m_pending_nick_name;
         if (nick.isEmpty())
             nick = tr("DEFAULT");
-        i->setText(0, tr("Nickname change to %1").arg(nick));
+        i->setText(0, tr("Nickname changed to %1").arg(nick));
         i->setIcon(0, QIcon(":img/book_edit.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
@@ -2178,7 +2192,7 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
         QString prof = m_pending_custom_profession;
         if (prof.isEmpty())
             prof = tr("DEFAULT");
-        i->setText(0, tr("Profession change to %1").arg(prof));
+        i->setText(0, tr("Profession changed to %1").arg(prof));
         i->setIcon(0, QIcon(":img/book_edit.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());

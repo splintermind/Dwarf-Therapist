@@ -36,6 +36,7 @@ class QListWidgetItem;
 class OptionsMenu;
 class QSettings;
 class CustomProfession;
+class SuperLabor;
 class Dwarf;
 class Word;
 class LogManager;
@@ -50,6 +51,8 @@ public:
     CustomProfession *get_custom_profession(QString name);
     CustomProfession *get_custom_prof_icon(int prof_id) {return m_custom_prof_icns.value(prof_id);}
     QMap<int, CustomProfession*> &get_custom_prof_icons() {return m_custom_prof_icns;}
+    SuperLabor *get_super_labor(QString name){return m_super_labors.value(name);}
+    QHash<QString,SuperLabor*> get_super_labors(){return m_super_labors;}
 
     MainWindow *get_main_window() {return m_main_window;}
 
@@ -93,6 +96,7 @@ private:
     QVector<Word *> m_language;
     QVector<CustomProfession*> m_custom_professions;
     QMap<int, CustomProfession*> m_custom_prof_icns;
+    QHash<QString,SuperLabor*> m_super_labors;
     QSettings *m_user_settings;
     MainWindow *m_main_window;
     OptionsMenu *m_options_menu;
