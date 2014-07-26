@@ -26,62 +26,37 @@ THE SOFTWARE.
 #include <QObject>
 #include "customprofession.h"
 #include "dwarftherapist.h"
+#include "laborlistbase.h"
 
-class SuperLabor : public QObject  {
+namespace Ui
+{
+    class SuperLaborEditor;
+}
+
+class SuperLabor : public LaborListBase  {
     Q_OBJECT
 public:
-    SuperLabor(CustomProfession *cp, QObject *parent = 0)
-        :QObject(parent)
-    {
-        m_name = cp->get_name();
-        m_role_name = "";
-        m_custom_prof_name = m_name;
-        m_auto_generated = true;
-    }
-
-    SuperLabor(QSettings &s, QObject *parent = 0)
-        :QObject(parent)
-        , m_name(s.value("id","").toString())
-        , m_role_name(s.value("role_name","").toString())
-        , m_custom_prof_name(s.value("custom_prof_name","").toString())
-        , m_auto_generated(false)
-    {
-        int labors = s.beginReadArray("labors");
-        for (int i = 0; i < labors; ++i) {
-            s.setArrayIndex(i);
-            int labor = s.value("id", -1).toInt();
-            if (labor != -1)
-                m_labors << labor;
-        }
-        s.endArray();
-    }
-
-    SuperLabor()
-    {
-        m_role_name = "";
-    }
+    SuperLabor(QObject *parent = 0);
+    SuperLabor(CustomProfession *cp, QObject *parent = 0);
+    SuperLabor(QSettings &s, QObject *parent = 0);
 
     QString get_name(){return m_name;}
     QString get_custom_prof_name(){return m_custom_prof_name;}
+    QVector<int> get_enabled_labors();
+    bool is_from_custom_prof(){return m_auto_generated;}
 
-    QVector<int> get_labors(){
-        if(!m_custom_prof_name.isEmpty()){
-            CustomProfession *cp = DT->get_custom_profession(m_custom_prof_name);
-            if(cp)
-                return cp->get_enabled_labors();
-            else
-                return m_labors;
-        }else{
-            return m_labors;
-        }
-    }
+    int show_builder_dialog(QWidget *parent);
+    void delete_from_disk();
+    void save(QSettings &s);
+
+public slots:
+    void role_changed(int);
 
 private:
-    QString m_name;
-    QString m_role_name;
+    Ui::SuperLaborEditor *ui;    
     QString m_custom_prof_name;
-    QVector<int> m_labors;
-    bool m_auto_generated;
+    bool m_auto_generated; //indicates that it's really just a wrapper for a custom profession        
+    bool is_valid();
 
 };
 #endif // SUPERLABOR_H

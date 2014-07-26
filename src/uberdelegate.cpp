@@ -216,20 +216,14 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
         bool check_active = true;
         bool is_dirty = false;
         bool is_active = false;
+        bool cp_border = false;
 
         if(type == CT_SUPER_LABOR){
-            QString custom_prof_name = idx.data(DwarfModel::DR_LABOR_ID).toString();
+            QString custom_prof_name = idx.data(DwarfModel::DR_CUSTOM_PROF).toString();
             if(!custom_prof_name.isEmpty()){
-                QString dwarf_prof = d->custom_profession_name();
-                if(dwarf_prof.isEmpty() || QString::compare(dwarf_prof, custom_prof_name, Qt::CaseInsensitive) != 0) {
-                    //profession doesn't match, no need to check active
-                   is_active = false;
-                   check_active = false;
-                }
-                //profession change related to this columns profession
+                if(d->profession() == custom_prof_name)
+                    cp_border = true;
                 is_dirty = d->is_custom_profession_dirty(custom_prof_name);
-            }else{
-                //super labor without custom profession, check labors as usual
             }
         }
 
@@ -238,16 +232,14 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
         int min_alpha = 75;
 
         if(d){
-            if(idx.data(DwarfModel::DR_SPECIAL_FLAG).canConvert<QVariantList>()){
-                QVariantList labors = idx.data(DwarfModel::DR_SPECIAL_FLAG).toList();
+            if(idx.data(DwarfModel::DR_LABORS).canConvert<QVariantList>()){
+                QVariantList labors = idx.data(DwarfModel::DR_LABORS).toList();
                 int active_count = 0;
                 int dirty_count = 0;
                 foreach(QVariant id, labors){
-                    if(check_active){
-                        if(d->labor_enabled(id.toInt())){
-                            is_active = true;
-                            active_count++;
-                        }
+                    if(d->labor_enabled(id.toInt())){
+                        is_active = true;
+                        active_count++;
                     }
                     if(d->is_labor_state_dirty(id.toInt())){
                         is_dirty = true;
@@ -255,11 +247,9 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
                     }
                 }
                 if(check_active && is_active){
-                    if(active_count > 0){
-                        active_alpha = (255 * ((float)active_count / labors.count()));
-                        if(active_alpha < min_alpha)
-                            active_alpha = min_alpha;
-                    }
+                    active_alpha = (255 * ((float)active_count / labors.count()));
+                    if(active_alpha < min_alpha)
+                        active_alpha = min_alpha;
                 }
                 if(is_dirty){
                     if(dirty_count > 0){
@@ -271,30 +261,33 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
             }
         }
 
-            QColor bg;
-            QColor color_active_adjusted = color_active_labor;
-            if(is_active){
-                color_active_adjusted.setAlpha(active_alpha);
-                bg = paint_bg_active(adjusted, is_active, p, opt, idx, color_active_adjusted);
-            }else{
-                bg = paint_bg(adjusted, p, opt, idx);
-            }
+        QColor bg;
+        QColor color_active_adjusted = color_active_labor;
+        if(is_active){
+            color_active_adjusted.setAlpha(active_alpha);
+            bg = paint_bg_active(adjusted, is_active, p, opt, idx, color_active_adjusted);
+        }else{
+            bg = paint_bg(adjusted, p, opt, idx);
+        }
 
-            if(type == CT_ROLE){
-                paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50.0f, 5.0f, 95.0f, 40.0f, 60.0f);
-            }else if(rating >= 0){
-                limit = 15.0f;
-                paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 0, 0, limit, 0, 0);
-            }
+        if(type == CT_ROLE){
+            paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50.0f, 5.0f, 95.0f, 40.0f, 60.0f);
+        }else if(rating >= 0){
+            limit = 15.0f;
+            paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 0, 0, limit, 0, 0);
+        }
 
-            if(is_dirty){
-                QColor color_dirty_adjusted = color_dirty_border;
-                color_dirty_adjusted.setAlpha(dirty_alpha);
-                paint_border(adjusted,p,color_dirty_adjusted);
-                paint_grid(adjusted,false,p,opt,idx,false);
-            }else{
-                paint_grid(adjusted, is_dirty, p, opt, idx);
-            }
+        if(is_dirty){
+            QColor color_dirty_adjusted = color_dirty_border;
+            color_dirty_adjusted.setAlpha(dirty_alpha);
+            paint_border(adjusted,p,color_dirty_adjusted);
+            paint_grid(adjusted,false,p,opt,idx,false);
+        }else if(cp_border){
+            paint_border(adjusted,p,color_active_labor);
+            paint_grid(adjusted, false, p, opt, idx,false);
+        }else{
+            paint_grid(adjusted, false, p, opt, idx);
+        }
 
     }
         break;

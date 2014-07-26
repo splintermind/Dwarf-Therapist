@@ -47,20 +47,19 @@ public:
     DwarfTherapist(int &argc, char **argv);
     virtual ~DwarfTherapist();
 
-    QVector<CustomProfession*> get_custom_professions() {return m_custom_professions;}
+    QList<Dwarf*> get_dwarves();
+
+    QList<CustomProfession*> get_custom_professions() {return m_custom_professions.values();}
     CustomProfession *get_custom_profession(QString name);
     CustomProfession *get_custom_prof_icon(int prof_id) {return m_custom_prof_icns.value(prof_id);}
     QMap<int, CustomProfession*> &get_custom_prof_icons() {return m_custom_prof_icns;}
     SuperLabor *get_super_labor(QString name){return m_super_labors.value(name);}
-    QHash<QString,SuperLabor*> get_super_labors(){return m_super_labors;}
+    QList<SuperLabor*> get_super_labors(bool custom_profs, bool super_labors);
 
     MainWindow *get_main_window() {return m_main_window;}
-
-    int custom_profession_from_dwarf(Dwarf *d);
-
-    QSettings *user_settings() {return m_user_settings;}    
+    QSettings *user_settings() {return m_user_settings;}
     OptionsMenu *get_options_menu() {return m_options_menu;}
-    Dwarf *get_dwarf_by_id(int dwarf_id);    
+    Dwarf *get_dwarf_by_id(int dwarf_id);
 
     void load_game_translation_tables(DFInstance *df);
     QString get_generic_word(const uint &offset) {return m_generic_words.value(offset, "UNKNOWN");}
@@ -72,29 +71,37 @@ public:
     DFInstance *get_DFInstance() {return m_main_window->get_DFInstance();}
 
     bool multiple_castes;
-    bool show_skill_learn_rates;    
+    bool show_skill_learn_rates;
     bool arena_mode;
 
     void emit_settings_changed();
     void emit_roles_changed();
+    void emit_customizations_changed();
     void emit_labor_counts_updated();
-    void update_specific_header(int id, COLUMN_TYPE type);
+    void update_specific_header(int id, COLUMN_TYPE type);    
 
-    public slots:
-        void add_custom_profession();
-        void add_custom_profession(CustomProfession *cp);
-        void read_settings();
-        void write_settings();        
-        void import_existing_professions();
-        void edit_custom_profession();
-        void edit_custom_profession(QTreeWidgetItem *);
-        void delete_custom_profession();
+public slots:
+    int add_custom_profession(Dwarf *d = 0);
+    void add_custom_profession(CustomProfession *cp);
+    void read_settings();
+    void write_settings();
+    void import_existing_professions();
+    void edit_customization();
+    void edit_customization(QTreeWidgetItem *);
+    void delete_customization();
+    void emit_units_refreshed();
 
 private:
+    struct customization_data{
+        QString name;
+        int icon_id;
+        bool is_super;
+    };
+
     QVector<QString> m_generic_words;
     QVector<QString> m_dwarf_words;
     QVector<Word *> m_language;
-    QVector<CustomProfession*> m_custom_professions;
+    QHash<QString,CustomProfession*> m_custom_professions;
     QMap<int, CustomProfession*> m_custom_prof_icns;
     QHash<QString,SuperLabor*> m_super_labors;
     QSettings *m_user_settings;
@@ -107,12 +114,17 @@ private:
 
     void setup_logging();
     void load_translator();
-    void save_custom_prof(CustomProfession *cp);
+    void edit_customization(QList<QVariant> data);
+
+    customization_data build_c_data(QVariant);
 
 signals:
     void settings_changed();
     void roles_changed();
     void labor_counts_updated();
+    void customizations_changed();
+    void units_refreshed(); //raised by the model object after a read is completed
+    void connected();
 };
 
 #endif

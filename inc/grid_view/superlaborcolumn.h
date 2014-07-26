@@ -24,13 +24,15 @@ THE SOFTWARE.
 #define SUPERLABORCOLUMN_H
 
 #include "viewcolumn.h"
+#include "skillcolumn.h"
 #include "global_enums.h"
+#include "laborlistbase.h"
 
 class ViewColumn;
 class Dwarf;
 class Attribute;
 
-class SuperLaborColumn : public ViewColumn {
+class SuperLaborColumn : public SkillColumn {
     Q_OBJECT
 public:
 
@@ -42,9 +44,15 @@ public:
     QStandardItem *build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves);
 
     //override
-    void write_to_ini(QSettings &s);
-
+    void write_to_ini(QSettings &s);    
 private:
     QString m_id;
+
+    float get_base_sort(Dwarf *d);
+    float get_role_rating(Dwarf *d);
+    float get_skill_rating(int id, Dwarf *d);
+    float get_skill_rate_rating(int id, Dwarf *d);
+
+    float get_rating(int id, LaborListBase::LLB_RATING_TYPE);
 };
 #endif // SUPERLABORCOLUMN_H

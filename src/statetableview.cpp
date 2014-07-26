@@ -159,7 +159,7 @@ void StateTableView::read_settings() {
 }
 
 void StateTableView::set_single_click_labor_changes(bool enabled){
-    m_single_click_labor_changes = enabled;
+    m_single_click_labor_changes = enabled;    
 
     //if using double click, then wait until the cell is activated to change cell states
     //if using single click, we can process the cell states immediately upon a click
@@ -395,7 +395,7 @@ void StateTableView::edit_prof_icon(){
     if (accepted) {
         DT->get_custom_prof_icons().insert(prof_id, cp);
         DT->write_settings();
-        DT->get_main_window()->draw_professions();
+        DT->get_main_window()->load_customizations();
     }
 }
 
@@ -406,7 +406,7 @@ void StateTableView::remove_prof_icon(){
     if(cp){
         cp->delete_from_disk();
         DT->get_custom_prof_icons().remove(prof_id);
-        DT->get_main_window()->draw_professions();
+        DT->get_main_window()->load_customizations();
     }
 }
 
@@ -594,8 +594,7 @@ void StateTableView::custom_profession_from_dwarf() {
     QAction *a = qobject_cast<QAction*>(QObject::sender());
     int id = a->data().toInt();
     Dwarf *d = m_model->get_dwarf_by_id(id);
-
-    DT->custom_profession_from_dwarf(d);
+    DT->add_custom_profession(d);
 }
 
 void StateTableView::apply_custom_profession() {

@@ -90,7 +90,7 @@ public:
         void list_pending();
 
         //custom profession
-        void draw_professions();
+        void load_customizations();
         void draw_custom_profession_context_menu(const QPoint &);
 
         //filter scripts

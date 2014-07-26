@@ -49,14 +49,14 @@ THE SOFTWARE.
 #include "unithealth.h"
 #include "customprofession.h"
 
+#include "superlaborcolumn.h"
+
 DwarfModel::DwarfModel(QObject *parent)
     : QStandardItemModel(parent)
     , m_df(0)
     , m_group_by(GB_NOTHING)
     , m_selected_col(-1)
     , m_gridview(0x0)
-//    , m_global_sort_col(-1)
-//    , m_global_sort_view("")
 {
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
     read_settings();
@@ -103,15 +103,12 @@ void DwarfModel::load_dwarves() {
     clear_all(false);
 
     m_df->attach();
-
-//    m_df->load_fortress();
-//    m_df->load_squads();
-
     foreach(Dwarf *d, m_df->load_dwarves()) {
         m_dwarves[d->id()] = d;
     }
-
     m_df->detach();
+
+    emit units_refreshed();
 }
 
 QList<Squad*> DwarfModel::active_squads(){
@@ -701,15 +698,7 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
         QModelIndex left = index(0, 0, first_col);
         QModelIndex right = index(rowCount(first_col) - 1, columnCount(first_col) - 1, first_col);
         emit dataChanged(left, right); // tell the view we changed every dwarf under this agg to pick up implicit exclusive changes
-        //DT->emit_labor_counts_updated(); //update column header text
     } else {
-        QModelIndex left = index(idx.parent().row(), 0, idx.parent().parent());
-        QModelIndex right = index(idx.parent().row(), columnCount(idx.parent()) - 1, idx.parent().parent());
-        emit dataChanged(left, right); // update the agg row
-
-        left = index(idx.row(), 0, idx.parent());
-        right = index(idx.row(), columnCount(idx.parent()) - 1, idx.parent());
-        emit dataChanged(left, right); // update the dwarf row
         if (type == CT_LABOR)
             m_dwarves[dwarf_id]->toggle_labor(labor_id);
         else if (type == CT_FLAGS)
@@ -718,7 +707,7 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
             Dwarf *d  = m_dwarves[dwarf_id];
             bool cp_applied = false;
             if(type == CT_SUPER_LABOR){
-                QString new_prof_name = idx.data(DwarfModel::DR_LABOR_ID).toString();
+                QString new_prof_name = idx.data(DwarfModel::DR_CUSTOM_PROF).toString();
                 if(!new_prof_name.isEmpty()){
                     CustomProfession *cp = DT->get_custom_profession(new_prof_name);
                     if(cp){
@@ -732,7 +721,7 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
                 }
             }
             if(!cp_applied){
-                QVariantList labors = item->data(DwarfModel::DR_SPECIAL_FLAG).toList();
+                QVariantList labors = item->data(DwarfModel::DR_LABORS).toList();
                 int limit = ceil((double)labors.count() / 2.0f);
                 int enabled = 0;
                 bool enabling = true;
@@ -747,9 +736,15 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
                 }
             }
         }
+
+        QModelIndex left = index(idx.parent().row(), 0, idx.parent().parent());
+        QModelIndex right = index(idx.parent().row(), columnCount(idx.parent()) - 1, idx.parent().parent());
+        emit dataChanged(left, right); // update the agg row
+
+        left = index(idx.row(), 0, idx.parent());
+        right = index(idx.row(), columnCount(idx.parent()) - 1, idx.parent());
+        emit dataChanged(left, right); // update the dwarf row
     }
-    //calculate_pending();
-    TRACE << "toggling" << labor_id << "for dwarf:" << dwarf_id;
 }
 
 void DwarfModel::set_group_by(int group_by) {

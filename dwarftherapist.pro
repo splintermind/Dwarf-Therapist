@@ -248,7 +248,8 @@ HEADERS += inc/win_structs.h \
     inc/belief.h \
     inc/unitbelief.h \
     inc/superlabor.h \
-    inc/grid_view/superlaborcolumn.h
+    inc/grid_view/superlaborcolumn.h \
+    inc/laborlistbase.h
 SOURCES += src/viewmanager.cpp \
     src/uberdelegate.cpp \
     src/truncatingfilelogger.cpp \
@@ -333,7 +334,9 @@ SOURCES += src/viewmanager.cpp \
     src/ecdf.cpp \
     src/rolestats.cpp \
     src/belief.cpp \
-    src/grid_view/superlaborcolumn.cpp
+    src/grid_view/superlaborcolumn.cpp \
+    src/superlabor.cpp \
+    src/laborlistbase.cpp
 FORMS += ui/scriptdialog.ui \
     ui/scannerdialog.ui \
     ui/pendingchanges.ui \
@@ -349,5 +352,6 @@ FORMS += ui/scriptdialog.ui \
     ui/about.ui \
     ui/selectparentlayoutdialog.ui \
     ui/roledialog.ui \
-    ui/optimizereditor.ui
+    ui/optimizereditor.ui \
+    ui/superlabor.ui
 RESOURCES += images.qrc

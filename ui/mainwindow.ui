@@ -435,7 +435,7 @@
   <widget class="QStatusBar" name="statusBar"/>
   <widget class="BaseDock" name="dock_pending_jobs_list">
    <property name="windowTitle">
-    <string>Pending Labor Changes</string>
+    <string>Pending Changes</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
@@ -542,13 +542,13 @@
   </widget>
   <widget class="BaseDock" name="dock_custom_professions">
    <property name="windowTitle">
-    <string>Custom Professions &amp; Icons</string>
+    <string>Customizations</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_2">
-    <layout class="QVBoxLayout" name="verticalLayout_3">
+    <layout class="QVBoxLayout" name="verticalLayout">
      <item>
       <widget class="QTreeWidget" name="tree_custom_professions">
        <property name="contextMenuPolicy">
@@ -580,15 +580,57 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="btn_new_custom_profession">
-       <property name="text">
-        <string>Add New Custom Profession</string>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <property name="spacing">
+        <number>0</number>
        </property>
-       <property name="icon">
-        <iconset resource="../images.qrc">
-         <normaloff>:/img/document--plus.png</normaloff>:/img/document--plus.png</iconset>
-       </property>
-      </widget>
+       <item>
+        <widget class="QPushButton" name="btn_new_custom_profession">
+         <property name="toolTip">
+          <string>Add a new custom profession.</string>
+         </property>
+         <property name="statusTip">
+          <string>Add a new custom profession.</string>
+         </property>
+         <property name="whatsThis">
+          <string>Add a new custom profession.</string>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">Text-align:left</string>
+         </property>
+         <property name="text">
+          <string>Custom Profession</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../images.qrc">
+           <normaloff>:/img/document--plus.png</normaloff>:/img/document--plus.png</iconset>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_new_super_labor">
+         <property name="toolTip">
+          <string>Add a new super labor. Super labors are columns that allow the toggling of multiple labors at a time.</string>
+         </property>
+         <property name="statusTip">
+          <string>Add a new super labor. Super labors are columns that allow the toggling of multiple labors at a time.</string>
+         </property>
+         <property name="whatsThis">
+          <string>Add a new super labor. Super labors are columns that allow the toggling of multiple labors at a time.</string>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">Text-align:left</string>
+         </property>
+         <property name="text">
+          <string>Super Labor</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../images.qrc">
+           <normaloff>:/img/table-insert-column.png</normaloff>:/img/table-insert-column.png</iconset>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </widget>
@@ -1061,7 +1103,6 @@
   <tabstop>tree_pending</tabstop>
   <tabstop>btn_expand_all_pending</tabstop>
   <tabstop>btn_collapse_all_pending</tabstop>
-  <tabstop>btn_new_custom_profession</tabstop>
  </tabstops>
  <resources>
   <include location="../images.qrc"/>

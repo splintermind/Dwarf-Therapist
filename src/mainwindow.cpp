@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include "viewcolumnset.h"
 #include "uberdelegate.h"
 #include "customprofession.h"
+#include "superlabor.h"
 #include "labor.h"
 #include "defines.h"
 #include "version.h"
@@ -173,6 +174,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_script_dialog, SIGNAL(rejected()), m_proxy, SLOT(clear_test()));
 
     connect(m_view_manager,SIGNAL(group_changed(int)), this, SLOT(display_group(int)));
+
     connect(pref_dock,SIGNAL(item_selected(QList<QPair<QString,QString> >)),this,SLOT(preference_selected(QList<QPair<QString,QString> >)));
     connect(thought_dock, SIGNAL(item_selected(QList<short>)), this, SLOT(thought_selected(QList<short>)));
     connect(health_dock, SIGNAL(item_selected(QList<QPair<int,int> >)), this, SLOT(health_legend_selected(QList<QPair<int,int> >)));
@@ -180,6 +182,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btn_clear_filters, SIGNAL(clicked()),this,SLOT(clear_all_filters()));
 
     connect(m_proxy, SIGNAL(filter_changed()),this,SLOT(refresh_active_scripts()));
+
+    //the model will perform the unit reads, and emit a signal, which we pass to the DT object
+    //DT will perform any other changes/updates required, and then pass on the signal, which will be used to update data (ie. superlabor columns)
+    connect(m_model,SIGNAL(units_refreshed()),DT,SLOT(emit_units_refreshed()));
+    //DT then emits a second signal, ensuring that any updates to data is done before signalling other objects
+    //the view manager is signalled this way, to ensure that the order of signals is preserved
+    connect(DT,SIGNAL(connected()),m_view_manager,SLOT(rebuild_global_sort_keys()));
 
     m_settings = new QSettings(QSettings::IniFormat, QSettings::UserScope, COMPANY, PRODUCT, this);
 
@@ -210,7 +219,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->cb_group_by->addItem(tr("Total Skill Levels"),DwarfModel::GB_TOTAL_SKILL_LEVELS);
 
     read_settings();
-    draw_professions();
+    load_customizations();
     reload_filter_scripts();
     refresh_role_menus();
     refresh_opts_menus();
@@ -436,30 +445,6 @@ void MainWindow::read_dwarves() {
     set_interface_enabled(true);
     new_pending_changes(0);
 
-    //on a read of the data, find all the columns that were sorted on, and rebuild the sort keys for each dwarf, for each sort group
-    if(m_model->get_global_sort_info().count() > 0){
-        QPair<QString,int> key_pair;
-        foreach(int group_id, m_model->get_global_sort_info().uniqueKeys()){
-            key_pair = m_model->get_global_sort_info().value(group_id);
-            //sorting on the name column is handled by the model proxy and persists through reads
-            if(key_pair.second <= 0)
-                continue;
-            //find the view containing the column that was used to sort for this group
-            GridView *gv = m_view_manager->get_view(key_pair.first);
-            if(gv){
-                //find the specific column that was sorted on
-                ViewColumn *vc = gv->get_column(key_pair.second);
-                if(vc){
-                    LOGD << "refreshing global sort for group" << group_id << "with keys from gridview" << gv->name() << "column" << vc->title();
-                    //update each dwarf's sort key for the group, based on the cell's sort role
-                    foreach(Dwarf *d, m_model->get_dwarves()){
-                        QStandardItem *item = vc->build_cell(d); //sort role is calculated/built when the cell is built
-                        d->set_global_sort_key(group_id, item->data(DwarfModel::DR_SORT_VALUE));
-                    }
-                }
-            }
-        }
-    }
     m_view_manager->redraw_current_tab();
 
     //reselect the ids we saved above
@@ -723,22 +708,27 @@ void MainWindow::new_creatures_count(int adults, int children, int babies, QStri
     //TODO: update other interface stuff for the race name when using a custom race
 }
 
-void MainWindow::draw_professions() {
+void MainWindow::load_customizations() {
     ui->tree_custom_professions->blockSignals(true);
     CustomProfession *cp;
     ui->tree_custom_professions->clear();
+
+    //add custom professions
     QTreeWidgetItem *cps = new QTreeWidgetItem();
     cps->setText(0,"Custom Professions");
     QTreeWidgetItem *i;
-    QVector<CustomProfession*> profs = DT->get_custom_professions();
+    QList<CustomProfession*> profs = DT->get_custom_professions();
     foreach(cp, profs){
         i = new QTreeWidgetItem(cps);
         i->setText(0,cp->get_name());
         i->setIcon(0,QIcon(cp->get_pixmap()));
         i->setData(0,Qt::UserRole,-1);
+        i->setData(0,Qt::UserRole+1,false);
     }
     ui->act_export_custom_professions->setEnabled(profs.size());
     ui->tree_custom_professions->addTopLevelItem(cps);
+
+    //add profession icons
     QTreeWidgetItem *icons = new QTreeWidgetItem();
     icons->setText(0,"Custom Icons");
     icons->setToolTip(0,tr("Right click on a profession icon in the grid to customize the default icon."));
@@ -748,8 +738,22 @@ void MainWindow::draw_professions() {
         i->setText(0,cp->get_name());
         i->setIcon(0,QIcon(cp->get_pixmap()));
         i->setData(0,Qt::UserRole,cp->prof_id());
+        i->setData(0,Qt::UserRole+1,false);
     }
     ui->tree_custom_professions->addTopLevelItem(icons);
+
+    //add super labors
+    QTreeWidgetItem *super_labors = new QTreeWidgetItem();
+    super_labors->setText(0,"Super Labors");
+    foreach(SuperLabor *sl, DT->get_super_labors(false,true)){
+            i = new QTreeWidgetItem(super_labors);
+            i->setText(0, sl->get_name());
+            i->setData(0,Qt::UserRole,sl->get_name());
+            i->setData(0,Qt::UserRole+1,true);        
+    }
+    ui->tree_custom_professions->addTopLevelItem(super_labors);
+
+
     ui->tree_custom_professions->expandAll();
     ui->tree_custom_professions->blockSignals(false);
     connect(ui->tree_custom_professions, SIGNAL(currentItemChanged(QTreeWidgetItem *, QTreeWidgetItem *)),
@@ -765,17 +769,21 @@ void MainWindow::draw_custom_profession_context_menu(const QPoint &p) {
 
     QString cp_name = idx.data().toString();
     int prof_id = idx.data(Qt::UserRole).toInt();
-
-    QMenu m(this);
-    m.setTitle(tr("Custom Profession"));
-    if(prof_id)
-        m.setTitle(m.title() + " Icon");
+    bool is_super_labor = idx.data(Qt::UserRole+1).toBool();
 
     QVariantList data;
-    data << cp_name << prof_id;
-    QAction *a = m.addAction(tr("Edit %1").arg(cp_name), DT, SLOT(edit_custom_profession()));
+    data << cp_name << prof_id << is_super_labor;
+    QMenu m(this);
+    if(!is_super_labor){
+        m.setTitle(tr("Custom Profession"));
+        if(prof_id)
+            m.setTitle(m.title() + " Icon");
+    }else{
+        m.setTitle(tr("Super Labor"));
+    }
+    QAction *a = m.addAction(QIcon(":img/pencil.png"), tr("Edit %1").arg(cp_name), DT, SLOT(edit_customization()));
     a->setData(data);
-    a = m.addAction(QIcon(":img/minus-circle.png"), tr("Delete %1").arg(cp_name), DT, SLOT(delete_custom_profession()));
+    a = m.addAction(QIcon(":img/minus-circle.png"), tr("Delete %1").arg(cp_name), DT, SLOT(delete_customization()));
     a->setData(data);
     m.exec(ui->tree_custom_professions->viewport()->mapToGlobal(p));
 }
@@ -786,13 +794,13 @@ void MainWindow::go_to_forums() {
     QDesktopServices::openUrl(QUrl("http://www.bay12forums.com/smf/index.php?topic=122968.0"));
 }
 void MainWindow::go_to_donate() {
-    QDesktopServices::openUrl(QUrl("http://code.google.com/r/splintermind-attributes/"));
+    QDesktopServices::openUrl(QUrl("https://github.com/splintermind/Dwarf-Therapist"));
 }
 void MainWindow::go_to_project_home() {
-    QDesktopServices::openUrl(QUrl("http://code.google.com/r/splintermind-attributes/"));
+    QDesktopServices::openUrl(QUrl("https://github.com/splintermind/Dwarf-Therapist"));
 }
 void MainWindow::go_to_new_issue() {
-    QDesktopServices::openUrl(QUrl("http://code.google.com/p/dwarftherapist/issues/entry"));
+    QDesktopServices::openUrl(QUrl("https://github.com/splintermind/Dwarf-Therapist/issues?state=open"));
 }
 
 QToolBar *MainWindow::get_toolbar() {

@@ -361,6 +361,15 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
         a->setData(att_pair.first);
     }
 
+    //CUSTOM PROFESSIONS (super labors)
+    QMenu *m_custom_profs = m_cmh->create_title_menu(m,tr("Custom Profession Column"),tr("Columns which can apply or remove a custom profession and it's labors."));
+    m_cmh->add_sub_menus(m_custom_profs,2);
+    foreach(SuperLabor *sl, DT->get_super_labors(true,false)) {
+            QMenu *menu_to_use = m_cmh->find_menu(m_custom_profs,sl->get_name());
+            QAction *a = menu_to_use->addAction(sl->get_name(), this, SLOT(add_super_labor_column()));
+            a->setData(sl->get_name());        
+    }
+
     //EQUIPMENT
     a = m->addAction(tr("Equipment"), this, SLOT(add_equipment_column()));
     a->setToolTip(tr("Adds a color coded column that shows if a dwarf is fully clothed. Also shows all equipment in the tooltip grouped by body part."));
@@ -453,10 +462,10 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
     a = m->addAction("Spacer", this, SLOT(add_spacer_column()));
     a->setToolTip(tr("Adds a non-selectable spacer to this set. You can set a custom width and color on spacer columns."));
 
-    //SUPER LABOURS
+    //SUPER LABORS
     QMenu *m_super_labors = m_cmh->create_title_menu(m,tr("Super Labor Column"),tr("Columns which toggle multiple labors at a time."));
     m_cmh->add_sub_menus(m_super_labors,2);
-    foreach(SuperLabor *sl, DT->get_super_labors()) {
+    foreach(SuperLabor *sl, DT->get_super_labors(false,true)) {
         QMenu *menu_to_use = m_cmh->find_menu(m_super_labors,sl->get_name());
         QAction *a = menu_to_use->addAction(sl->get_name(), this, SLOT(add_super_labor_column()));
         a->setData(sl->get_name());

@@ -838,7 +838,7 @@ void Dwarf::read_profession() {
     }else{
         cp = DT->get_custom_prof_icon(m_raw_profession);
     }
-    if(cp)
+    if(cp && cp->has_icon())
         m_icn_prof = cp->get_pixmap();
 
     LOGD << "reading profession for" << nice_name() << m_raw_profession << prof_name;
