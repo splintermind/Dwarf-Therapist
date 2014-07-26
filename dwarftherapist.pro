@@ -1,9 +1,8 @@
 TEMPLATE = app
 TARGET = DwarfTherapist
-QT += network \
+QT += concurrent \
+    network \
     script \
-    core \
-    gui \
     widgets
 CONFIG(debug, debug|release) { 
     message(Debug Mode)
