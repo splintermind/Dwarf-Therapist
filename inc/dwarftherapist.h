@@ -74,7 +74,6 @@ public:
     bool hide_non_adults() {return m_hide_non_adults;}
     LogManager *get_log_manager() {return m_log_mgr;}
     DFInstance *get_DFInstance() {return m_main_window->get_DFInstance();}
-    void on_connect();
 
     bool multiple_castes;
     bool show_skill_learn_rates;    
@@ -96,6 +95,7 @@ public:
         void edit_custom_profession();
         void edit_custom_profession(QTreeWidgetItem *);
         void delete_custom_profession();
+        void on_connect();
 
 private:
     QVector<QString> m_generic_words;

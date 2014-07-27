@@ -431,6 +431,7 @@ void MainWindow::read_dwarves() {
     m_df->load_squads(false);
     m_model->load_dwarves();    
 
+    emit connected();
     set_progress_message("Setting up interface...");
 
     if (m_model->get_dwarves().size() < 1) {
