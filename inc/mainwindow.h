@@ -197,6 +197,9 @@ private:
         void done_editing_role(int result);
         void main_toolbar_style_changed(Qt::ToolButtonStyle button_style);
         void clear_all_filters();
+
+    signals:
+        void connected();
 };
 
 #endif // MAINWINDOW_H
