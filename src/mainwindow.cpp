@@ -745,7 +745,7 @@ void MainWindow::load_customizations() {
     //add super labors
     QTreeWidgetItem *super_labors = new QTreeWidgetItem();
     super_labors->setText(0,"Super Labors");
-    foreach(SuperLabor *sl, DT->get_super_labors(false,true)){
+    foreach(SuperLabor *sl, DT->get_super_labors()){
             i = new QTreeWidgetItem(super_labors);
             i->setText(0, sl->get_name());
             i->setData(0,Qt::UserRole,sl->get_name());

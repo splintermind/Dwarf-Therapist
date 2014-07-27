@@ -33,14 +33,14 @@ THE SOFTWARE.
 #include "utils.h"
 #include "defaultfonts.h"
 #include "laborlistbase.h"
+#include "superlabor.h"
 
 /*!
 Default ctor. Creates a blank skill template with no name
 */
 CustomProfession::CustomProfession(QObject *parent)
     : LaborListBase(parent)
-    , ui(new Ui::CustomProfessionEditor)
-    , m_dwarf(0)
+    , ui(new Ui::CustomProfessionEditor)    
     , m_icon_id(-1)
     , m_is_mask(false)
     , m_bg_custom_color(0x0)
@@ -48,7 +48,7 @@ CustomProfession::CustomProfession(QObject *parent)
     , m_bg_color(Qt::transparent)
     , m_txt("")
     , m_prof_id(-1)
-    , m_fnt(0x0)
+    , m_fnt(0x0)    
 {
 }
 
@@ -64,8 +64,7 @@ This is used by the "Create custom profession from this dwarf..." action.
 */
 CustomProfession::CustomProfession(Dwarf *d, QObject *parent)
     : LaborListBase(parent)
-    , ui(new Ui::CustomProfessionEditor)
-    , m_dwarf(d)
+    , ui(new Ui::CustomProfessionEditor)    
     , m_icon_id(-1)
     , m_is_mask(false)
     , m_bg_custom_color(0x0)
@@ -74,12 +73,13 @@ CustomProfession::CustomProfession(Dwarf *d, QObject *parent)
     , m_txt("")
     , m_prof_id(-1)
     , m_fnt(0x0)
-{
-    if(d){
-        m_name = d->custom_profession_name();
+{    
+    m_dwarf = d;
+    if(m_dwarf){
+        m_name = d->profession();
         QList<Labor*> labors = gdr->get_ordered_labors();
         foreach(Labor *l, labors) {
-            if (d->labor_enabled(l->labor_id))
+            if (m_dwarf->labor_enabled(l->labor_id))
                 add_labor(l->labor_id);
         }
     }
@@ -90,7 +90,7 @@ CustomProfession::CustomProfession(QString name, QSettings &s, QObject *parent)
     :LaborListBase(parent)
     , ui(new Ui::CustomProfessionEditor)
 {
-    m_name = name;
+    m_name = name;    
     s.beginGroup(m_name);
     init(s);
     s.endGroup();
@@ -101,7 +101,7 @@ CustomProfession::CustomProfession(QSettings &s, QObject *parent)
     :LaborListBase(parent)
     , ui(new Ui::CustomProfessionEditor)
 {
-    m_name = s.value("name", "UNKNOWN").toString();
+    m_name = s.value("name", "UNKNOWN").toString();    
     init(s);
 }
 
@@ -143,14 +143,13 @@ int CustomProfession::show_builder_dialog(QWidget *parent) {
     connect(ui->cb_roles,SIGNAL(currentIndexChanged(int)),this,SLOT(role_changed(int)),Qt::UniqueConnection);
 
     //add font color chooser
-    m_font_custom_color = new CustomColor("",tr("The color of the text drawn over the icon."),
-                                          "text_color", Qt::black, 0);
+    m_font_custom_color = new CustomColor("",tr("The color of the text drawn over the icon."),"text_color", Qt::black, 0);
     m_font_custom_color->set_color(m_font_color);
     ui->hLayoutText->insertWidget(3,m_font_custom_color);
     connect(m_font_custom_color, SIGNAL(color_changed(QString,QColor)), this, SLOT(color_selected(QString,QColor)));
 
     ui->chk_mask->setChecked(m_is_mask);
-    ui->chk_mask->setToolTip("This profession's labours will be applied in addition to any labors already enabled.");
+    ui->chk_mask->setToolTip("This profession's labors will be applied in addition to any labors already enabled.");
     connect(ui->chk_mask,SIGNAL(clicked(bool)),this,SLOT(mask_changed(bool)));
 
     //add background color chooser
@@ -191,35 +190,9 @@ int CustomProfession::show_builder_dialog(QWidget *parent) {
     return code;
 }
 
-/*!
-Called when the show_builder_dialog widget's OK button is pressed, or the
-dialog is otherwise accepted by the user
-
-We intercept this call to verify the form is valid before saving it.
-\sa is_valid()
-*/
-void CustomProfession::accept() {    
-    if (!is_valid()) {
-        return;
-    }
-    //if we have a dwarf we created the profession from, assign them to the profession as well
-    if(m_dwarf){
-        int answer = QMessageBox::question(
-                    0, tr("Apply Profession"),
-                    tr("Would you like to apply this profession now to the original dwarf it was created from?"),
-                    QMessageBox::Yes | QMessageBox::No);
-        if (answer == QMessageBox::Yes) {
-            m_dwarf->apply_custom_profession(this);
-        }
-    }
-    m_dwarf = 0;
-    refresh();
-    m_dialog->accept();
-}
-
-void CustomProfession::cancel(){
-    m_dwarf = 0;
-    m_dialog->reject();
+void CustomProfession::update_dwarf(){
+    if(m_dwarf)
+        m_dwarf->apply_custom_profession(this);
 }
 
 /*!
@@ -232,11 +205,25 @@ bool CustomProfession::is_valid() {
     if (!m_dialog)
         return true;
 
-    QString proposed_name = ui->name_edit->text();
+    QString proposed_name = ui->name_edit->text().trimmed();
     if (proposed_name.isEmpty()) {
         QMessageBox::warning(m_dialog, tr("Naming Error!"),
-                             tr("You must enter a name for this custom profession!"));
+                             tr("You must enter a name for this Custom Profession!"));
         return false;
+    }
+    foreach(CustomProfession *cp, DT->get_custom_professions()){
+        if(cp != this && cp->get_name() == proposed_name){
+            QMessageBox::warning(m_dialog, tr("Duplicate Name!"),
+                                 tr("A Custom Profession with this name already exists!"));
+            return false;
+        }
+    }
+    foreach(SuperLabor *sl, DT->get_super_labors()){
+        if(sl->get_name() == proposed_name){
+            QMessageBox::warning(m_dialog, tr("Duplicate Name!"),
+                                 tr("A Super Labor with this name already exists!"));
+            return false;
+        }
     }
     return true;
 }

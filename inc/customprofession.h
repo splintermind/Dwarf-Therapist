@@ -83,10 +83,9 @@ public:
     void delete_from_disk();
     void export_to_file(QSettings &s);
 
-public slots:
+public slots:    
     void set_name(QString name);
-    void accept();
-    void cancel();
+    void update_dwarf();
     void mask_changed(bool value);
     void build_icon_path(int id);
     void choose_icon();
@@ -105,7 +104,6 @@ private:
     void create_image();
     QFont* get_font();
     Ui::CustomProfessionEditor *ui;
-    Dwarf *m_dwarf;
     QString m_icon_path;
     int m_icon_id;
     bool m_is_mask;
@@ -120,6 +118,5 @@ private:
 
     QFont *m_fnt;
     QPixmap m_pixmap;
-
 };
 #endif

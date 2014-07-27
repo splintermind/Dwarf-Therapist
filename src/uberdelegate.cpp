@@ -209,7 +209,7 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
         paint_wear_cell(adjusted,p,opt,idx,wear_level);
     }
         break;
-    case CT_ROLE: case CT_SUPER_LABOR:
+    case CT_ROLE: case CT_SUPER_LABOR: case CT_CUSTOM_PROFESSION:
     {
         Dwarf *d = m_model->get_dwarf_by_id(idx.data(DwarfModel::DR_ID).toInt());
 
@@ -218,7 +218,7 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
         bool is_active = false;
         bool cp_border = false;
 
-        if(type == CT_SUPER_LABOR){
+        if(type == CT_CUSTOM_PROFESSION){
             QString custom_prof_name = idx.data(DwarfModel::DR_CUSTOM_PROF).toString();
             if(!custom_prof_name.isEmpty()){
                 if(d->profession() == custom_prof_name)

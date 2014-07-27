@@ -32,12 +32,12 @@ THE SOFTWARE.
 #include "item.h"
 #include "itemdefuniform.h"
 #include "unitbelief.h"
+#include "role.h"
 
 class DFInstance;
 class MemoryLayout;
 class CustomProfession;
 class Reaction;
-class Role;
 class Preference;
 class Race;
 class Caste;

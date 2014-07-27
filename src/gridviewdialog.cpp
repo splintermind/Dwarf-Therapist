@@ -364,10 +364,10 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
     //CUSTOM PROFESSIONS (super labors)
     QMenu *m_custom_profs = m_cmh->create_title_menu(m,tr("Custom Profession Column"),tr("Columns which can apply or remove a custom profession and it's labors."));
     m_cmh->add_sub_menus(m_custom_profs,2);
-    foreach(SuperLabor *sl, DT->get_super_labors(true,false)) {
-            QMenu *menu_to_use = m_cmh->find_menu(m_custom_profs,sl->get_name());
-            QAction *a = menu_to_use->addAction(sl->get_name(), this, SLOT(add_super_labor_column()));
-            a->setData(sl->get_name());        
+    foreach(CustomProfession *cp, DT->get_custom_professions()){
+            QMenu *menu_to_use = m_cmh->find_menu(m_custom_profs,cp->get_name());
+            QAction *a = menu_to_use->addAction(cp->get_name(), this, SLOT(add_super_labor_column()));
+            a->setData(cp->get_name());
     }
 
     //EQUIPMENT
@@ -465,7 +465,7 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
     //SUPER LABORS
     QMenu *m_super_labors = m_cmh->create_title_menu(m,tr("Super Labor Column"),tr("Columns which toggle multiple labors at a time."));
     m_cmh->add_sub_menus(m_super_labors,2);
-    foreach(SuperLabor *sl, DT->get_super_labors(false,true)) {
+    foreach(SuperLabor *sl, DT->get_super_labors()) {
         QMenu *menu_to_use = m_cmh->find_menu(m_super_labors,sl->get_name());
         QAction *a = menu_to_use->addAction(sl->get_name(), this, SLOT(add_super_labor_column()));
         a->setData(sl->get_name());
@@ -635,7 +635,6 @@ void GridViewDialog::add_health_column(){
         return;
     QAction *a = qobject_cast<QAction*>(QObject::sender());
     int key = a->data().toInt();
-//    new HealthColumn(UnitHealth::category_names().value(key),key,m_active_set,m_active_set);
     new HealthColumn(UnitHealth::get_display_categories().value(key)->name(),key,m_active_set,m_active_set);
     draw_columns_for_set(m_active_set);
 }

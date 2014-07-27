@@ -28,7 +28,6 @@ THE SOFTWARE.
 #include <QtWidgets/QApplication>
 #include <QVector>
 #include "defines.h"
-#include "role.h"
 #include "columntypes.h"
 #include "mainwindow.h"
 #include "dfinstance.h"
@@ -54,7 +53,7 @@ public:
     CustomProfession *get_custom_prof_icon(int prof_id) {return m_custom_prof_icns.value(prof_id);}
     QMap<int, CustomProfession*> &get_custom_prof_icons() {return m_custom_prof_icns;}
     SuperLabor *get_super_labor(QString name){return m_super_labors.value(name);}
-    QList<SuperLabor*> get_super_labors(bool custom_profs, bool super_labors);
+    QList<SuperLabor*> get_super_labors();
 
     MainWindow *get_main_window() {return m_main_window;}
     QSettings *user_settings() {return m_user_settings;}
@@ -83,8 +82,14 @@ public:
 public slots:
     int add_custom_profession(Dwarf *d = 0);
     void add_custom_profession(CustomProfession *cp);
+    void add_super_labor(Dwarf *d = 0);
+
     void read_settings();
+
     void write_settings();
+    void write_custom_professions();
+    void write_super_labors();
+
     void import_existing_professions();
     void edit_customization();
     void edit_customization(QTreeWidgetItem *);
@@ -117,6 +122,11 @@ private:
     void edit_customization(QList<QVariant> data);
 
     customization_data build_c_data(QVariant);
+
+    //these should be used when working with custom professions to keep them in sync with
+    //their related automatically generated super labors
+    void del_custom_profession(CustomProfession *cp);
+    void ins_custom_profession(CustomProfession *cp);
 
 signals:
     void settings_changed();

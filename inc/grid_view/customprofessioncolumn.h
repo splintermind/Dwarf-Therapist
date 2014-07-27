@@ -20,11 +20,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#ifndef SUPERLABORCOLUMN_H
-#define SUPERLABORCOLUMN_H
+#ifndef CUSTOMPROFESSIONCOLUMN_H
+#define CUSTOMPROFESSIONCOLUMN_H
 
 #include "viewcolumn.h"
-#include "skillcolumn.h"
+#include "superlaborcolumn.h"
 #include "global_enums.h"
 #include "laborlistbase.h"
 
@@ -32,27 +32,16 @@ class ViewColumn;
 class Dwarf;
 class Attribute;
 
-class SuperLaborColumn : public SkillColumn {
+class CustomProfessionColumn : public SuperLaborColumn {
     Q_OBJECT
 public:
-
-    SuperLaborColumn(const QString &title, QString id, ViewColumnSet *set = 0, QObject *parent = 0);
-    SuperLaborColumn(QSettings &s, ViewColumnSet *set = 0, QObject *parent = 0);
-    SuperLaborColumn(const SuperLaborColumn &to_copy); // copy ctor
-    SuperLaborColumn* clone() {return new SuperLaborColumn(*this);}
+    CustomProfessionColumn(const QString &title, QString id, ViewColumnSet *set = 0, QObject *parent = 0);
+    CustomProfessionColumn(QSettings &s, ViewColumnSet *set = 0, QObject *parent = 0);
+    CustomProfessionColumn(const CustomProfessionColumn &to_copy); // copy ctor
+    CustomProfessionColumn* clone() {return new CustomProfessionColumn(*this);}
     QStandardItem *build_cell(Dwarf *d);
     QStandardItem *build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves);
-
-    //override
-    void write_to_ini(QSettings &s);    
 protected:
-    QString m_id;
-    QString build_tooltip(Dwarf *d, LaborListBase *ml);
-    float get_base_sort(Dwarf *d);
-    float get_role_rating(Dwarf *d);
-    float get_skill_rating(int id, Dwarf *d);
-    float get_skill_rate_rating(int id, Dwarf *d);
-
-    virtual float get_rating(int id, LaborListBase::LLB_RATING_TYPE);
+    float get_rating(int id, LaborListBase::LLB_RATING_TYPE);
 };
-#endif // SUPERLABORCOLUMN_H
+#endif // CUSTOMPROFESSIONCOLUMN_H

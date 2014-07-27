@@ -50,6 +50,7 @@ THE SOFTWARE.
 #include "equipmentcolumn.h"
 #include "itemtypecolumn.h"
 #include "superlaborcolumn.h"
+#include "customprofessioncolumn.h"
 
 ViewColumnSet::ViewColumnSet(QString name, QObject *parent)
     : QObject(parent)
@@ -298,6 +299,9 @@ ViewColumnSet *ViewColumnSet::read_from_ini(QSettings &s, QObject *parent, int s
             break;
         case CT_SUPER_LABOR:
             new SuperLaborColumn(s,ret_val,parent);
+            break;
+        case CT_CUSTOM_PROFESSION:
+            new CustomProfessionColumn(s,ret_val,parent);
             break;
         case CT_DEFAULT:
         default:

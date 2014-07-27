@@ -44,6 +44,7 @@ typedef enum {
     CT_EQUIPMENT,
     CT_ITEMTYPE,
     CT_SUPER_LABOR,
+    CT_CUSTOM_PROFESSION,
     CT_TOTAL_TYPES
 } COLUMN_TYPE;
 
@@ -80,8 +81,10 @@ static inline COLUMN_TYPE get_column_type(const QString &name) {
         return CT_EQUIPMENT;
     }else if (name.toLower() == "itemtype"){
         return CT_ITEMTYPE;
-    }else if (name.toLower() == "super_labor")
+    }else if (name.toLower() == "super_labor"){
         return CT_SUPER_LABOR;
+    }else if (name.toLower() == "custom_profession")
+        return CT_CUSTOM_PROFESSION;
     return CT_DEFAULT;
 }
 
@@ -104,6 +107,7 @@ static inline QString get_column_type(const COLUMN_TYPE &type) {
     case CT_EQUIPMENT:           return "EQUIPMENT";
     case CT_ITEMTYPE:               return "ITEMTYPE";
     case CT_SUPER_LABOR:        return "SUPER_LABOR";
+    case CT_CUSTOM_PROFESSION:        return "CUSTOM_PROFESSION";
     default:
         return "UNKNOWN";
     }

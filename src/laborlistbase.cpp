@@ -5,6 +5,7 @@
 
 LaborListBase::LaborListBase(QObject *parent)
     :QObject(parent)
+    , m_dwarf(0)
     , gdr(GameDataReader::ptr())
     , m_name("")
     , m_role_name("")
@@ -20,6 +21,7 @@ LaborListBase::LaborListBase(QObject *parent)
 }
 LaborListBase::~LaborListBase(){
     gdr = 0;
+    m_dwarf = 0;
 }
 
 /*!
@@ -152,19 +154,50 @@ void LaborListBase::refresh(){
     read_settings();
 }
 
+float LaborListBase::get_rating(int id, LLB_RATING_TYPE type){
+    if(m_ratings.size() <= 0 && get_enabled_labors().size() > 0)
+        refresh();
+    if(m_ratings.contains(id)){
+        QList<float> ratings = m_ratings.value(id);
+        if(int(type) < 0 || int(type) > ratings.count()-1){
+            LOGW << "out of" << ratings.count() << "ratings, rating type" << (int)type << "could not be found!";
+            if(ratings.count() > 0)
+                return ratings.at(0);
+            else
+                return 0.0;
+        }else{
+            return ratings.at(type);
+        }
+    }else{
+        return 0.0;
+    }
+}
+
 void LaborListBase::set_name(QString name){
     m_name = name;
 }
 
+/*!
+Called when the show_builder_dialog widget's OK button is pressed, or the
+dialog is otherwise accepted by the user
+
+We intercept this call to verify the form is valid before saving it.
+\sa is_valid()
+*/
 void LaborListBase::accept() {
     if (!is_valid()) {
         return;
+    }
+    if(m_dwarf){
+        update_dwarf();
+        m_dwarf = 0;
     }
     refresh();
     m_dialog->accept();
 }
 
 void LaborListBase::cancel(){
+    m_dwarf = 0;
     m_dialog->reject();
 }
 

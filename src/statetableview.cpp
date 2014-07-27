@@ -99,15 +99,15 @@ StateTableView::StateTableView(QWidget *parent)
     m->addAction(tr("Set Nickname..."), this, SLOT(set_nickname()));
     m->addSeparator();
 
-    custom_prof_menu = new QMenu(m);
+    customization_menu = new QMenu(m);
 
     //CUSTOM PROFESSIONS
-    custom_prof_menu->setTitle(tr("Custom Professions"));
-    custom_prof_menu->setTearOffEnabled(true);
-    custom_prof_menu->setWindowTitle("Custom Professions");
+    customization_menu->setTitle(tr("Custom Professions"));
+    customization_menu->setTearOffEnabled(true);
+    customization_menu->setWindowTitle("Custom Professions");
 
     build_custom_profession_menu();
-    m->addMenu(custom_prof_menu);
+    m->addMenu(customization_menu);
 
     //TOGGLE ALL LABORS
     m->addSeparator();
@@ -131,13 +131,14 @@ StateTableView::StateTableView(QWidget *parent)
 }
 
 void StateTableView::build_custom_profession_menu(){
-    custom_prof_menu->clear();
-    m_prof_name = custom_prof_menu->addAction(QIcon(":img/ui-text-field-select.png"), tr("Set custom profession name..."), this, SLOT(set_custom_profession_text()));
-    m_professions = custom_prof_menu->addAction(QIcon(":img/new.png"), tr("New custom profession from this dwarf..."), this, SLOT(custom_profession_from_dwarf()));
-    custom_prof_menu->addAction(QIcon(":img/ui-text-field-clear-button.png"), tr("Reset to default profession"), this, SLOT(reset_custom_profession()));
-    custom_prof_menu->addSeparator();
+    customization_menu->clear();
+    m_prof_name = customization_menu->addAction(QIcon(":img/ui-text-field-select.png"), tr("Set custom profession name..."), this, SLOT(set_custom_profession_text()));
+    m_professions = customization_menu->addAction(QIcon(":img/new.png"), tr("New custom profession from this unit..."), this, SLOT(custom_profession_from_dwarf()));
+    m_super_labors = customization_menu->addAction(QIcon(":img/new.png"), tr("New super labor from this unit..."), this, SLOT(super_labor_from_dwarf()));
+    customization_menu->addAction(QIcon(":img/ui-text-field-clear-button.png"), tr("Reset to default profession"), this, SLOT(reset_custom_profession()));
+    customization_menu->addSeparator();
     foreach(CustomProfession *cp, DT->get_custom_professions()) {
-        custom_prof_menu->addAction(QIcon(cp->get_pixmap()), cp->get_name(), this, SLOT(apply_custom_profession()));
+        customization_menu->addAction(QIcon(cp->get_pixmap()), cp->get_name(), this, SLOT(apply_custom_profession()));
     }
 }
 
@@ -257,7 +258,7 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
 
         if(!d->is_animal()){
 
-            custom_prof_menu->setEnabled(true);
+            customization_menu->setEnabled(true);
             m_assign_labors->setEnabled(true);
             m_assign_skilled_labors->setEnabled(true);
             m_remove_labors->setEnabled(true);
@@ -313,8 +314,8 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
             }
         }else{
             //animal, hide stuffs
-            custom_prof_menu->hideTearOffMenu();
-            custom_prof_menu->setEnabled(false);
+            customization_menu->hideTearOffMenu();
+            customization_menu->setEnabled(false);
             m_assign_labors->setEnabled(false);
             m_assign_skilled_labors->setEnabled(false);
             m_remove_labors->setEnabled(false);
@@ -394,7 +395,7 @@ void StateTableView::edit_prof_icon(){
     int accepted = cp->show_builder_dialog(DT->get_main_window());
     if (accepted) {
         DT->get_custom_prof_icons().insert(prof_id, cp);
-        DT->write_settings();
+        DT->write_custom_professions();
         DT->get_main_window()->load_customizations();
     }
 }
@@ -594,7 +595,17 @@ void StateTableView::custom_profession_from_dwarf() {
     QAction *a = qobject_cast<QAction*>(QObject::sender());
     int id = a->data().toInt();
     Dwarf *d = m_model->get_dwarf_by_id(id);
-    DT->add_custom_profession(d);
+    if(DT->add_custom_profession(d)){
+        m_model->calculate_pending();
+        DT->emit_labor_counts_updated();
+    }
+}
+
+void StateTableView::super_labor_from_dwarf(){
+    QAction *a = qobject_cast<QAction*>(QObject::sender());
+    int id = a->data().toInt();
+    Dwarf *d = m_model->get_dwarf_by_id(id);
+    DT->add_super_labor(d);
 }
 
 void StateTableView::apply_custom_profession() {
@@ -660,9 +671,10 @@ void StateTableView::currentChanged(const QModelIndex &cur, const QModelIndex &i
     int id = m_proxy->data(cur, DwarfModel::DR_ID).toInt();
     Dwarf *d = m_model->get_dwarf_by_id(id);
     if (d) {
-        if(idx.column() == 0 && !idx.data(DwarfModel::DR_IS_AGGREGATE).toBool()){
+        if(idx.column() <= 0 && !idx.data(DwarfModel::DR_IS_AGGREGATE).toBool()){
             m_prof_name->setData(id);
             m_professions->setData(id);
+            m_super_labors->setData(id);
         }
         //LOGD << "focus changed to" << d->nice_name();
         emit dwarf_focus_changed(d);

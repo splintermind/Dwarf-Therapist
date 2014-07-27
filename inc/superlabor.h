@@ -39,11 +39,9 @@ public:
     SuperLabor(QObject *parent = 0);
     SuperLabor(CustomProfession *cp, QObject *parent = 0);
     SuperLabor(QSettings &s, QObject *parent = 0);
+    SuperLabor(Dwarf *d, QObject *parent = 0);
 
     QString get_name(){return m_name;}
-    QString get_custom_prof_name(){return m_custom_prof_name;}
-    QVector<int> get_enabled_labors();
-    bool is_from_custom_prof(){return m_auto_generated;}
 
     int show_builder_dialog(QWidget *parent);
     void delete_from_disk();
@@ -51,12 +49,12 @@ public:
 
 public slots:
     void role_changed(int);
+//    void data_changed(QVariant data);
 
 private:
     Ui::SuperLaborEditor *ui;    
-    QString m_custom_prof_name;
-    bool m_auto_generated; //indicates that it's really just a wrapper for a custom profession        
     bool is_valid();
+    void load_cp_labors(CustomProfession *cp);
 
 };
 #endif // SUPERLABOR_H

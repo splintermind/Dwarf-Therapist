@@ -121,12 +121,13 @@ private:
     void keyPressEvent(QKeyEvent *event);    
 
     QMenu *m;
-    QMenu *custom_prof_menu;
+    QMenu *customization_menu;
     QMenu *squads_menu;
     QMenu *debug_menu;
 
     QAction *m_prof_name;
     QAction *m_professions;
+    QAction *m_super_labors;
 
     QAction *m_assign_labors;
     QAction *m_assign_skilled_labors;
@@ -142,6 +143,7 @@ private:
         void new_custom_profession();
         void apply_custom_profession();
         void custom_profession_from_dwarf();
+        void super_labor_from_dwarf();
         void reset_custom_profession();
         void set_custom_profession_text();
         void set_squad_name();

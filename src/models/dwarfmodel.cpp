@@ -665,7 +665,7 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
     }
 
     COLUMN_TYPE type = static_cast<COLUMN_TYPE>(idx.data(DwarfModel::DR_COL_TYPE).toInt());
-    if (type != CT_LABOR && type != CT_FLAGS && type != CT_ROLE && type != CT_SUPER_LABOR)
+    if (type != CT_LABOR && type != CT_FLAGS && type != CT_ROLE && type != CT_SUPER_LABOR && type != CT_CUSTOM_PROFESSION)
         return;
 
     Q_ASSERT(item);
@@ -703,10 +703,10 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
             m_dwarves[dwarf_id]->toggle_labor(labor_id);
         else if (type == CT_FLAGS)
             m_dwarves[dwarf_id]->toggle_flag_bit(labor_id);
-        else if (type == CT_ROLE || type == CT_SUPER_LABOR){
+        else if (type == CT_ROLE || type == CT_SUPER_LABOR || type == CT_CUSTOM_PROFESSION){
             Dwarf *d  = m_dwarves[dwarf_id];
             bool cp_applied = false;
-            if(type == CT_SUPER_LABOR){
+            if(type == CT_CUSTOM_PROFESSION){
                 QString new_prof_name = idx.data(DwarfModel::DR_CUSTOM_PROF).toString();
                 if(!new_prof_name.isEmpty()){
                     CustomProfession *cp = DT->get_custom_profession(new_prof_name);

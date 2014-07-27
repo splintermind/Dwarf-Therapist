@@ -249,7 +249,8 @@ HEADERS += inc/win_structs.h \
     inc/unitbelief.h \
     inc/superlabor.h \
     inc/grid_view/superlaborcolumn.h \
-    inc/laborlistbase.h
+    inc/laborlistbase.h \
+    inc/grid_view/customprofessioncolumn.h
 SOURCES += src/viewmanager.cpp \
     src/uberdelegate.cpp \
     src/truncatingfilelogger.cpp \
@@ -336,7 +337,8 @@ SOURCES += src/viewmanager.cpp \
     src/belief.cpp \
     src/grid_view/superlaborcolumn.cpp \
     src/superlabor.cpp \
-    src/laborlistbase.cpp
+    src/laborlistbase.cpp \
+    src/grid_view/customprofessioncolumn.cpp
 FORMS += ui/scriptdialog.ui \
     ui/scannerdialog.ui \
     ui/pendingchanges.ui \

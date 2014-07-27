@@ -26,33 +26,26 @@ THE SOFTWARE.
 #include "ui_superlabor.h"
 #include "gamedatareader.h"
 #include "labor.h"
+#include "dwarf.h"
 
 //new blank superlabor
 SuperLabor::SuperLabor(QObject *parent)
     :LaborListBase(parent)
-    , ui(new Ui::SuperLaborEditor)    
-    , m_custom_prof_name("")
-    , m_auto_generated(false)
-{
-
-}
-
-SuperLabor::SuperLabor(CustomProfession *cp, QObject *parent)
-    :LaborListBase(parent)
     , ui(new Ui::SuperLaborEditor)
 {
-    m_name = cp->get_name();
-    m_role_name = cp->get_role_name();
-    m_custom_prof_name = m_name;
-    m_auto_generated = true;
-
-    QList<Labor*> labors = gdr->get_ordered_labors();
-
-    foreach(Labor *l, labors) {
-        if (cp && cp->get_enabled_labors().contains(l->labor_id))
-            add_labor(l->labor_id);
-    }
 }
+
+//SuperLabor::SuperLabor(CustomProfession *cp, QObject *parent)
+//    :LaborListBase(parent)
+//    , ui(new Ui::SuperLaborEditor)
+//{
+//    m_name = cp->get_name();
+//    m_role_name = cp->get_role_name();
+//    m_custom_prof_name = m_name;
+//    m_auto_generated = true;
+//    load_cp_labors(cp);
+//    connect(cp,SIGNAL(updated(QVariant)),this,SLOT(data_changed(QVariant)));
+//}
 
 SuperLabor::SuperLabor(QSettings &s, QObject *parent)
     :LaborListBase(parent)
@@ -60,7 +53,6 @@ SuperLabor::SuperLabor(QSettings &s, QObject *parent)
 {
     m_name = s.value("id","").toString();
     m_role_name = s.value("role_name","").toString();
-    m_auto_generated = false;
 
     int labors = s.beginReadArray("labors");
     for (int i = 0; i < labors; ++i) {
@@ -71,6 +63,41 @@ SuperLabor::SuperLabor(QSettings &s, QObject *parent)
     }
     s.endArray();
 }
+
+SuperLabor::SuperLabor(Dwarf *d, QObject *parent)
+    : LaborListBase(parent)
+    , ui(new Ui::SuperLaborEditor)
+{
+    m_dwarf = d;
+    if(m_dwarf){
+        m_name = m_dwarf->profession();
+        QList<Labor*> labors = gdr->get_ordered_labors();
+        foreach(Labor *l, labors) {
+            if (m_dwarf->labor_enabled(l->labor_id))
+                add_labor(l->labor_id);
+        }
+    }
+}
+
+void SuperLabor::load_cp_labors(CustomProfession *cp){
+    m_active_labors.clear();
+    m_selected_count = 0;
+    if(cp){
+        QList<Labor*> labors = gdr->get_ordered_labors();
+        foreach(Labor *l, labors) {
+            if (cp && cp->get_enabled_labors().contains(l->labor_id))
+                add_labor(l->labor_id);
+        }
+    }
+}
+
+//void SuperLabor::data_changed(QVariant data){
+//    //related custom profession has been updated
+//    CustomProfession *cp = vPtr<CustomProfession>::asPtr(data);
+//    m_custom_prof_name = cp->get_name();
+//    m_name = m_custom_prof_name;
+//    load_cp_labors(cp);
+//}
 
 int SuperLabor::show_builder_dialog(QWidget *parent) {
     m_dialog = new QDialog(parent);
@@ -95,27 +122,29 @@ void SuperLabor::role_changed(int index){
     m_role_name = ui->cb_roles->itemData(index,Qt::UserRole).toString();
 }
 
-QVector<int> SuperLabor::get_enabled_labors(){
-    if(!m_custom_prof_name.isEmpty()){
-        CustomProfession *cp = DT->get_custom_profession(m_custom_prof_name);
-        if(cp)
-            return cp->get_enabled_labors();
-        else
-            return LaborListBase::get_enabled_labors();
-    }else{
-        return LaborListBase::get_enabled_labors();
-    }
-}
-
 bool SuperLabor::is_valid() {
     if (!m_dialog)
         return true;
 
-    QString proposed_name = ui->name_edit->text();
+    QString proposed_name = ui->name_edit->text().trimmed();
     if (proposed_name.isEmpty()) {
         QMessageBox::warning(m_dialog, tr("Naming Error!"),
-                             tr("You must enter a valid name!"));
+                             tr("You must enter a name for this Super Labor!"));
         return false;
+    }
+    foreach(SuperLabor *sl, DT->get_super_labors()){
+        if(sl != this && sl->get_name() == proposed_name){
+            QMessageBox::warning(m_dialog, tr("Duplicate Name!"),
+                                 tr("A Super Labor with this name already exists!"));
+            return false;
+        }
+    }
+    foreach(CustomProfession *cp, DT->get_custom_professions()){
+        if(cp->get_name() == proposed_name){
+            QMessageBox::warning(m_dialog, tr("Duplicate Name!"),
+                                 tr("A Custom Profession with this name already exists!"));
+            return false;
+        }
     }
     return true;
 }
@@ -132,16 +161,14 @@ void SuperLabor::delete_from_disk() {
 }
 
 void SuperLabor::save(QSettings &s){        
-        s.setValue("id",m_name);
-        s.setValue("role_name",m_role_name);
+    s.setValue("id",m_name);
+    s.setValue("role_name",m_role_name);
 
-        if(!m_auto_generated){
-            s.beginWriteArray("labors");
-            int i = 0;
-            foreach(int labor_id, get_enabled_labors()) {
-                s.setArrayIndex(i++);
-                s.setValue("id",QString::number(labor_id));
-            }
-            s.endArray();
-        }
+    s.beginWriteArray("labors");
+    int i = 0;
+    foreach(int labor_id, get_enabled_labors()) {
+        s.setArrayIndex(i++);
+        s.setValue("id",QString::number(labor_id));
+    }
+    s.endArray();
 }

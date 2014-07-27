@@ -35,11 +35,11 @@ public:
     QString get_name(){return m_name;}
     QString get_role_name(){return m_role_name;}
 
-    float get_rating(int id, LLB_RATING_TYPE type){return m_ratings.value(id).at(type);}
-    float get_role_rating(int id){return m_ratings.value(id).at(LLB_ROLE);}
-    float get_skill_rating(int id){return m_ratings.value(id).at(LLB_SKILL);}
-    float get_skill_rate_rating(int id){return m_ratings.value(id).at(LLB_SKILL_RATE);}
-    float get_active_rating(int id){return m_ratings.value(id).at(LLB_ACTIVE);}
+    float get_rating(int id, LLB_RATING_TYPE type);
+    float get_role_rating(int id){return get_rating(id,LLB_ROLE);}
+    float get_skill_rating(int id){return get_rating(id,LLB_SKILL);}
+    float get_skill_rate_rating(int id){return get_rating(id,LLB_SKILL_RATE);}
+    float get_active_rating(int id){return get_rating(id,LLB_ACTIVE);}
 
     QHash<int,QString> get_labor_desc(){return m_labor_desc;}
     QList<QVariant> get_converted_labors(){return m_qvariant_labors;}
@@ -50,7 +50,7 @@ public slots:
     void add_labor(int labor_id) {set_labor(labor_id, true);}
     void remove_labor(int labor_id) {set_labor(labor_id, false);}
     void labor_item_check_changed(QListWidgetItem *item);
-    void refresh();
+    virtual void refresh();
 
     virtual void accept();
     virtual void cancel();
@@ -67,8 +67,8 @@ public slots:
 signals:
     void selected_count_changed(int);
 
-
 protected:
+    Dwarf *m_dwarf;
     GameDataReader *gdr;
     QString m_name;
     QString m_role_name;
@@ -83,6 +83,7 @@ protected:
 
     void load_labors(QListWidget *labor_list);
     void build_role_combo(QComboBox *cb_roles);
+    virtual void update_dwarf(){}
 
     bool m_internal_change_flag;
 };
