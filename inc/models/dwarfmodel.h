@@ -43,7 +43,6 @@ public:
         GB_CASTE,
         GB_CASTE_TAG,
         GB_CURRENT_JOB,
-        GB_CUSTOM_GROUP,
         GB_HAPPINESS,
         GB_HAS_NICKNAME,
         GB_HIGHEST_MOODABLE,
@@ -58,7 +57,8 @@ public:
         GB_ASSIGNED_LABORS,
         GB_TOTAL_SKILL_LEVELS,
         GB_HEALTH,
-        GB_TOTAL
+        GB_TOTAL,
+        GB_CUSTOM_GROUP
     } GROUP_BY;
     typedef enum {
         DR_RATING = Qt::UserRole + 1,
