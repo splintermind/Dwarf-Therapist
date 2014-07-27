@@ -24,6 +24,8 @@ THE SOFTWARE.
 #include "customgroup.h"
 #include <QtWidgets>
 #include "dwarf.h"
+#include "dwarftherapist.h"
+#include "truncatingfilelogger.h"
 
 int CustomGroup::last_id = 1;
 
@@ -52,4 +54,29 @@ void CustomGroup::remove_member(Dwarf *d){
 
 bool CustomGroup::has_member(Dwarf *d){
     return m_member_ids.indexOf(d->id()) != -1;
+}
+
+void CustomGroup::save_members(QSettings *settings){
+    settings->setValue("name", name());
+    QString memberstring = "";
+    foreach (int id, members()) {
+        memberstring += QString::number(id);
+        memberstring += ",";
+    }
+    settings->setValue("members", memberstring);
+}
+
+void CustomGroup::load_members(QSettings *settings){
+    const QString &memberstring = settings->value("members").toString();
+    LOGI << "adding group " << name() << ": " << memberstring;
+    const QStringList memberstrings = memberstring.split(',', QString::SkipEmptyParts);
+    foreach (const QString &member, memberstrings) {
+        int id = member.toInt();
+        Dwarf *d = DT->get_dwarf_by_id(id);
+        if (!d) {
+            LOGI << "no dwarf with id " << id << " (" << member << ")";
+            continue;
+        }
+        add_member(d);
+    }
 }

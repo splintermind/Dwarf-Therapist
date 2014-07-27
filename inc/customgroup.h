@@ -37,6 +37,8 @@ public:
     int id() const { return m_id; }
     const QString& name() const { return m_name; }
     const QList<int>& members() const { return m_member_ids; }
+    void save_members(QSettings *settings);
+    void load_members(QSettings *settings);
 private:
     static int last_id;
 

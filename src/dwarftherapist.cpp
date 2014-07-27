@@ -250,6 +250,7 @@ void DwarfTherapist::write_settings() {
 
     save_custom_groups();
 }
+
 void DwarfTherapist::save_custom_prof(CustomProfession *cp){
     QString key = cp->get_save_name();
     m_user_settings->beginGroup(key);
@@ -301,13 +302,7 @@ void DwarfTherapist::save_custom_groups() {
     i = 0;
     foreach (CustomGroup *g, m_custom_groups) {
         m_user_settings->setArrayIndex(i++);
-        m_user_settings->setValue("name", g->name());
-        QString memberstring = "";
-        foreach (int id, g->members()) {
-            memberstring += QString::number(id);
-            memberstring += ",";
-        }
-        m_user_settings->setValue("members", memberstring);
+        g->save_members(m_user_settings);
     }
     m_user_settings->endArray(); // fortid
 
@@ -332,18 +327,7 @@ void DwarfTherapist::load_custom_groups() {
         CustomGroup *g = get_custom_group(name);
         if (!g) // has been deleted when connected to a different fort
             continue;
-        const QString &memberstring = m_user_settings->value("members").toString();
-        const QStringList memberstrings = memberstring.split(',', QString::SkipEmptyParts);
-        foreach (const QString &member, memberstrings) {
-            int id = member.toInt();
-            Dwarf *d = get_dwarf_by_id(id);
-            if (!d) {
-                LOGI << "no dwarf with id " << id << " (" << member << ")";
-                continue;
-            }
-            g->add_member(d);
-        }
-        LOGI << "adding group " << name << ": " << memberstring;
+        g->load_members(m_user_settings);
     }
     m_user_settings->endArray(); // fortid
     m_user_settings->endGroup(); // "custom_groups"
