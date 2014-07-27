@@ -43,7 +43,6 @@ public:
         GB_CASTE,
         GB_CASTE_TAG,
         GB_CURRENT_JOB,
-        GB_CUSTOM_GROUP,
         GB_HAPPINESS,
         GB_HAS_NICKNAME,
         GB_HIGHEST_MOODABLE,
@@ -60,6 +59,7 @@ public:
         GB_HEALTH,
         GB_GOALS,
         GB_SKILL_RUST,
+        GB_CUSTOM_GROUP,
         GB_TOTAL
     } GROUP_BY;
     typedef enum {
