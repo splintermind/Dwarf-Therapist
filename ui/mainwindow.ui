@@ -1087,6 +1087,15 @@
     <string>Add New View</string>
    </property>
   </action>
+  <action name="act_add_super_labor">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/img/page_white_add.png</normaloff>:/img/page_white_add.png</iconset>
+   </property>
+   <property name="text">
+    <string>Add Super Labor</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
@@ -1537,6 +1546,22 @@
     <hint type="destinationlabel">
      <x>564</x>
      <y>403</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btn_new_super_labor</sender>
+   <signal>clicked()</signal>
+   <receiver>act_add_super_labor</receiver>
+   <slot>trigger()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1055</x>
+     <y>764</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>-1</x>
+     <y>-1</y>
     </hint>
    </hints>
   </connection>

@@ -36,8 +36,7 @@ namespace Ui
 class SuperLabor : public LaborListBase  {
     Q_OBJECT
 public:
-    SuperLabor(QObject *parent = 0);
-    SuperLabor(CustomProfession *cp, QObject *parent = 0);
+    SuperLabor(QObject *parent = 0);    
     SuperLabor(QSettings &s, QObject *parent = 0);
     SuperLabor(Dwarf *d, QObject *parent = 0);
 

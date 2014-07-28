@@ -79,8 +79,9 @@ public:
     void emit_labor_counts_updated();
     void update_specific_header(int id, COLUMN_TYPE type);    
 
-public slots:
+public slots:    
     int add_custom_profession(Dwarf *d = 0);
+    void add_custom_professions(QList<CustomProfession*> cps);
     void add_custom_profession(CustomProfession *cp);
     void add_super_labor(Dwarf *d = 0);
 
@@ -98,9 +99,8 @@ public slots:
 
 private:
     struct customization_data{
-        QString name;
-        int icon_id;
-        bool is_super;
+        QVariant id;
+        CUSTOMIZATION_TYPE type;
     };
 
     QVector<QString> m_generic_words;
@@ -131,7 +131,7 @@ private:
 signals:
     void settings_changed();
     void roles_changed();
-    void labor_counts_updated();
+    void labor_counts_updated();    
     void customizations_changed();
     void units_refreshed(); //raised by the model object after a read is completed
     void connected();

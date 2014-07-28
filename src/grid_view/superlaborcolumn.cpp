@@ -61,15 +61,15 @@ SuperLaborColumn::SuperLaborColumn(const SuperLaborColumn &to_copy)
 void SuperLaborColumn::init(){
     m_type = CT_SUPER_LABOR;
     m_current_sort = ViewManager::get_default_col_sort(m_type);
-    connect(DT, SIGNAL(customizations_changed()), this, SLOT(customization_changed()),Qt::UniqueConnection);
-    ml = get_base_object();
+    connect(DT,SIGNAL(customizations_changed()),this,SLOT(customizations_changed()));
+    ml = QPointer<LaborListBase>(get_base_object());
 }
 
 QStandardItem *SuperLaborColumn::build_cell(Dwarf *d) {    
     QStandardItem *item = init_cell(d);
     item->setData(CT_SUPER_LABOR, DwarfModel::DR_COL_TYPE);
 
-    if(!ml){
+    if(ml.isNull()){
         item->setData(-1, DwarfModel::DR_RATING);
         item->setData(-1, DwarfModel::DR_DISPLAY_RATING);
         item->setData(-1,DwarfModel::DR_LABORS);
@@ -131,7 +131,7 @@ void SuperLaborColumn::refresh(Dwarf *d, QStandardItem *item, QString title){
 
 float SuperLaborColumn::get_rating(int id, LaborListBase::LLB_RATING_TYPE type){
     float m_sort_val = 0.0;
-    if(ml)
+    if(!ml.isNull())
         m_sort_val = ml->get_rating(id,type);
     return m_sort_val;
 }
@@ -164,11 +164,15 @@ LaborListBase* SuperLaborColumn::get_base_object(){
     return DT->get_super_labor(m_id);
 }
 
-void SuperLaborColumn::customization_changed(){
-    //check if the name has been changed
-    QString curr_id = ml->get_name();
-    if(curr_id != m_id)
-        m_id = curr_id;
+void SuperLaborColumn::customizations_changed(){
+    if(ml.isNull()){//attempt to find an object matching the id
+        ml = QPointer<LaborListBase>(get_base_object());
+    }else{
+        //check if the name has been changed
+        QString curr_id = ml->get_name();
+        if(curr_id != m_id)
+            m_id = curr_id;
+    }
 }
 
 void SuperLaborColumn::write_to_ini(QSettings &s){

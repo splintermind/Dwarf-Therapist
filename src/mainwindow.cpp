@@ -722,8 +722,8 @@ void MainWindow::load_customizations() {
         i = new QTreeWidgetItem(cps);
         i->setText(0,cp->get_name());
         i->setIcon(0,QIcon(cp->get_pixmap()));
-        i->setData(0,Qt::UserRole,-1);
-        i->setData(0,Qt::UserRole+1,false);
+        i->setData(0,Qt::UserRole,QVariant(cp->get_name()));
+        i->setData(0,Qt::UserRole+1,CUSTOM_PROF);
     }
     ui->act_export_custom_professions->setEnabled(profs.size());
     ui->tree_custom_professions->addTopLevelItem(cps);
@@ -737,8 +737,8 @@ void MainWindow::load_customizations() {
         cp = DT->get_custom_prof_icon(key);
         i->setText(0,cp->get_name());
         i->setIcon(0,QIcon(cp->get_pixmap()));
-        i->setData(0,Qt::UserRole,cp->prof_id());
-        i->setData(0,Qt::UserRole+1,false);
+        i->setData(0,Qt::UserRole,QVariant(cp->prof_id()));
+        i->setData(0,Qt::UserRole+1,CUSTOM_ICON);
     }
     ui->tree_custom_professions->addTopLevelItem(icons);
 
@@ -748,8 +748,8 @@ void MainWindow::load_customizations() {
     foreach(SuperLabor *sl, DT->get_super_labors()){
             i = new QTreeWidgetItem(super_labors);
             i->setText(0, sl->get_name());
-            i->setData(0,Qt::UserRole,sl->get_name());
-            i->setData(0,Qt::UserRole+1,true);        
+            i->setData(0,Qt::UserRole,QVariant(sl->get_name()));
+            i->setData(0,Qt::UserRole+1,CUSTOM_SUPER);
     }
     ui->tree_custom_professions->addTopLevelItem(super_labors);
 
@@ -767,23 +767,21 @@ void MainWindow::draw_custom_profession_context_menu(const QPoint &p) {
     if (!idx.isValid() || ui->tree_custom_professions->itemAt(p)->parent() == 0)
         return;        
 
-    QString cp_name = idx.data().toString();
-    int prof_id = idx.data(Qt::UserRole).toInt();
-    bool is_super_labor = idx.data(Qt::UserRole+1).toBool();
-
     QVariantList data;
-    data << cp_name << prof_id << is_super_labor;
+    data << idx.data(Qt::UserRole) << idx.data(Qt::UserRole+1);
     QMenu m(this);
-    if(!is_super_labor){
+    CUSTOMIZATION_TYPE t = static_cast<CUSTOMIZATION_TYPE>(idx.data(Qt::UserRole+1).toInt());
+    if(t != CUSTOM_SUPER){
         m.setTitle(tr("Custom Profession"));
-        if(prof_id)
+        if(t == CUSTOM_ICON)
             m.setTitle(m.title() + " Icon");
     }else{
         m.setTitle(tr("Super Labor"));
     }
-    QAction *a = m.addAction(QIcon(":img/pencil.png"), tr("Edit %1").arg(cp_name), DT, SLOT(edit_customization()));
+
+    QAction *a = m.addAction(QIcon(":img/pencil.png"), tr("Edit %1").arg(idx.data().toString()), DT, SLOT(edit_customization()));
     a->setData(data);
-    a = m.addAction(QIcon(":img/minus-circle.png"), tr("Delete %1").arg(cp_name), DT, SLOT(delete_customization()));
+    a = m.addAction(QIcon(":img/minus-circle.png"), tr("Delete %1").arg(idx.data().toString()), DT, SLOT(delete_customization()));
     a->setData(data);
     m.exec(ui->tree_custom_professions->viewport()->mapToGlobal(p));
 }

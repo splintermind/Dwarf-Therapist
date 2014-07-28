@@ -18,6 +18,21 @@
     <normaloff>:/img/hammer.png</normaloff>:/img/hammer.png</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
+    <number>4</number>
+   </property>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2">
      <item>
@@ -27,6 +42,18 @@
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>100</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>100</width>
+         <height>20</height>
+        </size>
        </property>
        <property name="text">
         <string>Name</string>
@@ -43,13 +70,13 @@
       <widget class="QLineEdit" name="name_edit">
        <property name="minimumSize">
         <size>
-         <width>150</width>
+         <width>0</width>
          <height>0</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>150</width>
+         <width>16777215</width>
          <height>16777215</height>
         </size>
        </property>
@@ -61,6 +88,18 @@
     <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,0">
      <item>
       <widget class="QLabel" name="lbl_roles">
+       <property name="minimumSize">
+        <size>
+         <width>100</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>100</width>
+         <height>20</height>
+        </size>
+       </property>
        <property name="text">
         <string>Role</string>
        </property>
@@ -74,15 +113,21 @@
      </item>
      <item>
       <widget class="QComboBox" name="cb_roles">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="minimumSize">
         <size>
-         <width>150</width>
+         <width>0</width>
          <height>0</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>150</width>
+         <width>16777215</width>
          <height>16777215</height>
         </size>
        </property>

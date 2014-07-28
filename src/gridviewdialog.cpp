@@ -42,6 +42,7 @@ THE SOFTWARE.
 #include "healthcolumn.h"
 #include "equipmentcolumn.h"
 #include "superlaborcolumn.h"
+#include "customprofessioncolumn.h"
 
 #include "defines.h"
 #include "statetableview.h"
@@ -56,6 +57,7 @@ THE SOFTWARE.
 #include "unithealth.h"
 #include "healthcategory.h"
 #include "superlabor.h"
+#include "customprofession.h"
 
 GridViewDialog::GridViewDialog(ViewManager *mgr, GridView *view, QWidget *parent)
     : QDialog(parent)
@@ -361,12 +363,12 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
         a->setData(att_pair.first);
     }
 
-    //CUSTOM PROFESSIONS (super labors)
-    QMenu *m_custom_profs = m_cmh->create_title_menu(m,tr("Custom Profession Column"),tr("Columns which can apply or remove a custom profession and it's labors."));
+    //CUSTOM PROFESSIONS
+    QMenu *m_custom_profs = m_cmh->create_title_menu(m,tr("Custom Profession Column"),tr("Columns which can apply or remove a custom profession and its labors."));
     m_cmh->add_sub_menus(m_custom_profs,2);
     foreach(CustomProfession *cp, DT->get_custom_professions()){
             QMenu *menu_to_use = m_cmh->find_menu(m_custom_profs,cp->get_name());
-            QAction *a = menu_to_use->addAction(cp->get_name(), this, SLOT(add_super_labor_column()));
+            QAction *a = menu_to_use->addAction(cp->get_name(), this, SLOT(add_custom_prof_column()));
             a->setData(cp->get_name());
     }
 
@@ -582,6 +584,20 @@ void GridViewDialog::add_super_labor_column() {
         return;
     }
     new SuperLaborColumn(name,name,m_active_set,m_active_set);
+    draw_columns_for_set(m_active_set);
+}
+
+void GridViewDialog::add_custom_prof_column() {
+    if (!m_active_set)
+        return;
+    QAction *a = qobject_cast<QAction*>(QObject::sender());
+    QString name = a->data().toString();
+    CustomProfession *cp = DT->get_custom_profession(name);
+    if (!cp) {
+        LOGE << tr("Failed to find custom profession %1!").arg(name);
+        return;
+    }
+    new CustomProfessionColumn(name,name,m_active_set,m_active_set);
     draw_columns_for_set(m_active_set);
 }
 

@@ -341,8 +341,8 @@ void ImportExportDialog::clear_selection() {
     }
 }
 
-QVector<CustomProfession*> ImportExportDialog::get_profs() {
-    QVector<CustomProfession*> out;
+QList<CustomProfession *> ImportExportDialog::get_profs() {
+    QList<CustomProfession*> out;
     for(int i = 0; i < ui->list_professions->count(); ++i) {
         QListWidgetItem *item = static_cast<QListWidgetItem*>(ui->list_professions->item(i));
         if (item->checkState() != Qt::Checked)
@@ -356,8 +356,8 @@ QVector<CustomProfession*> ImportExportDialog::get_profs() {
     return out;
 }
 
-QVector<GridView*> ImportExportDialog::get_views() {
-    QVector<GridView*> out;
+QList<GridView *> ImportExportDialog::get_views() {
+    QList<GridView*> out;
     for(int i = 0; i < ui->list_professions->count(); ++i) {
         QListWidgetItem *item = static_cast<QListWidgetItem*>(ui->list_professions->item(i));
         if (item->checkState() != Qt::Checked)
@@ -371,8 +371,8 @@ QVector<GridView*> ImportExportDialog::get_views() {
     return out;
 }
 
-QVector<Role*> ImportExportDialog::get_roles(){
-    QVector<Role*> out;
+QList<Role *> ImportExportDialog::get_roles(){
+    QList<Role*> out;
     for(int i = 0; i < ui->list_professions->count(); i++){
         QListWidgetItem *item = static_cast<QListWidgetItem*>(ui->list_professions->item(i));
         if(item->checkState() != Qt::Checked)
@@ -458,8 +458,7 @@ void ImportExportDialog::export_selected_professions() {
     s.beginWriteArray("custom_professions");
     foreach(CustomProfession *cp, get_profs()) {
         s.setArrayIndex(i++);
-        cp->export_to_file(s);
-        s.endArray();
+        cp->export_to_file(s);       
         exported++;
     }
     s.endArray();
@@ -488,11 +487,8 @@ void ImportExportDialog::import_selected_roles(){
 }
 
 void ImportExportDialog::import_selected_professions() {
-    int imported = 0;
-    foreach(CustomProfession *cp, get_profs()) {
-        DT->add_custom_profession(cp);
-        imported++;
-    }
+    int imported = m_profs.count();
+    DT->add_custom_professions(m_profs);
     if (imported)
         QMessageBox::information(this, tr("Import Successful"),
             tr("Imported %n custom profession(s)", "", imported));

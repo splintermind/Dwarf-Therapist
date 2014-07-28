@@ -198,16 +198,6 @@ void StateTableView::set_model(DwarfModel *model, DwarfModelProxy *proxy) {
     set_single_click_labor_changes(DT->user_settings()->value("options/single_click_labor_changes", true).toBool());
 }
 
-void StateTableView::new_custom_profession() {
-    QModelIndex idx = currentIndex();
-    if (idx.isValid()) {
-        int id = idx.data(DwarfModel::DR_ID).toInt();
-        Dwarf *d = m_model->get_dwarf_by_id(id);
-        if (d)
-            emit new_custom_profession(d);
-    }
-}
-
 void StateTableView::filter_dwarves(QString text) {
     m_proxy->setFilterFixedString(text);
     m_proxy->setFilterKeyColumn(0);
@@ -335,15 +325,12 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
 
         //dwarf actions (debug/memory stuff)
         m->addSeparator();
-        //        m->addActions(d->get_actions());
         debug_menu->clear();
         debug_menu->addActions(d->get_mem_actions());
         m->addMenu(debug_menu);
 
         m->exec(viewport()->mapToGlobal(event->pos()));
     } else if (idx.data(DwarfModel::DR_COL_TYPE).toInt() == CT_LABOR) {
-        // labor column
-        //        QMenu m(this); // this will be the popup menu
         QMenu labor(this);
         QString set_name = idx.data(DwarfModel::DR_SET_NAME).toString();
         ViewColumnSet *set = DT->get_main_window()->get_view_manager()->get_active_view()->get_set(set_name);
@@ -362,52 +349,26 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
         }
         labor.exec(viewport()->mapToGlobal(event->pos()));
     } else if (idx.data(DwarfModel::DR_IS_AGGREGATE).toBool() && m_model->current_grouping()==DwarfModel::GB_SQUAD){
-        //        QMenu m(this);
         QMenu squad_name(this);
         QAction *a = squad_name.addAction(tr("Change Squad Name"),this,SLOT(set_squad_name()));
         a->setData(idx.data(DwarfModel::DR_ID));
         squad_name.exec(viewport()->mapToGlobal(event->pos()));
     } else if (idx.data(DwarfModel::DR_COL_TYPE).toInt() == CT_PROFESSION) {
-        //        QMenu m(this);
         QMenu prof_icon(this);
-        int id = idx.data(DwarfModel::DR_SORT_VALUE).toInt();
-        QString prof_name = GameDataReader::ptr()->get_profession(id)->name(true);
-        QAction *a = prof_icon.addAction(tr("Customize %1 Icon").arg(prof_name),this,SLOT(edit_prof_icon()));
-        a->setData(id); //sort value is the profession id
+        int id = idx.data(DwarfModel::DR_SORT_VALUE).toInt(); //sort value is the profession id
+        QAction *a = prof_icon.addAction(tr("Customize %1 Icon")
+                                         .arg(GameDataReader::ptr()->get_profession(id)->name()),DT,SLOT(edit_customization()));
+        //build the data list
+        QVariantList data;
+        data << id << CUSTOM_ICON;
+        a->setData(data);
 
         if(DT->get_custom_prof_icon(id)){
-            a = prof_icon.addAction(QIcon(":img/minus-circle.png"), tr("Reset to Default"), this, SLOT(remove_prof_icon()));
-            a->setData(id);
+            a = prof_icon.addAction(QIcon(":img/minus-circle.png"), tr("Reset to Default"), DT, SLOT(delete_customization()));
+            a->setData(data);
         }
 
         prof_icon.exec(viewport()->mapToGlobal(event->pos()));
-    }
-}
-
-void StateTableView::edit_prof_icon(){
-    QAction *a = qobject_cast<QAction*>(QObject::sender());
-    int prof_id = a->data().toInt();
-    CustomProfession *cp = DT->get_custom_prof_icon(prof_id);
-    if(!cp){
-        cp = new CustomProfession(0,this);
-        cp->set_prof_id(prof_id);
-    }
-    int accepted = cp->show_builder_dialog(DT->get_main_window());
-    if (accepted) {
-        DT->get_custom_prof_icons().insert(prof_id, cp);
-        DT->write_custom_professions();
-        DT->get_main_window()->load_customizations();
-    }
-}
-
-void StateTableView::remove_prof_icon(){
-    QAction *a = qobject_cast<QAction*>(QObject::sender());
-    int prof_id = a->data().toInt();
-    CustomProfession *cp = DT->get_custom_prof_icon(prof_id);
-    if(cp){
-        cp->delete_from_disk();
-        DT->get_custom_prof_icons().remove(prof_id);
-        DT->get_main_window()->load_customizations();
     }
 }
 
@@ -632,7 +593,7 @@ void StateTableView::reset_custom_profession() {
         if (idx.column() == 0 && !idx.data(DwarfModel::DR_IS_AGGREGATE).toBool()) {
             Dwarf *d = m_model->get_dwarf_by_id(idx.data(DwarfModel::DR_ID).toInt());
             if (d)
-                d->reset_custom_profession();
+                d->reset_custom_profession(true);
         }
     }
     m_model->calculate_pending();

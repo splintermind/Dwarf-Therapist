@@ -94,6 +94,7 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     connect(m_main_window->ui->act_import_existing_professions, SIGNAL(triggered()), this, SLOT(import_existing_professions()));
     connect(m_main_window->ui->tree_custom_professions, SIGNAL(itemActivated(QTreeWidgetItem*,int)), this, SLOT(edit_customization(QTreeWidgetItem*)));
     connect(m_main_window->ui->act_add_custom_profession, SIGNAL(triggered()), this, SLOT(add_custom_profession()));
+    connect(m_main_window->ui->act_add_super_labor, SIGNAL(triggered()), this, SLOT(add_super_labor()));
     connect(m_main_window->ui->le_filter_text, SIGNAL(textChanged(const QString&)), m_main_window->get_proxy(), SLOT(setFilterFixedString(const QString&)));
 
     read_settings();
@@ -282,9 +283,8 @@ QList<SuperLabor*> DwarfTherapist::get_super_labors(){
 DwarfTherapist::customization_data DwarfTherapist::build_c_data(QVariant data){
     Q_ASSERT(data.canConvert<QVariantList>());
     DwarfTherapist::customization_data c_data;
-    c_data.name = data.toList().at(0).toString();
-    c_data.icon_id = data.toList().at(1).toInt();
-    c_data.is_super = data.toList().at(2).toBool();
+    c_data.id = data.toList().at(0);
+    c_data.type = static_cast<CUSTOMIZATION_TYPE>(data.toList().at(1).toInt());
     return c_data;
 }
 
@@ -313,6 +313,14 @@ CustomProfession *DwarfTherapist::get_custom_profession(QString name) {
     return retval;
 }
 
+void DwarfTherapist::add_custom_professions(QList<CustomProfession*> cps) {
+    foreach(CustomProfession *cp, cps){
+        m_custom_professions.insert(cp->get_name(),cp);
+    }
+    m_main_window->load_customizations();
+    write_custom_professions();
+}
+
 void DwarfTherapist::add_custom_profession(CustomProfession *cp) {
     m_custom_professions.insert(cp->get_name(), cp);
     ins_custom_profession(cp);
@@ -333,13 +341,13 @@ void DwarfTherapist::add_super_labor(Dwarf *d) {
     if (accepted) {
         m_super_labors.insert(sl->get_name(),sl);
     }
+    m_main_window->load_customizations();
+    write_super_labors();
 }
 
 void DwarfTherapist::ins_custom_profession(CustomProfession *cp){
     QString name = cp->get_name();
     m_custom_professions.insert(name,cp);
-//    if(!m_super_labors.contains(name))
-//        m_super_labors.insert(name,new SuperLabor(cp,this));
     m_main_window->load_customizations();
     write_custom_professions();
 }
@@ -355,36 +363,45 @@ void DwarfTherapist::edit_customization(QTreeWidgetItem *i) {
     if(i->childCount() > 0)
         return;
     QList<QVariant> data;
-    data << i->text(0) << i->data(0,Qt::UserRole) << i->data(0,Qt::UserRole+1);
+    data << i->data(0,Qt::UserRole) << i->data(0,Qt::UserRole+1);
     edit_customization(data);
 }
 
 void DwarfTherapist::edit_customization(QList<QVariant> data){
     DwarfTherapist::customization_data c_data = build_c_data(data);
-    if(!c_data.is_super){
+    if(c_data.type != CUSTOM_SUPER){
         CustomProfession *cp;        
-        if(c_data.icon_id > -1){
-            cp = get_custom_prof_icon(c_data.icon_id);
+        if(c_data.type == CUSTOM_ICON){
+            //custom icons are slightly different. if one doesn't already exist with the profession id specified, create it
+            cp = m_custom_prof_icns.value(c_data.id.toInt());
+            if(!cp){
+                cp = new CustomProfession(c_data.id.toInt(),this);
+            }
         }else{
-            cp = m_custom_professions.take(c_data.name);
+            cp = m_custom_professions.take(c_data.id.toString());
+            if (!cp) {
+                LOGW << "tried to edit custom profession '" << c_data.id.toString() << "' but I can't find it!";
+                return;
+            }
         }
-        if (!cp) {
-            LOGW << "tried to edit custom profession '" << c_data.name << "' but I can't find it!";
-            return;
-        }
+        //edit
         int accepted = cp->show_builder_dialog(m_main_window);
-        //put our objects back
-        m_custom_professions.insert(cp->get_name(),cp);
-        //update other stuff
+        if(c_data.type == CUSTOM_ICON){
+            if(accepted) //if a new icon is started, but cancelled don't save it
+                m_custom_prof_icns.insert(cp->prof_id(),cp);
+        }else{
+            m_custom_professions.insert(cp->get_name(),cp);
+        }
+        //update other stuff if updated
         if (accepted) {
             m_main_window->load_customizations();
             write_custom_professions();
         }
     }else{
         SuperLabor *sl;
-        sl = m_super_labors.take(c_data.name);
+        sl = m_super_labors.take(c_data.id.toString());
         if(!sl){
-            LOGW << "tried to edit super labor '" << c_data.name << "' but I can't find it!";
+            LOGW << "tried to edit super labor '" << c_data.id.toString() << "' but I can't find it!";
             return;
         }
         int accepted = sl->show_builder_dialog(m_main_window);
@@ -400,21 +417,21 @@ void DwarfTherapist::delete_customization() {
     QAction *a = qobject_cast<QAction*>(QObject::sender());
     DwarfTherapist::customization_data c_data = build_c_data(a->data());
 
-    if(!c_data.is_super){
+    if(c_data.type != CUSTOM_SUPER){
         CustomProfession *cp;
-        if(c_data.icon_id < 0)
-            cp = get_custom_profession(c_data.name);
+        if(c_data.type == CUSTOM_ICON)
+            cp = get_custom_prof_icon(c_data.id.toInt());
         else
-            cp = get_custom_prof_icon(c_data.icon_id);
+            cp = get_custom_profession(c_data.id.toString());
 
         if (!cp) {
-            LOGW << "tried to delete custom profession '" << c_data.name << "' but it wasn't found!";
+            LOGW << "tried to delete custom profession '" << c_data.id.toString() << "' but it wasn't found!";
             return;
         }
-        if(c_data.icon_id < 0){ //custom profession
+        if(c_data.type == CUSTOM_PROF){ //custom profession
             QStringList in_use_by;
             foreach(Dwarf *d, m_main_window->get_model()->get_dwarves()) {
-                if (d->custom_profession_name() == c_data.name) {
+                if (d->custom_profession_name() == c_data.id.toString()) {
                     in_use_by.append(d->nice_name());
                 }
             }
@@ -424,7 +441,7 @@ void DwarfTherapist::delete_customization() {
                 box->setWindowTitle(tr("Cannot Remove Profession"));
                 box->setText(tr("<b>%1</b> is still in use by: %2 %3. Please change them to"
                                 " another profession before deleting this profession!")
-                             .arg(capitalize(c_data.name)).arg(in_use_by.size()).arg((in_use_by.size() > 1 ? tr("units") : tr("unit"))));
+                             .arg(capitalize(c_data.id.toString())).arg(in_use_by.size()).arg((in_use_by.size() > 1 ? tr("units") : tr("unit"))));
                 box->setDetailedText(tr("Units with this profession:\n\n%1").arg(in_use_by.join("\n")));
                 box->exec();
                 return;
@@ -432,13 +449,13 @@ void DwarfTherapist::delete_customization() {
         }
         del_custom_profession(cp);
     }else{
-        SuperLabor *sl = get_super_labor(c_data.name);
+        SuperLabor *sl = get_super_labor(c_data.id.toString());
         if (!sl) {
-            LOGW << "tried to delete super labor '" << c_data.name << "'' but it wasn't found!";
+            LOGW << "tried to delete super labor '" << c_data.id.toString() << "'' but it wasn't found!";
             return;
         }
         sl->delete_from_disk();
-        m_super_labors.remove(c_data.name);
+        m_super_labors.remove(c_data.id.toString());
         delete sl;
         m_main_window->load_customizations();
         write_super_labors();
@@ -447,11 +464,11 @@ void DwarfTherapist::delete_customization() {
 
 void DwarfTherapist::del_custom_profession(CustomProfession *cp){
     cp->delete_from_disk();
-    if(cp->get_icon_id() < 0){
-        m_custom_professions.remove(cp->get_name());
+    if(cp->prof_id() < 0){
+        m_custom_professions.take(cp->get_name());
     }else{
-        m_custom_prof_icns.remove(cp->get_icon_id());
-    }
+        m_custom_prof_icns.take(cp->prof_id());
+    }    
     delete cp;
     m_main_window->load_customizations();
     write_custom_professions();
@@ -508,7 +525,7 @@ void DwarfTherapist::load_game_translation_tables(DFInstance *df) {
     df->detach();
 }
 
-void DwarfTherapist::emit_customizations_changed(){    
+void DwarfTherapist::emit_customizations_changed(){
     emit customizations_changed();
     m_main_window->get_view_manager()->redraw_current_tab();
 }

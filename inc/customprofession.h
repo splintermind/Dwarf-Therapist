@@ -58,22 +58,15 @@ public:
     CustomProfession(QString name, QSettings &s, QObject *parent = 0);
     //! importing
     CustomProfession(QSettings &s, QObject *parent = 0);
+    //! custom icon
+    CustomProfession(int profession_id, QObject *parent = 0);
 
     //! Get the name:: for this custom profession if it's an icon override
     QString get_save_name();
-    //! Get the icon resource name for this profession
-    QString get_icon_path() {return m_icon_path;}
-    int get_icon_id() {return m_icon_id;}
-    //! Get the icon's text color for this profession
-    QColor get_font_color() {return m_font_color;}
-    //! Get the background color (exclusively for icon overrides)
-    QColor get_bg_color() {return m_bg_color;}
-    QString get_text() {return m_txt;}
     QPixmap get_pixmap();
     QString get_embedded_pixmap();
     //! Determines whether or not this profession should be applied as a mask
     bool is_mask(){return m_is_mask;}
-    void set_mask(bool value){m_is_mask = value;}
     int prof_id(){return m_prof_id;}
     bool has_icon();
 
@@ -89,11 +82,7 @@ public slots:
     void mask_changed(bool value);
     void build_icon_path(int id);
     void choose_icon();
-    void refresh_icon();
-    void set_font_color(QColor c){m_font_color = c;}
-    void set_bg_color(QColor c){m_bg_color = c;}
-    void set_text(QString s){m_txt = s;}
-    void set_prof_id(int val){m_prof_id = val;}
+    void refresh_icon();    
     void color_selected(QString key,QColor col);
     void prefix_changed(QString val);
     void role_changed(int);

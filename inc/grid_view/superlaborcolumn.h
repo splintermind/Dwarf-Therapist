@@ -48,7 +48,7 @@ public:
     void write_to_ini(QSettings &s);    
 protected:
     QString m_id;
-    LaborListBase *ml;
+    QPointer<LaborListBase> ml;
     void refresh(Dwarf *d, QStandardItem *item = 0, QString title = "");
     float get_base_sort(Dwarf *d);
     float get_role_rating(Dwarf *d);
@@ -58,8 +58,8 @@ protected:
     virtual LaborListBase* get_base_object();
     void init();
 
-protected slots:
-    virtual void customization_changed();
+protected slots:    
+    virtual void customizations_changed();
     virtual float get_rating(int id, LaborListBase::LLB_RATING_TYPE);
 };
 #endif // SUPERLABORCOLUMN_H

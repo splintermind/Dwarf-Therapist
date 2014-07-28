@@ -52,14 +52,14 @@ CustomProfessionColumn::CustomProfessionColumn(const CustomProfessionColumn &to_
 
 void CustomProfessionColumn::init(){
     m_type = CT_CUSTOM_PROFESSION;
-    ml = this->get_base_object();
+    ml = QPointer<LaborListBase>(this->get_base_object());
 }
 
 QStandardItem *CustomProfessionColumn::build_cell(Dwarf *d) {
     QStandardItem *item = init_cell(d);    
     item->setData(CT_CUSTOM_PROFESSION, DwarfModel::DR_COL_TYPE);
 
-    if(!ml){
+    if(ml.isNull()){
         item->setData("", DwarfModel::DR_CUSTOM_PROF);
         item->setData(-1, DwarfModel::DR_RATING);
         item->setData(-1, DwarfModel::DR_DISPLAY_RATING);
@@ -72,7 +72,7 @@ QStandardItem *CustomProfessionColumn::build_cell(Dwarf *d) {
         QString cp_name = ml->get_name();
         if(!cp_name.isEmpty()){
             prof_title = "<center>";
-            CustomProfession *cp = static_cast<CustomProfession*>(ml);
+            CustomProfession *cp  = qobject_cast<CustomProfession*>(ml);
             if(cp->has_icon())
                 prof_title.append(cp->get_embedded_pixmap()).append(" ");
             if(d->profession() == cp_name){
