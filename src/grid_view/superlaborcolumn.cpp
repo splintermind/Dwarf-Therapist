@@ -37,29 +37,36 @@ THE SOFTWARE.
 SuperLaborColumn::SuperLaborColumn(const QString &title, QString id, ViewColumnSet *set, QObject *parent)
     : SkillColumn(title,-1, set, parent,CT_SUPER_LABOR)
     , m_id(id)
+    , ml(0)
 {
-    m_current_sort = ViewManager::get_default_col_sort(CT_SUPER_LABOR);
+    init();
 }
 
 SuperLaborColumn::SuperLaborColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
     : SkillColumn(s,set,parent)
     , m_id(s.value("id").toString())
+    , ml(0)
 {
-    m_type = CT_SUPER_LABOR;
-    m_current_sort = ViewManager::get_default_col_sort(m_type);
+    init();
 }
 
 SuperLaborColumn::SuperLaborColumn(const SuperLaborColumn &to_copy)
     : SkillColumn(to_copy)
     , m_id(to_copy.m_id)
+    , ml(to_copy.ml)
 {
-    m_type = CT_SUPER_LABOR;
-    m_current_sort = ViewManager::get_default_col_sort(m_type);
+    init();
 }
 
-QStandardItem *SuperLaborColumn::build_cell(Dwarf *d) {
+void SuperLaborColumn::init(){
+    m_type = CT_SUPER_LABOR;
+    m_current_sort = ViewManager::get_default_col_sort(m_type);
+    connect(DT, SIGNAL(customizations_changed()), this, SLOT(customization_changed()),Qt::UniqueConnection);
+    ml = get_base_object();
+}
+
+QStandardItem *SuperLaborColumn::build_cell(Dwarf *d) {    
     QStandardItem *item = init_cell(d);
-    LaborListBase *ml = DT->get_super_labor(m_id);
     item->setData(CT_SUPER_LABOR, DwarfModel::DR_COL_TYPE);
 
     if(!ml){
@@ -75,11 +82,11 @@ QStandardItem *SuperLaborColumn::build_cell(Dwarf *d) {
         item->setData(ml->get_converted_labors(),DwarfModel::DR_LABORS);
     }
 
-    item->setToolTip(build_tooltip(d,ml));
+    item->setToolTip(build_tooltip(d));
     return item;
 }
 
-QString SuperLaborColumn::build_tooltip(Dwarf *d, LaborListBase *ml){
+QString SuperLaborColumn::build_tooltip(Dwarf *d, QString other_info){
     float role_rating = ml->get_role_rating(d->id());
     float skill_rating = ml->get_skill_rating(d->id());
 
@@ -95,34 +102,26 @@ QString SuperLaborColumn::build_tooltip(Dwarf *d, LaborListBase *ml){
     }
 
     QString labors_desc = "";
-    labors_desc = tr("<br/><br/><b>Labors:</b> %1").arg(labors.count() <= 0 ? tr("None") : modified_desc.join(", "));
-
-//    QString prof_desc = "";
-//    QString prof_name = ml->get_custom_prof_name();
-//    if(!prof_name.isEmpty()){
-//        prof_desc = tr("<br/><b>Custom Profession:</b> ");
-//        if(d->profession() == prof_name)
-//            prof_desc.append(QString("<font color=%1>%2</font>").arg(ml->active_labor_color().name()).arg(prof_name));
-//        else
-//            prof_desc.append(prof_name);
-//    }
+    labors_desc = tr("<br/><b>Labors:</b> %1").arg(labors.count() <= 0 ? tr("None") : modified_desc.join(", "));
 
     QString skill_msg = "";
-    skill_msg = tr("<h4 style=\"margin:0;\">Average Skill Level: %1</h4>").arg(QString::number(skill_rating,'f',2));
+    skill_msg = tr("<b>Average Skill Level:</b> %1<br/>").arg(QString::number(skill_rating,'f',2));
 
     QString role_msg = ml->get_role_name();
     if(role_msg.isEmpty()){
-        role_msg = tr("<h4 style=\"margin:0;\">Average Role Rating: %1%</h4>").arg(QString::number(role_rating,'f',2));
+        role_msg = tr("<b>Average Role Rating:</br> %1%<br/>").arg(QString::number(role_rating,'f',2));
     }else{
-        role_msg = tr("<h4 style=\"margin:0;\">%1 Rating: %2%</h4>").arg(role_msg).arg(QString::number(role_rating,'f',2));
+        role_msg = tr("<b>%1 Rating:</b> %2%<br/>").arg(role_msg).arg(QString::number(role_rating,'f',2));
     }
 
-    QString tooltip = QString("<center><h3>%1</h3><b>%2</b></center>%3%4%5%6")
-            .arg(m_title)
-            .arg(m_id)
+    QString title = m_title;
+    if(!other_info.isEmpty())
+        title = other_info;
+
+    QString tooltip = QString("<center><h3 style=\"margin:0;\">%1</h3></center><br/>%2%3%4%5")
+            .arg(other_info)
             .arg(skill_msg)
             .arg(role_msg)
-//            .arg(prof_desc)
             .arg(labors_desc)
             .arg(tooltip_name_footer(d));
 
@@ -131,8 +130,6 @@ QString SuperLaborColumn::build_tooltip(Dwarf *d, LaborListBase *ml){
 
 float SuperLaborColumn::get_rating(int id, LaborListBase::LLB_RATING_TYPE type){
     float m_sort_val = 0.0;
-    //SuperLabor *sl = DT->get_super_labor(m_id);
-    LaborListBase *ml = DT->get_super_labor(m_id);
     if(ml)
         m_sort_val = ml->get_rating(id,type);
     return m_sort_val;
@@ -160,6 +157,17 @@ QStandardItem *SuperLaborColumn::build_aggregate(const QString &group_name, cons
     Q_UNUSED(dwarves);
     QStandardItem *item = init_aggregate(group_name);
     return item;
+}
+
+LaborListBase* SuperLaborColumn::get_base_object(){
+    return DT->get_super_labor(m_id);
+}
+
+void SuperLaborColumn::customization_changed(){
+    //check if the name has been changed
+    QString curr_id = ml->get_name();
+    if(curr_id != m_id)
+        m_id = curr_id;
 }
 
 void SuperLaborColumn::write_to_ini(QSettings &s){

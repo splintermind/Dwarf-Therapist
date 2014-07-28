@@ -42,6 +42,8 @@ public:
     QStandardItem *build_cell(Dwarf *d);
     QStandardItem *build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves);
 protected:
-    float get_rating(int id, LaborListBase::LLB_RATING_TYPE);
+    LaborListBase* get_base_object();
+private:
+    void init();
 };
 #endif // CUSTOMPROFESSIONCOLUMN_H

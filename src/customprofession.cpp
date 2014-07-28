@@ -153,8 +153,7 @@ int CustomProfession::show_builder_dialog(QWidget *parent) {
     connect(ui->chk_mask,SIGNAL(clicked(bool)),this,SLOT(mask_changed(bool)));
 
     //add background color chooser
-    m_bg_custom_color = new CustomColor("",tr("The background color of the icon."),
-                                        "bg_color", Qt::transparent, 0);
+    m_bg_custom_color = new CustomColor("",tr("The background color of the icon."), "bg_color", Qt::transparent, 0);
     m_bg_custom_color->set_color(m_bg_color);
     connect(m_bg_custom_color, SIGNAL(color_changed(QString,QColor)), this, SLOT(color_selected(QString,QColor)));
     ui->hlayout_bg_color->insertWidget(1,m_bg_custom_color);
@@ -392,6 +391,7 @@ void CustomProfession::export_to_file(QSettings &s){
     s.setValue("bg_color", get_bg_color());
     s.setValue("is_mask",is_mask());
     s.setValue("icon_id", get_icon_id());
+    s.setValue("prof_id", m_prof_id);
     s.beginWriteArray("labors");
     int idx = 0;
     foreach(int labor_id, get_enabled_labors()) {

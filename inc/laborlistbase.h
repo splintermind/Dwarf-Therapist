@@ -69,6 +69,7 @@ signals:
 
 protected:
     Dwarf *m_dwarf;
+    Role *m_role;
     GameDataReader *gdr;
     QString m_name;
     QString m_role_name;

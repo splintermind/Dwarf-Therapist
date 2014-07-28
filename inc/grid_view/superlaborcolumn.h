@@ -31,6 +31,7 @@ THE SOFTWARE.
 class ViewColumn;
 class Dwarf;
 class Attribute;
+class SuperLabor;
 
 class SuperLaborColumn : public SkillColumn {
     Q_OBJECT
@@ -47,12 +48,18 @@ public:
     void write_to_ini(QSettings &s);    
 protected:
     QString m_id;
-    QString build_tooltip(Dwarf *d, LaborListBase *ml);
+    LaborListBase *ml;
+    QString build_tooltip(Dwarf *d, QString other_info = "");
     float get_base_sort(Dwarf *d);
     float get_role_rating(Dwarf *d);
     float get_skill_rating(int id, Dwarf *d);
     float get_skill_rate_rating(int id, Dwarf *d);
 
+    virtual LaborListBase* get_base_object();
+    void init();
+
+protected slots:
+    virtual void customization_changed();
     virtual float get_rating(int id, LaborListBase::LLB_RATING_TYPE);
 };
 #endif // SUPERLABORCOLUMN_H

@@ -28,41 +28,43 @@ THE SOFTWARE.
 #include "gamedatareader.h"
 #include "dwarfmodel.h"
 #include "truncatingfilelogger.h"
-#include "superlabor.h"
-#include "dwarftherapist.h"
 #include "dwarf.h"
-#include "labor.h"
+#include "dwarftherapist.h"
+#include "customprofession.h"
 
 CustomProfessionColumn::CustomProfessionColumn(const QString &title, QString id, ViewColumnSet *set, QObject *parent)
     : SuperLaborColumn(title,id,set,parent)
 {
-    m_type = CT_CUSTOM_PROFESSION;
+    init();
 }
 
 CustomProfessionColumn::CustomProfessionColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
     : SuperLaborColumn(s,set,parent)
 {
-    m_type = CT_CUSTOM_PROFESSION;
+    init();
 }
 
 CustomProfessionColumn::CustomProfessionColumn(const CustomProfessionColumn &to_copy)
     : SuperLaborColumn(to_copy)
 {
+    init();
+}
+
+void CustomProfessionColumn::init(){
     m_type = CT_CUSTOM_PROFESSION;
+    ml = this->get_base_object();
 }
 
 QStandardItem *CustomProfessionColumn::build_cell(Dwarf *d) {
-    QStandardItem *item = init_cell(d);
-
+    QStandardItem *item = init_cell(d);    
     item->setData(CT_CUSTOM_PROFESSION, DwarfModel::DR_COL_TYPE);
-    LaborListBase *ml = DT->get_custom_profession(m_id);
 
     if(!ml){
         item->setData("", DwarfModel::DR_CUSTOM_PROF);
         item->setData(-1, DwarfModel::DR_RATING);
         item->setData(-1, DwarfModel::DR_DISPLAY_RATING);
         item->setData(-1,DwarfModel::DR_LABORS);
-        item->setToolTip(tr("Unknown super labor."));
+        item->setToolTip(tr("Unknown custom profession."));
         return item;
     }else{
         float rating = ml->get_skill_rating(d->id());
@@ -72,18 +74,25 @@ QStandardItem *CustomProfessionColumn::build_cell(Dwarf *d) {
         item->setData(ml->get_converted_labors(),DwarfModel::DR_LABORS);
     }
 
-    item->setToolTip(build_tooltip(d,ml));
+    //set the title
+    QString prof_desc = "";
+    QString cp_name = ml->get_name();
+    if(!cp_name.isEmpty()){
+        prof_desc = "<center>";
+        CustomProfession *cp = static_cast<CustomProfession*>(ml);
+        if(cp->has_icon())
+            prof_desc.append(cp->get_embedded_pixmap()).append(" ");
+        if(d->profession() == cp_name){
+            prof_desc.append(tr("<font color=%1>%2</font>").arg(ml->active_labor_color().name()).arg(cp_name));
+        }else{
+            prof_desc.append(tr("%1").arg(cp_name));
+        }
+        prof_desc.append("</center>");
+    }
+
+    item->setToolTip(build_tooltip(d,prof_desc));
 
     return item;
-}
-
-float CustomProfessionColumn::get_rating(int id, LaborListBase::LLB_RATING_TYPE type){
-    float m_sort_val = 0.0;
-    //SuperLabor *sl = DT->get_super_labor(m_id);
-    LaborListBase *ml = DT->get_custom_profession(m_id);
-    if(ml)
-        m_sort_val = ml->get_rating(id,type);
-    return m_sort_val;
 }
 
 QStandardItem *CustomProfessionColumn::build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves){
@@ -92,3 +101,6 @@ QStandardItem *CustomProfessionColumn::build_aggregate(const QString &group_name
     return item;
 }
 
+LaborListBase* CustomProfessionColumn::get_base_object(){
+    return DT->get_custom_profession(m_id);
+}

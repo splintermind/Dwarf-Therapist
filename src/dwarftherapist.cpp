@@ -374,7 +374,7 @@ void DwarfTherapist::edit_customization(QList<QVariant> data){
         }
         int accepted = cp->show_builder_dialog(m_main_window);
         //put our objects back
-        m_custom_professions.insert(c_data.name,cp);
+        m_custom_professions.insert(cp->get_name(),cp);
         //update other stuff
         if (accepted) {
             m_main_window->load_customizations();
@@ -382,12 +382,13 @@ void DwarfTherapist::edit_customization(QList<QVariant> data){
         }
     }else{
         SuperLabor *sl;
-        sl = get_super_labor(c_data.name);
+        sl = m_super_labors.take(c_data.name);
         if(!sl){
             LOGW << "tried to edit super labor '" << c_data.name << "' but I can't find it!";
             return;
         }
         int accepted = sl->show_builder_dialog(m_main_window);
+        m_super_labors.insert(sl->get_name(),sl);
         if (accepted) {
             m_main_window->load_customizations();
             write_super_labors();
@@ -451,17 +452,6 @@ void DwarfTherapist::del_custom_profession(CustomProfession *cp){
     }else{
         m_custom_prof_icns.remove(cp->get_icon_id());
     }
-
-//    QHashIterator<QString, SuperLabor*> i(m_super_labors);
-//    i.toBack();
-//    while (i.hasPrevious()){
-//        i.previous();
-//        if(i.value()->get_name() == cp->get_name()){
-//            SuperLabor *sl = m_super_labors.take(i.key());
-//            delete sl;
-//            break;
-//        }
-//    }
     delete cp;
     m_main_window->load_customizations();
     write_custom_professions();

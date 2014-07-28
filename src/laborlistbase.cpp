@@ -6,14 +6,14 @@
 LaborListBase::LaborListBase(QObject *parent)
     :QObject(parent)
     , m_dwarf(0)
+    , m_role(0)
     , gdr(GameDataReader::ptr())
     , m_name("")
     , m_role_name("")
     , m_dialog(0)
     , m_selected_count(0)
     , m_internal_change_flag(false)
-{    
-    //connect(DT,SIGNAL(customizations_changed()),this,SLOT(refresh()),Qt::UniqueConnection); //refresh after any editing
+{
     connect(DT,SIGNAL(roles_changed()),this,SLOT(refresh()),Qt::UniqueConnection); //refresh after any role changes
     connect(DT,SIGNAL(units_refreshed()),this,SLOT(refresh()),Qt::UniqueConnection); //refresh information after a read
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
@@ -22,6 +22,7 @@ LaborListBase::LaborListBase(QObject *parent)
 LaborListBase::~LaborListBase(){
     gdr = 0;
     m_dwarf = 0;
+    m_role = 0;
 }
 
 /*!
@@ -112,6 +113,10 @@ void LaborListBase::refresh(){
     m_qvariant_labors.clear();
     m_ratings.clear();
     m_labor_desc.clear();
+
+    if(!m_role || gdr->get_role(m_role_name) != m_role){
+        m_role = gdr->get_role(m_role_name);
+    }
 
     QList<Dwarf*> dwarves = DT->get_dwarves();
 
