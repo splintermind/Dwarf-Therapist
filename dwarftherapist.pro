@@ -350,4 +350,3 @@ FORMS += ui/scriptdialog.ui \
     ui/roledialog.ui \
     ui/optimizereditor.ui
 RESOURCES += images.qrc
-
