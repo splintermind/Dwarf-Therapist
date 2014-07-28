@@ -67,30 +67,23 @@ QStandardItem *CustomProfessionColumn::build_cell(Dwarf *d) {
         item->setToolTip(tr("Unknown custom profession."));
         return item;
     }else{
-        float rating = ml->get_skill_rating(d->id());
-        item->setData(rating, DwarfModel::DR_RATING);
-        item->setData(rating, DwarfModel::DR_DISPLAY_RATING);
-        item->setData(ml->get_name(), DwarfModel::DR_CUSTOM_PROF);
-        item->setData(ml->get_converted_labors(),DwarfModel::DR_LABORS);
-    }
-
-    //set the title
-    QString prof_desc = "";
-    QString cp_name = ml->get_name();
-    if(!cp_name.isEmpty()){
-        prof_desc = "<center>";
-        CustomProfession *cp = static_cast<CustomProfession*>(ml);
-        if(cp->has_icon())
-            prof_desc.append(cp->get_embedded_pixmap()).append(" ");
-        if(d->profession() == cp_name){
-            prof_desc.append(tr("<font color=%1>%2</font>").arg(ml->active_labor_color().name()).arg(cp_name));
-        }else{
-            prof_desc.append(tr("%1").arg(cp_name));
+        //build a custom title
+        QString prof_title = "";
+        QString cp_name = ml->get_name();
+        if(!cp_name.isEmpty()){
+            prof_title = "<center>";
+            CustomProfession *cp = static_cast<CustomProfession*>(ml);
+            if(cp->has_icon())
+                prof_title.append(cp->get_embedded_pixmap()).append(" ");
+            if(d->profession() == cp_name){
+                prof_title.append(tr("<font color=%1>%2</font>").arg(ml->active_labor_color().name()).arg(cp_name));
+            }else{
+                prof_title.append(tr("%1").arg(cp_name));
+            }
+            prof_title.append("</center>");
         }
-        prof_desc.append("</center>");
+        refresh(d,item,prof_title);
     }
-
-    item->setToolTip(build_tooltip(d,prof_desc));
 
     return item;
 }

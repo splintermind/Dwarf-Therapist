@@ -114,12 +114,13 @@ void LaborListBase::refresh(){
     m_ratings.clear();
     m_labor_desc.clear();
 
-    if(!m_role || gdr->get_role(m_role_name) != m_role){
+    //check and update the role if necessary
+    if(!m_role || m_role->name != m_role_name){
         m_role = gdr->get_role(m_role_name);
     }
 
+    //build ratings
     QList<Dwarf*> dwarves = DT->get_dwarves();
-
     QVector<int> labors = get_enabled_labors();
     foreach(int labor_id, labors){
         Labor *l = GameDataReader::ptr()->get_labor(labor_id);

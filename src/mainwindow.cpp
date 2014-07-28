@@ -764,8 +764,8 @@ void MainWindow::load_customizations() {
 
 void MainWindow::draw_custom_profession_context_menu(const QPoint &p) {
     QModelIndex idx = ui->tree_custom_professions->indexAt(p);
-    if (!idx.isValid() || ui->tree_custom_professions->itemAt(p)->childCount() > 0)
-        return;    
+    if (!idx.isValid() || ui->tree_custom_professions->itemAt(p)->parent() == 0)
+        return;        
 
     QString cp_name = idx.data().toString();
     int prof_id = idx.data(Qt::UserRole).toInt();

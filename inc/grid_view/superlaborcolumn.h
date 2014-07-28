@@ -49,7 +49,7 @@ public:
 protected:
     QString m_id;
     LaborListBase *ml;
-    QString build_tooltip(Dwarf *d, QString other_info = "");
+    void refresh(Dwarf *d, QStandardItem *item = 0, QString title = "");
     float get_base_sort(Dwarf *d);
     float get_role_rating(Dwarf *d);
     float get_skill_rating(int id, Dwarf *d);

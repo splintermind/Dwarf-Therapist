@@ -76,19 +76,19 @@ QStandardItem *SuperLaborColumn::build_cell(Dwarf *d) {
         item->setToolTip(tr("Unknown super labor."));
         return item;
     }else{
-        float rating = ml->get_skill_rating(d->id());
-        item->setData(rating, DwarfModel::DR_RATING);
-        item->setData(rating, DwarfModel::DR_DISPLAY_RATING);
-        item->setData(ml->get_converted_labors(),DwarfModel::DR_LABORS);
-    }
-
-    item->setToolTip(build_tooltip(d));
+        refresh(d,item);
+    }    
     return item;
 }
 
-QString SuperLaborColumn::build_tooltip(Dwarf *d, QString other_info){
-    float role_rating = ml->get_role_rating(d->id());
+void SuperLaborColumn::refresh(Dwarf *d, QStandardItem *item, QString title){
+    if(!item)
+        item = m_cells[d];
+
     float skill_rating = ml->get_skill_rating(d->id());
+    item->setData(skill_rating, DwarfModel::DR_RATING);
+    item->setData(skill_rating, DwarfModel::DR_DISPLAY_RATING);
+    item->setData(ml->get_converted_labors(),DwarfModel::DR_LABORS);
 
     refresh_sort(d, m_current_sort);
 
@@ -107,6 +107,7 @@ QString SuperLaborColumn::build_tooltip(Dwarf *d, QString other_info){
     QString skill_msg = "";
     skill_msg = tr("<b>Average Skill Level:</b> %1<br/>").arg(QString::number(skill_rating,'f',2));
 
+    float role_rating = ml->get_role_rating(d->id());
     QString role_msg = ml->get_role_name();
     if(role_msg.isEmpty()){
         role_msg = tr("<b>Average Role Rating:</br> %1%<br/>").arg(QString::number(role_rating,'f',2));
@@ -114,18 +115,18 @@ QString SuperLaborColumn::build_tooltip(Dwarf *d, QString other_info){
         role_msg = tr("<b>%1 Rating:</b> %2%<br/>").arg(role_msg).arg(QString::number(role_rating,'f',2));
     }
 
-    QString title = m_title;
-    if(!other_info.isEmpty())
-        title = other_info;
+    QString tt_title = m_title;
+    if(!title.isEmpty())
+        tt_title = title;
 
     QString tooltip = QString("<center><h3 style=\"margin:0;\">%1</h3></center><br/>%2%3%4%5")
-            .arg(other_info)
+            .arg(tt_title)
             .arg(skill_msg)
             .arg(role_msg)
             .arg(labors_desc)
             .arg(tooltip_name_footer(d));
 
-    return tooltip;
+    item->setToolTip(tooltip);
 }
 
 float SuperLaborColumn::get_rating(int id, LaborListBase::LLB_RATING_TYPE type){

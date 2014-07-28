@@ -35,18 +35,6 @@ SuperLabor::SuperLabor(QObject *parent)
 {
 }
 
-//SuperLabor::SuperLabor(CustomProfession *cp, QObject *parent)
-//    :LaborListBase(parent)
-//    , ui(new Ui::SuperLaborEditor)
-//{
-//    m_name = cp->get_name();
-//    m_role_name = cp->get_role_name();
-//    m_custom_prof_name = m_name;
-//    m_auto_generated = true;
-//    load_cp_labors(cp);
-//    connect(cp,SIGNAL(updated(QVariant)),this,SLOT(data_changed(QVariant)));
-//}
-
 SuperLabor::SuperLabor(QSettings &s, QObject *parent)
     :LaborListBase(parent)
     , ui(new Ui::SuperLaborEditor)
@@ -90,14 +78,6 @@ void SuperLabor::load_cp_labors(CustomProfession *cp){
         }
     }
 }
-
-//void SuperLabor::data_changed(QVariant data){
-//    //related custom profession has been updated
-//    CustomProfession *cp = vPtr<CustomProfession>::asPtr(data);
-//    m_custom_prof_name = cp->get_name();
-//    m_name = m_custom_prof_name;
-//    load_cp_labors(cp);
-//}
 
 int SuperLabor::show_builder_dialog(QWidget *parent) {
     m_dialog = new QDialog(parent);

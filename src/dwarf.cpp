@@ -1721,6 +1721,10 @@ void Dwarf::read_personality() {
             int goal_type = m_df->read_int(addr + 0x0004);
             if(goal_type >= 0){
                 short val = m_df->read_short(addr + m_mem->soul_detail("goal_realized")); //goal realized
+                //if we're not showing vampires, and this dwarf is a vampire, keep the goal hidden so they can't be identified from that
+                if(goal_type == 11 && m_curse_type == eCurse::VAMPIRE &&  DT->user_settings()->value("options/highlight_cursed", false).toBool()==false)
+                    continue;
+
                 if(val > 0)
                     m_goals_realized++;
                 m_goals.insert(goal_type,val);
