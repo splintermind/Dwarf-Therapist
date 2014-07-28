@@ -555,7 +555,8 @@ void StateTableView::add_custom_group(){
     if (!ok)
         return;
 
-    DT->add_custom_group(new_group);
+    CustomGroup *g = DT->add_custom_group(new_group);
+    add_selected_to_group(g);
 }
 
 void StateTableView::add_to_group(){
@@ -565,6 +566,10 @@ void StateTableView::add_to_group(){
         return;
     }
 
+    add_selected_to_group(new_group);
+}
+
+void StateTableView::add_selected_to_group(CustomGroup* g){
     int id = -1;
     const QItemSelection sel = selectionModel()->selection();
     if (sel.count() <= 0)
@@ -574,11 +579,12 @@ void StateTableView::add_to_group(){
         if (i.column() == 0 && !i.data(DwarfModel::DR_IS_AGGREGATE).toBool()) {
             id = i.data(DwarfModel::DR_ID).toInt();
             Dwarf *d = m_model->get_dwarf_by_id(id);
-            new_group->add_member(d);
+            g->add_member(d);
         }
     }
     DT->write_settings();
     DT->get_main_window()->get_view_manager()->redraw_current_tab();
+
 }
 
 void StateTableView::remove_from_group(){

@@ -30,6 +30,7 @@ class UberDelegate;
 class RotatedHeader;
 class Dwarf;
 class DwarfModel;
+class CustomGroup;
 //class DwarfModelProxy;
 
 class StateTableView : public QTreeView
@@ -54,6 +55,8 @@ public:
     int get_last_group_by(){return m_last_group_by;}
     void set_last_group_by(int group_id);
     void set_default_group(QString name);
+
+    void add_selected_to_group(CustomGroup *g);
 
     QString get_view_name(){return m_view_name;}
 
