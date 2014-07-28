@@ -346,12 +346,10 @@ void DwarfModel::build_rows() {
                         m_grouped_dwarves[tr("Losers")].append(d);
                 }else if(m_group_by == GB_HAPPINESS){
                     m_grouped_dwarves[d->happiness_name(d->get_happiness())].append(d);
-<<<<<<< HEAD
                 }else if(m_group_by == GB_GOALS){
                     m_grouped_dwarves[tr("%1 Goals Realized").arg(d->goals_realized())].append(d);
                 }else if(m_group_by == GB_SKILL_RUST){
                     m_grouped_dwarves[Skill::get_rust_level_desc(d->rust_level())].append(d);
-=======
                 } else if(m_group_by == GB_CUSTOM_GROUP){
                     bool is_grouped = false;
                     foreach (CustomGroup *g, DT->get_custom_groups()) {
@@ -363,7 +361,6 @@ void DwarfModel::build_rows() {
                     if (!is_grouped) {
                         m_grouped_dwarves[tr("Ungrouped")].append(d);
                     }
->>>>>>> Basic hard-coded group addition/removal/sorting.
                 }else if(m_group_by == GB_CURRENT_JOB){
                     QString job_desc = GameDataReader::ptr()->get_job(d->current_job_id())->description;
                     //if the job is some kind of reaction that doesn't use a material, use the reaction's name
