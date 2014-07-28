@@ -199,7 +199,7 @@ private:
         void clear_all_filters();
 
     signals:
-        void connected();
+        void loaded_dwarves();
 };
 
 #endif // MAINWINDOW_H

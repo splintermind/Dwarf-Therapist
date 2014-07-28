@@ -362,7 +362,6 @@ void MainWindow::connect_to_df() {
             if (DT->user_settings()->value("options/read_on_startup", true).toBool()) {
                 read_dwarves();
             }
-            DT->on_connect();
         }
         if(m_df)
             this->setWindowTitle(QString("%1 %2").arg(tr("Dwarf Therapist - ")).arg(m_df->fortress_name()));        
@@ -425,7 +424,7 @@ void MainWindow::read_dwarves() {
     m_df->load_squads(false);
     m_model->load_dwarves();    
 
-    emit connected();
+    emit loaded_dwarves();
     set_progress_message("Setting up interface...");
 
     if (m_model->get_dwarves().size() < 1) {

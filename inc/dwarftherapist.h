@@ -96,7 +96,7 @@ public:
         void edit_custom_profession();
         void edit_custom_profession(QTreeWidgetItem *);
         void delete_custom_profession();
-        void on_connect();
+        void loaded_dwarves();
 
 private:
     QVector<QString> m_generic_words;
