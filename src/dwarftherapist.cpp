@@ -90,7 +90,7 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     TRACE << "connecting signals";
     connect(m_options_menu, SIGNAL(settings_changed()), SIGNAL(settings_changed())); // the telephone game...
     connect(m_options_menu, SIGNAL(settings_changed()), this, SLOT(read_settings()));
-    connect(m_main_window, SIGNAL(connected()), this, SLOT(on_connect()));
+    connect(m_main_window, SIGNAL(loaded_dwarves()), this, SLOT(loaded_dwarves()));
     connect(m_main_window->ui->act_options, SIGNAL(triggered()), m_options_menu, SLOT(exec()));
     connect(m_main_window->ui->act_import_existing_professions, SIGNAL(triggered()), this, SLOT(import_existing_professions()));
     connect(m_main_window->ui->tree_custom_professions, SIGNAL(itemActivated(QTreeWidgetItem*,int)), this, SLOT(edit_custom_profession(QTreeWidgetItem*)));
@@ -227,7 +227,7 @@ void DwarfTherapist::read_settings() {
     LOGI << "finished reading settings";
 }
 
-void DwarfTherapist::on_connect() {
+void DwarfTherapist::loaded_dwarves() {
     load_custom_groups();
     m_main_window->get_view_manager()->redraw_current_tab();
 }
@@ -311,6 +311,8 @@ void DwarfTherapist::save_custom_groups() {
 }
 
 void DwarfTherapist::load_custom_groups() {
+    m_custom_groups.clear();
+
     m_user_settings->beginGroup("custom_groups");
     int i;
     int count = m_user_settings->beginReadArray("All Groups");
