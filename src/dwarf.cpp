@@ -2583,11 +2583,11 @@ float Dwarf::calc_role_rating(Role *m_role){
         aspect_value = 0;
         float total_matches = 0;
         foreach(Preference *role_pref,m_role->prefs){
-           aspect_value = get_role_pref_match_counts(role_pref);
+                aspect_value = get_role_pref_match_counts(role_pref);
            //preferences are slightly different due to their binary nature. large numbers of preferences result in a very low weighted average
            //so if there isn't a match, don't include it in the weighted average to try to keep roles relatively equal regardless of how many preferences they have
-           if(aspect_value > 0){
            aspect_value = DwarfStats::get_preference_rating(aspect_value);
+           if(aspect_value > 0){
            total_matches += aspect_value;
            weight = role_pref->pref_aspect->weight;
            if(role_pref->pref_aspect->is_neg)
@@ -2595,6 +2595,9 @@ float Dwarf::calc_role_rating(Role *m_role){
 
            rating_prefs += (aspect_value*weight);
            total_weight += weight;
+
+           //I put this here so I can monitor the var just above using a breakpoint, it does absolutely nothing.
+           int temp = 0;
            }
         }
         if(total_weight > 0)
