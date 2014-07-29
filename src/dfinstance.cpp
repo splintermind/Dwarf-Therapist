@@ -625,11 +625,22 @@ void DFInstance::load_role_ratings(){
             if(r->prefs.count() > 0){
                 foreach(double rating, d->get_role_pref_match_counts(r)){
                     pref_values.append(rating);
+
+
+                   if(rating > 0){
+                   pref_values.append(rating);
+
+                   pref_values << 0; //assume for every match there's a non-match
+                   }
+
+
                 }
             }
         }
 
     }
+
+    //pref_values << 0; //pad a final 0 to prefs to ensure median = 0
 
     QTime tr;
     tr.start();
