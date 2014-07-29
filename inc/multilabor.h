@@ -1,26 +1,28 @@
-#ifndef LABORLISTBASE_H
-#define LABORLISTBASE_H
+#ifndef  MULTILABOR_H
+#define MULTILABOR_H
 
 #include <QtWidgets>
 #include "gamedatareader.h"
 
 class Dwarf;
 
-class LaborListBase : public QObject {
+class MultiLabor : public QObject {
     Q_OBJECT
 public:
-    LaborListBase(QObject *parent = 0);
-    virtual ~LaborListBase();
+    MultiLabor(QObject *parent = 0);
+    virtual ~MultiLabor();
 
     typedef enum{
-        LLB_ROLE,
-        LLB_SKILL,
-        LLB_SKILL_RATE,
-        LLB_ACTIVE
-    } LLB_RATING_TYPE;
+        ML_ROLE,
+        ML_SKILL,
+        ML_SKILL_RATE,
+        ML_ACTIVE
+    } ML_RATING_TYPE;
 
     //! Returns a vector of all enabled labor_ids in this template
     virtual QVector<int> get_enabled_labors();
+    //! Returns a vector of all enabled labor_ids in this template which have a valid skill (ie. not hauling)
+    virtual QVector<int> get_enabled_skilled_labors();
     bool is_active(int labor_id);
 
     /*!
@@ -35,11 +37,11 @@ public:
     QString get_name(){return m_name;}
     QString get_role_name(){return m_role_name;}
 
-    float get_rating(int id, LLB_RATING_TYPE type);
-    float get_role_rating(int id){return get_rating(id,LLB_ROLE);}
-    float get_skill_rating(int id){return get_rating(id,LLB_SKILL);}
-    float get_skill_rate_rating(int id){return get_rating(id,LLB_SKILL_RATE);}
-    float get_active_rating(int id){return get_rating(id,LLB_ACTIVE);}
+    float get_rating(int id, ML_RATING_TYPE type);
+    float get_role_rating(int id){return get_rating(id,ML_ROLE);}
+    float get_skill_rating(int id){return get_rating(id,ML_SKILL);}
+    float get_skill_rate_rating(int id){return get_rating(id,ML_SKILL_RATE);}
+    float get_active_rating(int id){return get_rating(id,ML_ACTIVE);}
 
     QHash<int,QString> get_labor_desc(){return m_labor_desc;}
     QList<QVariant> get_converted_labors(){return m_qvariant_labors;}
@@ -89,4 +91,4 @@ protected:
     bool m_internal_change_flag;
 };
 
-#endif // LABORLISTBASE_H
+#endif //  MULTILABOR_H

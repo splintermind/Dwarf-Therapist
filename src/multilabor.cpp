@@ -1,9 +1,9 @@
-#include "laborlistbase.h"
+#include "multilabor.h"
 #include "labor.h"
 #include "dwarf.h"
 #include "dwarftherapist.h"
 
-LaborListBase::LaborListBase(QObject *parent)
+MultiLabor::MultiLabor(QObject *parent)
     :QObject(parent)
     , m_dwarf(0)
     , m_role(0)
@@ -19,7 +19,7 @@ LaborListBase::LaborListBase(QObject *parent)
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
     read_settings();
 }
-LaborListBase::~LaborListBase(){
+MultiLabor::~MultiLabor(){
     gdr = 0;
     m_dwarf = 0;
     m_role = 0;
@@ -28,10 +28,20 @@ LaborListBase::~LaborListBase(){
 /*!
 Get a vector of all enabled labors in this template by labor_id
 */
-QVector<int> LaborListBase::get_enabled_labors() {
+QVector<int> MultiLabor::get_enabled_labors() {
     QVector<int> labors;
     foreach(int labor, m_active_labors.uniqueKeys()) {
         if (m_active_labors.value(labor)) {
+            labors << labor;
+        }
+    }
+    return labors;
+}
+
+QVector<int> MultiLabor::get_enabled_skilled_labors(){
+    QVector<int> labors;
+    foreach(int labor, m_active_labors.uniqueKeys()) {
+        if (m_active_labors.value(labor) && gdr->get_labor(labor)->skill_id >= 0) {
             labors << labor;
         }
     }
@@ -44,11 +54,11 @@ Check if the template has a labor enabled
 \param[in] labor_id The id of the labor to check
 \returns true if this labor is enabled
 */
-bool LaborListBase::is_active(int labor_id) {
+bool MultiLabor::is_active(int labor_id) {
     return m_active_labors.value(labor_id, false);
 }
 
-void LaborListBase::labor_item_check_changed(QListWidgetItem *item) {
+void MultiLabor::labor_item_check_changed(QListWidgetItem *item) {
     m_internal_change_flag = true;
     if (item->checkState() == Qt::Checked) {
         item->setBackgroundColor(m_active_labor_col);
@@ -65,7 +75,7 @@ void LaborListBase::labor_item_check_changed(QListWidgetItem *item) {
     m_internal_change_flag = false;
 }
 
-void LaborListBase::load_labors(QListWidget *labor_list){
+void MultiLabor::load_labors(QListWidget *labor_list){
     m_selected_count = 0;
     read_settings();
     QList<Labor*> labors = gdr->get_ordered_labors();
@@ -87,7 +97,7 @@ void LaborListBase::load_labors(QListWidget *labor_list){
     emit selected_count_changed(m_selected_count);
 }
 
-void LaborListBase::build_role_combo(QComboBox *cb_roles){
+void MultiLabor::build_role_combo(QComboBox *cb_roles){
     //add roles
     cb_roles->addItem("None (Role Average)", "");
     QPair<QString,Role*> role_pair;
@@ -102,14 +112,14 @@ void LaborListBase::build_role_combo(QComboBox *cb_roles){
 }
 
 
-void LaborListBase::set_labor(int labor_id, bool active) {
+void MultiLabor::set_labor(int labor_id, bool active) {
     if (m_active_labors.contains(labor_id) && !active)
         m_active_labors.remove(labor_id);
     if (active)
         m_active_labors.insert(labor_id, true);
 }
 
-void LaborListBase::refresh(){
+void MultiLabor::refresh(){
     m_qvariant_labors.clear();
     m_ratings.clear();
     m_labor_desc.clear();
@@ -126,7 +136,9 @@ void LaborListBase::refresh(){
 
     //build ratings
     QList<Dwarf*> dwarves = DT->get_dwarves();
-    QVector<int> labors = get_enabled_labors();
+    //at the moment it's not possible to have roles associated to non-skill labors (hauling)
+    //so we can exclude all non-skilled labors from the ratings
+    QVector<int> labors = get_enabled_skilled_labors();
     if(labors.count() > 0){
         foreach(int labor_id, labors){
             Labor *l = GameDataReader::ptr()->get_labor(labor_id);
@@ -139,35 +151,37 @@ void LaborListBase::refresh(){
                 if(ratings.size() <= 0)
                     ratings << 0 << 0 << 0 << 0;
 
-                if(d->labor_enabled(l->labor_id))
-                    ratings[LLB_ACTIVE] += 1;
-                ratings[LLB_SKILL] += d->skill_level(l->skill_id,true,true);
-                ratings[LLB_SKILL_RATE] += d->get_skill(l->skill_id).skill_rate();
+                if(d->labor_enabled(l->labor_id) && ratings[ML_ACTIVE] <= 0)
+                    ratings[ML_ACTIVE] = 1000;
+
+                ratings[ML_SKILL] += d->skill_level(l->skill_id,false,true); //capped rating
+
+                ratings[ML_SKILL_RATE] += d->get_skill(l->skill_id).skill_rate();
                 if(m_role_name.isEmpty()){
                     //find related roles based on the labor's skill
                     QVector<Role*> roles = gdr->get_skill_roles().value(l->skill_id);
                     if(roles.size() > 0){
-                        ratings[LLB_ROLE] += d->get_role_rating(roles.first()->name,true);
+                        ratings[ML_ROLE] += d->get_role_rating(roles.first()->name,true);
                     }
                 }else if(!m_ratings.contains(d->id())){
-                    ratings[LLB_ROLE] = d->get_role_rating(m_role_name,true);
+                    ratings[ML_ROLE] = d->get_role_rating(m_role_name,true);
                 }
                 m_ratings.insert(d->id(),ratings);
             }
         }
         foreach(Dwarf *d, dwarves){
-            m_ratings[d->id()][LLB_SKILL] /= labors.count();
-            m_ratings[d->id()][LLB_SKILL_RATE] /= labors.count();
+            m_ratings[d->id()][ML_SKILL] /= labors.count();
+            m_ratings[d->id()][ML_SKILL_RATE] /= labors.count();
             if(m_role_name == "")
-                m_ratings[d->id()][LLB_ROLE] /= labors.count();
-            if(m_active_labors.count() > 0)
-                m_ratings[d->id()][LLB_ACTIVE] = (1000.0f * ((float)m_ratings[d->id()][LLB_ACTIVE]/(float)m_active_labors.count()));
+                m_ratings[d->id()][ML_ROLE] /= labors.count();
+//            if(m_active_labors.count() > 0)
+//                m_ratings[d->id()][LLB_ACTIVE] = (1000.0f * ((float)m_ratings[d->id()][LLB_ACTIVE]/(float)m_active_labors.count()));
         }
     }
     read_settings();
 }
 
-float LaborListBase::get_rating(int id, LLB_RATING_TYPE type){
+float MultiLabor::get_rating(int id, ML_RATING_TYPE type){
     if(m_ratings.size() <= 0 && get_enabled_labors().size() > 0)
         refresh();
     if(m_ratings.contains(id)){
@@ -186,7 +200,7 @@ float LaborListBase::get_rating(int id, LLB_RATING_TYPE type){
     }
 }
 
-void LaborListBase::set_name(QString name){
+void MultiLabor::set_name(QString name){
     m_name = name;
 }
 
@@ -197,7 +211,7 @@ dialog is otherwise accepted by the user
 We intercept this call to verify the form is valid before saving it.
 \sa is_valid()
 */
-void LaborListBase::accept() {
+void MultiLabor::accept() {
     if (!is_valid()) {
         return;
     }
@@ -209,12 +223,12 @@ void LaborListBase::accept() {
     m_dialog->accept();
 }
 
-void LaborListBase::cancel(){
+void MultiLabor::cancel(){
     m_dwarf = 0;
     m_dialog->reject();
 }
 
-void LaborListBase::read_settings(){
+void MultiLabor::read_settings(){
     QSettings *s = DT->user_settings();
     if(s)
         m_active_labor_col = s->value("options/colors/active_labor",QColor(Qt::white)).value<QColor>();

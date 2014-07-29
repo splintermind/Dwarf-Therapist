@@ -49,7 +49,6 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     , m_user_settings(0)
     , m_main_window(0)
     , m_options_menu(0)
-    , m_reading_settings(false)
     , m_allow_labor_cheats(false)
     , m_hide_non_adults(false)
     , m_log_mgr(0)
@@ -98,6 +97,7 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     connect(m_main_window->ui->le_filter_text, SIGNAL(textChanged(const QString&)), m_main_window->get_proxy(), SLOT(setFilterFixedString(const QString&)));
 
     read_settings();
+    load_customizations();
 
     bool read = m_user_settings->value("options/read_on_startup", true).toBool();
     if (read) {
@@ -108,8 +108,13 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
 
 DwarfTherapist::~DwarfTherapist(){
     qDeleteAll(m_language);
+    m_language.clear();
     qDeleteAll(m_custom_prof_icns);
+    m_custom_prof_icns.clear();
     qDeleteAll(m_custom_professions);
+    m_custom_professions.clear();
+    qDeleteAll(m_super_labors);
+    m_super_labors.clear();
 
     delete m_user_settings;
     delete m_options_menu;
@@ -163,7 +168,6 @@ void DwarfTherapist::load_translator() {
 
 void DwarfTherapist::read_settings() {
     LOGI << "beginning to read settings";
-    m_reading_settings = true; // don't allow writes while we're reading...
 
     // HACK!
     if (m_user_settings->value("it_feels_like_the_first_time", true).toBool() ||
@@ -180,13 +184,21 @@ void DwarfTherapist::read_settings() {
         m_main_window->get_toolbar()->setToolButtonStyle(Qt::ToolButtonIconOnly);
     }
 
-    qDeleteAll(m_custom_professions);
-    m_custom_professions.clear();    
-    qDeleteAll(m_custom_prof_icns);
-    m_custom_prof_icns.clear();
-    qDeleteAll(m_super_labors);
-    m_super_labors.clear();
+    m_allow_labor_cheats = m_user_settings->value("options/allow_labor_cheats", false).toBool();
+    m_hide_non_adults = m_user_settings->value("options/hide_children_and_babies",false).toBool();
 
+    QApplication::setFont(DT->user_settings()->value("options/main_font", QFont(DefaultFonts::getMainFontName(), DefaultFonts::getMainFontSize())).value<QFont>());    
+    //set the application's tooltips
+    QToolTip::setFont(DT->user_settings()->value("options/tooltip_font", QFont(DefaultFonts::getTooltipFontName(), DefaultFonts::getTooltipFontSize())).value<QFont>());    
+
+    //set a variable we'll use in the dwarfstats for role calcs
+    DwarfStats::set_att_potential_weight(DT->user_settings()->value("options/default_attribute_potential_weight",0.5f).toFloat());
+    DwarfStats::set_skill_rate_weight(DT->user_settings()->value("options/default_skill_rate_weight",0.25f).toFloat());
+
+    LOGI << "finished reading settings";
+}
+
+void DwarfTherapist::load_customizations(){
     m_user_settings->beginGroup("custom_professions");
     {
         QStringList profession_names = m_user_settings->childGroups();
@@ -207,25 +219,12 @@ void DwarfTherapist::read_settings() {
         for(int idx = 0; idx < size; idx++) {
             m_user_settings->setArrayIndex(idx);
             SuperLabor *sl = new SuperLabor(*m_user_settings,this);
-            m_super_labors.insert(sl->get_name(),sl);            
+            m_super_labors.insert(sl->get_name(),sl);
         }
     }
     m_user_settings->endArray();
 
-    m_allow_labor_cheats = m_user_settings->value("options/allow_labor_cheats", false).toBool();
-    m_hide_non_adults = m_user_settings->value("options/hide_children_and_babies",false).toBool();
-
-    m_reading_settings = false;
     m_main_window->load_customizations();
-
-    QApplication::setFont(DT->user_settings()->value("options/main_font", QFont(DefaultFonts::getMainFontName(), DefaultFonts::getMainFontSize())).value<QFont>());    
-    //set the application's tooltips
-    QToolTip::setFont(DT->user_settings()->value("options/tooltip_font", QFont(DefaultFonts::getTooltipFontName(), DefaultFonts::getTooltipFontSize())).value<QFont>());    
-
-    //set a variable we'll use in the dwarfstats for role calcs
-    DwarfStats::set_att_potential_weight(DT->user_settings()->value("options/default_attribute_potential_weight",0.5f).toFloat());
-    DwarfStats::set_skill_rate_weight(DT->user_settings()->value("options/default_skill_rate_weight",0.25f).toFloat());
-    LOGI << "finished reading settings";
 }
 
 void DwarfTherapist::emit_units_refreshed(){

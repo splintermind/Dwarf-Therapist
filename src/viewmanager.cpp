@@ -72,10 +72,7 @@ ViewManager::ViewManager(DwarfModel *dm, DwarfModelProxy *proxy,
 }
 
 ViewManager::~ViewManager(){
-    foreach(GridView *v, m_views){
-        v->deleteLater();
-    }
-
+    qDeleteAll(m_views);
     m_views.clear();
 
     m_model = 0;

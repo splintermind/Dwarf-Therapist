@@ -26,14 +26,14 @@ THE SOFTWARE.
 #include <QObject>
 #include "customprofession.h"
 #include "dwarftherapist.h"
-#include "laborlistbase.h"
+#include "multilabor.h"
 
 namespace Ui
 {
     class SuperLaborEditor;
 }
 
-class SuperLabor : public LaborListBase  {
+class SuperLabor : public MultiLabor  {
     Q_OBJECT
 public:
     SuperLabor(QObject *parent = 0);    

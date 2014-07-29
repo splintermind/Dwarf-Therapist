@@ -86,6 +86,7 @@ public slots:
     void add_super_labor(Dwarf *d = 0);
 
     void read_settings();
+    void load_customizations();
 
     void write_settings();
     void write_custom_professions();
@@ -112,7 +113,6 @@ private:
     QSettings *m_user_settings;
     MainWindow *m_main_window;
     OptionsMenu *m_options_menu;
-    bool m_reading_settings;
     bool m_allow_labor_cheats;
     bool m_hide_non_adults;
     LogManager *m_log_mgr;

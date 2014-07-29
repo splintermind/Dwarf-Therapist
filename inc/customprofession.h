@@ -25,7 +25,7 @@ THE SOFTWARE.
 
 #include <QtWidgets>
 #include "customcolor.h"
-#include "laborlistbase.h"
+#include "multilabor.h"
 class Dwarf;
 
 namespace Ui
@@ -47,7 +47,7 @@ appropriate labors on that dwarf.
 
 Example:
 */
-class CustomProfession : public LaborListBase {
+class CustomProfession : public MultiLabor {
     Q_OBJECT
 public:
     //! Constructor with blank labor template

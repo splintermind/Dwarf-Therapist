@@ -194,7 +194,6 @@ HEADERS += inc/win_structs.h \
     inc/global_enums.h \
     inc/grid_view/weaponcolumn.h \
     inc/roledialog.h \
-    inc/rolecalc.h \
     inc/reaction.h \
     inc/races.h \
     inc/languages.h \    
@@ -249,8 +248,8 @@ HEADERS += inc/win_structs.h \
     inc/unitbelief.h \
     inc/superlabor.h \
     inc/grid_view/superlaborcolumn.h \
-    inc/laborlistbase.h \
-    inc/grid_view/customprofessioncolumn.h
+    inc/grid_view/customprofessioncolumn.h \
+    inc/multilabor.h
 SOURCES += src/viewmanager.cpp \
     src/uberdelegate.cpp \
     src/truncatingfilelogger.cpp \
@@ -302,7 +301,6 @@ SOURCES += src/viewmanager.cpp \
     src/attribute.cpp \
     src/grid_view/weaponcolumn.cpp \
     src/roledialog.cpp \
-    src/rolecalc.cpp \
     src/races.cpp \
     src/languages.cpp \    
     src/caste.cpp \
@@ -337,7 +335,7 @@ SOURCES += src/viewmanager.cpp \
     src/belief.cpp \
     src/grid_view/superlaborcolumn.cpp \
     src/superlabor.cpp \
-    src/laborlistbase.cpp \
+    src/multilabor.cpp \
     src/grid_view/customprofessioncolumn.cpp
 FORMS += ui/scriptdialog.ui \
     ui/scannerdialog.ui \

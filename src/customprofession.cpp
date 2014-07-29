@@ -32,14 +32,14 @@ THE SOFTWARE.
 #include "iconchooser.h"
 #include "utils.h"
 #include "defaultfonts.h"
-#include "laborlistbase.h"
+#include "multilabor.h"
 #include "superlabor.h"
 
 /*!
 Default ctor. Creates a blank skill template with no name
 */
 CustomProfession::CustomProfession(QObject *parent)
-    : LaborListBase(parent)
+    : MultiLabor(parent)
     , ui(new Ui::CustomProfessionEditor)    
     , m_icon_id(-1)
     , m_is_mask(false)
@@ -63,7 +63,7 @@ This is used by the "Create custom profession from this dwarf..." action.
 \param[in] parent The Qt owner of this object
 */
 CustomProfession::CustomProfession(Dwarf *d, QObject *parent)
-    : LaborListBase(parent)
+    : MultiLabor(parent)
     , ui(new Ui::CustomProfessionEditor)    
     , m_icon_id(-1)
     , m_is_mask(false)
@@ -87,7 +87,7 @@ CustomProfession::CustomProfession(Dwarf *d, QObject *parent)
 
 //profession icon
 CustomProfession::CustomProfession(int profession_id, QObject *parent)
-    : LaborListBase(parent)
+    : MultiLabor(parent)
     , ui(new Ui::CustomProfessionEditor)
     , m_icon_id(-1)
     , m_is_mask(false)
@@ -103,7 +103,7 @@ CustomProfession::CustomProfession(int profession_id, QObject *parent)
 
 //from the ini file. currently is in a different format and is read slightly different
 CustomProfession::CustomProfession(QString name, QSettings &s, QObject *parent)
-    :LaborListBase(parent)
+    :MultiLabor(parent)
     , ui(new Ui::CustomProfessionEditor)
     , m_fnt(0x0)
 {    
@@ -115,7 +115,7 @@ CustomProfession::CustomProfession(QString name, QSettings &s, QObject *parent)
 
 //import from file
 CustomProfession::CustomProfession(QSettings &s, QObject *parent)
-    :LaborListBase(parent)
+    :MultiLabor(parent)
     , ui(new Ui::CustomProfessionEditor)
     , m_fnt(0x0)
 {
@@ -202,6 +202,8 @@ int CustomProfession::show_builder_dialog(QWidget *parent) {
         m_dialog->adjustSize();
         m_dialog->setSizeGripEnabled(false);
         m_dialog->layout()->setSizeConstraint(QLayout::SetFixedSize);
+        //change the window name
+        m_dialog->setWindowTitle(tr("Custom Icon"));
     }
 
     refresh_icon();

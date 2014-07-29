@@ -30,13 +30,13 @@ THE SOFTWARE.
 
 //new blank superlabor
 SuperLabor::SuperLabor(QObject *parent)
-    :LaborListBase(parent)
+    :MultiLabor(parent)
     , ui(new Ui::SuperLaborEditor)
 {
 }
 
 SuperLabor::SuperLabor(QSettings &s, QObject *parent)
-    :LaborListBase(parent)
+    :MultiLabor(parent)
     , ui(new Ui::SuperLaborEditor)
 {
     m_name = s.value("id","").toString();
@@ -53,7 +53,7 @@ SuperLabor::SuperLabor(QSettings &s, QObject *parent)
 }
 
 SuperLabor::SuperLabor(Dwarf *d, QObject *parent)
-    : LaborListBase(parent)
+    : MultiLabor(parent)
     , ui(new Ui::SuperLaborEditor)
 {
     m_dwarf = d;

@@ -62,7 +62,7 @@ void SuperLaborColumn::init(){
     m_type = CT_SUPER_LABOR;
     m_current_sort = ViewManager::get_default_col_sort(m_type);
     connect(DT,SIGNAL(customizations_changed()),this,SLOT(customizations_changed()));
-    ml = QPointer<LaborListBase>(get_base_object());
+    ml = QPointer<MultiLabor>(get_base_object());
 }
 
 QStandardItem *SuperLaborColumn::build_cell(Dwarf *d) {    
@@ -105,7 +105,7 @@ void SuperLaborColumn::refresh(Dwarf *d, QStandardItem *item, QString title){
     labors_desc = tr("<br/><b>Labors:</b> %1").arg(labors.count() <= 0 ? tr("None") : modified_desc.join(", "));
 
     QString skill_msg = "";
-    skill_msg = tr("<b>Average Skill Level:</b> %1<br/>").arg(QString::number(skill_rating,'f',2));
+    skill_msg = tr("<b>Average Skill Level:</b> %1<br/>").arg(QString::number((skill_rating < 0 ? 0 : skill_rating),'f',2));
 
     float role_rating = ml->get_role_rating(d->id());
     QString role_msg = ml->get_role_name();
@@ -126,10 +126,12 @@ void SuperLaborColumn::refresh(Dwarf *d, QStandardItem *item, QString title){
             .arg(labors_desc)
             .arg(tooltip_name_footer(d));
 
+    tooltip.append("<br/>Sort val:").append(QString::number(item->data(DwarfModel::DR_SORT_VALUE).toFloat(),'f',2));
+
     item->setToolTip(tooltip);
 }
 
-float SuperLaborColumn::get_rating(int id, LaborListBase::LLB_RATING_TYPE type){
+float SuperLaborColumn::get_rating(int id, MultiLabor::ML_RATING_TYPE type){
     float m_sort_val = 0.0;
     if(!ml.isNull())
         m_sort_val = ml->get_rating(id,type);
@@ -137,21 +139,21 @@ float SuperLaborColumn::get_rating(int id, LaborListBase::LLB_RATING_TYPE type){
 }
 
 float SuperLaborColumn::get_base_sort(Dwarf *d){
-    return get_rating(d->id(), LaborListBase::LLB_ACTIVE);
+    return get_rating(d->id(), MultiLabor::ML_ACTIVE);
 }
 
 float SuperLaborColumn::get_role_rating(Dwarf *d){
-    return get_rating(d->id(), LaborListBase::LLB_ROLE);
+    return get_rating(d->id(), MultiLabor::ML_ROLE);
 }
 
 float SuperLaborColumn::get_skill_rating(int id, Dwarf *d){
     Q_UNUSED(id);
-    return get_rating(d->id(), LaborListBase::LLB_SKILL);
+    return get_rating(d->id(), MultiLabor::ML_SKILL);
 }
 
 float SuperLaborColumn::get_skill_rate_rating(int id, Dwarf *d){
     Q_UNUSED(id);
-    return get_rating(d->id(), LaborListBase::LLB_SKILL_RATE);
+    return get_rating(d->id(), MultiLabor::ML_SKILL_RATE);
 }
 
 QStandardItem *SuperLaborColumn::build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves){
@@ -160,13 +162,13 @@ QStandardItem *SuperLaborColumn::build_aggregate(const QString &group_name, cons
     return item;
 }
 
-LaborListBase* SuperLaborColumn::get_base_object(){
+MultiLabor* SuperLaborColumn::get_base_object(){
     return DT->get_super_labor(m_id);
 }
 
 void SuperLaborColumn::customizations_changed(){
     if(ml.isNull()){//attempt to find an object matching the id
-        ml = QPointer<LaborListBase>(get_base_object());
+        ml = QPointer<MultiLabor>(get_base_object());
     }else{
         //check if the name has been changed
         QString curr_id = ml->get_name();

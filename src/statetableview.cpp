@@ -101,10 +101,10 @@ StateTableView::StateTableView(QWidget *parent)
 
     customization_menu = new QMenu(m);
 
-    //CUSTOM PROFESSIONS
-    customization_menu->setTitle(tr("Custom Professions"));
+    //CUSTOM PROFESSIONS/SUPER LABORS
+    customization_menu->setTitle(tr("Customization"));
     customization_menu->setTearOffEnabled(true);
-    customization_menu->setWindowTitle("Custom Professions");
+    customization_menu->setWindowTitle("Customization");
 
     build_custom_profession_menu();
     m->addMenu(customization_menu);

@@ -75,7 +75,6 @@ ViewColumnSet::~ViewColumnSet(){
     foreach(ViewColumn *c, m_columns){
         c->deleteLater();
     }
-
     m_columns.clear();
     m_view = 0;
 }

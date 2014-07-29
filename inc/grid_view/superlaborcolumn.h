@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "viewcolumn.h"
 #include "skillcolumn.h"
 #include "global_enums.h"
-#include "laborlistbase.h"
+#include "multilabor.h"
 
 class ViewColumn;
 class Dwarf;
@@ -48,18 +48,18 @@ public:
     void write_to_ini(QSettings &s);    
 protected:
     QString m_id;
-    QPointer<LaborListBase> ml;
+    QPointer<MultiLabor> ml;
     void refresh(Dwarf *d, QStandardItem *item = 0, QString title = "");
     float get_base_sort(Dwarf *d);
     float get_role_rating(Dwarf *d);
     float get_skill_rating(int id, Dwarf *d);
     float get_skill_rate_rating(int id, Dwarf *d);
 
-    virtual LaborListBase* get_base_object();
+    virtual MultiLabor* get_base_object();
     void init();
 
 protected slots:    
     virtual void customizations_changed();
-    virtual float get_rating(int id, LaborListBase::LLB_RATING_TYPE);
+    virtual float get_rating(int id, MultiLabor::ML_RATING_TYPE);
 };
 #endif // SUPERLABORCOLUMN_H

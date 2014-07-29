@@ -52,7 +52,7 @@ CustomProfessionColumn::CustomProfessionColumn(const CustomProfessionColumn &to_
 
 void CustomProfessionColumn::init(){
     m_type = CT_CUSTOM_PROFESSION;
-    ml = QPointer<LaborListBase>(this->get_base_object());
+    ml = QPointer<MultiLabor>(this->get_base_object());
 }
 
 QStandardItem *CustomProfessionColumn::build_cell(Dwarf *d) {
@@ -94,6 +94,6 @@ QStandardItem *CustomProfessionColumn::build_aggregate(const QString &group_name
     return item;
 }
 
-LaborListBase* CustomProfessionColumn::get_base_object(){
+MultiLabor* CustomProfessionColumn::get_base_object(){
     return DT->get_custom_profession(m_id);
 }

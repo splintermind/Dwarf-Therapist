@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "viewcolumn.h"
 #include "superlaborcolumn.h"
 #include "global_enums.h"
-#include "laborlistbase.h"
+#include "multilabor.h"
 
 class ViewColumn;
 class Dwarf;
@@ -42,7 +42,7 @@ public:
     QStandardItem *build_cell(Dwarf *d);
     QStandardItem *build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves);
 protected:
-    LaborListBase* get_base_object();
+    MultiLabor* get_base_object();
 private:
     void init();
 };
