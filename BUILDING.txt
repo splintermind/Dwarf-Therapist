@@ -30,7 +30,7 @@ For 34.11 and older use the main branch:
     
 For 40.00 and newer use the DF2014 branch:
 
-    > git clone git://github.com/splintermind/Dwarf-Therapist.git DF2014
+    > git clone git://github.com/splintermind/Dwarf-Therapist.git -b DF2014
     
 If you already have the older version checked out and you'd like to move to the new branch:
 
