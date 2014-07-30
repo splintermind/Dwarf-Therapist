@@ -166,6 +166,7 @@ MainWindow::MainWindow(QWidget *parent)
             m_view_manager, SLOT(jump_to_profession(QTreeWidgetItem*,QTreeWidgetItem*)));
 
     connect(m_view_manager, SIGNAL(dwarf_focus_changed(Dwarf*)), dwarf_details_dock, SLOT(show_dwarf(Dwarf*)));
+    connect(m_view_manager, SIGNAL(selection_changed()), this, SLOT(toggle_opts_menu()));
     connect(ui->cb_filter_script, SIGNAL(currentIndexChanged(const QString &)), SLOT(new_filter_script_chosen(const QString &)));
 
     connect(m_script_dialog, SIGNAL(test_script(QString)),m_proxy,SLOT(test_script(QString)));
@@ -513,8 +514,6 @@ void MainWindow::set_interface_enabled(bool enabled) {
     ui->cb_group_by->setEnabled(enabled);
     ui->act_import_existing_professions->setEnabled(enabled);
     ui->act_print->setEnabled(enabled);
-    if(m_btn_optimize)
-        m_btn_optimize->setEnabled(enabled);
     if(m_view_manager)
         m_view_manager->setEnabled(enabled);
 }
@@ -792,7 +791,7 @@ void MainWindow::go_to_forums() {
     QDesktopServices::openUrl(QUrl("http://www.bay12forums.com/smf/index.php?topic=122968.0"));
 }
 void MainWindow::go_to_donate() {
-    QDesktopServices::openUrl(QUrl("https://github.com/splintermind/Dwarf-Therapist"));
+    QDesktopServices::openUrl(QUrl("http://tinyurl.com/pphgqbz"));
 }
 void MainWindow::go_to_project_home() {
     QDesktopServices::openUrl(QUrl("https://github.com/splintermind/Dwarf-Therapist"));
@@ -1335,6 +1334,13 @@ void MainWindow::write_labor_optimizations(){
     s->endArray();
 }
 
+void MainWindow::toggle_opts_menu(){
+    if(m_view_manager && m_view_manager->get_selected_dwarfs().count() <= 0)
+        m_btn_optimize->setEnabled(false);
+    else
+        m_btn_optimize->setEnabled(true);
+}
+
 void MainWindow::refresh_opts_menus() {
     //setup the optimize button
     if(!m_btn_optimize && ! m_act_sep_optimize){       
@@ -1356,7 +1362,7 @@ void MainWindow::refresh_opts_menus() {
         connect(m_btn_optimize, SIGNAL(clicked()), this, SLOT(init_optimize()));
 
         m_act_btn_optimize = ui->main_toolbar->insertWidget(ui->act_options, m_btn_optimize);
-        m_act_sep_optimize = ui->main_toolbar->insertSeparator(ui->act_options);
+        m_act_sep_optimize = ui->main_toolbar->insertSeparator(ui->act_options);        
     }
     QMenu *opt_menu = new QMenu(m_btn_optimize);
 
@@ -1405,6 +1411,8 @@ void MainWindow::refresh_opts_menus() {
         m_act_btn_optimize->setVisible(true);
         m_act_sep_optimize->setVisible(true);
     }
+    //start disabled
+    m_btn_optimize->setEnabled(false);
 }
 
 void MainWindow::init_optimize(){

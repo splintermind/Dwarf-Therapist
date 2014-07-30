@@ -192,6 +192,7 @@ private:
         void thought_selected(QList<short> ids);
         void health_legend_selected(QList<QPair<int,int> > vals);
         //optimization stuff
+        void toggle_opts_menu();
         void edit_opt();
         void remove_opt();
         void done_editing_opt_plan(int result);

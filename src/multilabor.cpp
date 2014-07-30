@@ -79,6 +79,7 @@ void MultiLabor::load_labors(QListWidget *labor_list){
     m_selected_count = 0;
     read_settings();
     QList<Labor*> labors = gdr->get_ordered_labors();
+    qSort(labors.begin(),labors.end(),Labor::hauling_compare);
     foreach(Labor *l, labors) {
         QListWidgetItem *item = new QListWidgetItem(l->name, labor_list);
         item->setData(Qt::UserRole, l->labor_id);
@@ -134,19 +135,26 @@ void MultiLabor::refresh(){
             m_role_name = curr_id;
     }
 
+    //build descriptions
+
+
     //build ratings
     QList<Dwarf*> dwarves = DT->get_dwarves();
     //at the moment it's not possible to have roles associated to non-skill labors (hauling)
     //so we can exclude all non-skilled labors from the ratings
-    QVector<int> labors = get_enabled_skilled_labors();
+    QVector<int> labors = get_enabled_labors();
+    int skilled_count = 0;
+    int skill_id = -1;
     if(labors.count() > 0){
         foreach(int labor_id, labors){
-            Labor *l = GameDataReader::ptr()->get_labor(labor_id);
+            Labor *l = GameDataReader::ptr()->get_labor(labor_id);            
             QString name = l->name;
+            skill_id = l->skill_id;
+            if(skill_id >= 0)
+                skilled_count++;
             m_labor_desc.insert(l->labor_id,name);
             m_qvariant_labors.append(labor_id);
             foreach(Dwarf *d, dwarves){
-
                 QList<float> ratings = m_ratings.take(d->id());
                 if(ratings.size() <= 0)
                     ratings << 0 << 0 << 0 << 0;
@@ -154,14 +162,18 @@ void MultiLabor::refresh(){
                 if(d->labor_enabled(l->labor_id) && ratings[ML_ACTIVE] <= 0)
                     ratings[ML_ACTIVE] = 1000;
 
-                ratings[ML_SKILL] += d->skill_level(l->skill_id,false,true); //capped rating
+                if(skill_id >= 0){
+                    ratings[ML_SKILL] += d->skill_level(l->skill_id,false,true); //capped rating, ignore non-skilled labors
+                    ratings[ML_SKILL_RATE] += d->get_skill(l->skill_id).skill_rate();
+                }
 
-                ratings[ML_SKILL_RATE] += d->get_skill(l->skill_id).skill_rate();
                 if(m_role_name.isEmpty()){
                     //find related roles based on the labor's skill
-                    QVector<Role*> roles = gdr->get_skill_roles().value(l->skill_id);
-                    if(roles.size() > 0){
-                        ratings[ML_ROLE] += d->get_role_rating(roles.first()->name,true);
+                    if(skill_id >= 0){
+                        QVector<Role*> roles = gdr->get_skill_roles().value(l->skill_id);
+                        if(roles.size() > 0){
+                            ratings[ML_ROLE] += d->get_role_rating(roles.first()->name,true);
+                        }
                     }
                 }else if(!m_ratings.contains(d->id())){
                     ratings[ML_ROLE] = d->get_role_rating(m_role_name,true);
@@ -170,10 +182,15 @@ void MultiLabor::refresh(){
             }
         }
         foreach(Dwarf *d, dwarves){
-            m_ratings[d->id()][ML_SKILL] /= labors.count();
-            m_ratings[d->id()][ML_SKILL_RATE] /= labors.count();
-            if(m_role_name == "")
-                m_ratings[d->id()][ML_ROLE] /= labors.count();
+            if(skilled_count > 0){
+                m_ratings[d->id()][ML_SKILL] /= skilled_count;
+                m_ratings[d->id()][ML_SKILL_RATE] /= skilled_count;
+                if(m_role_name == "")
+                    m_ratings[d->id()][ML_ROLE] /= skilled_count;
+            }else{
+                m_ratings[d->id()][ML_SKILL] = -1;
+                m_ratings[d->id()][ML_SKILL_RATE] = 0;
+            }
 //            if(m_active_labors.count() > 0)
 //                m_ratings[d->id()][LLB_ACTIVE] = (1000.0f * ((float)m_ratings[d->id()][LLB_ACTIVE]/(float)m_active_labors.count()));
         }

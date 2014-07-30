@@ -229,7 +229,7 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
 
         int dirty_alpha = 255;
         int active_alpha = 255;
-        int min_alpha = 75;
+        int min_alpha = 75;        
 
         if(d){
             if(idx.data(DwarfModel::DR_LABORS).canConvert<QVariantList>()){
@@ -246,10 +246,19 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
                         dirty_count++;
                     }
                 }
+                float perc = 0.0;
                 if(check_active && is_active){
-                    active_alpha = (255 * ((float)active_count / labors.count()));
-                    if(active_alpha < min_alpha)
-                        active_alpha = min_alpha;
+                    perc = (float)active_count / labors.count();
+                    if(labors.count() > 5){
+                        if(perc <= 0.33)
+                            active_alpha = 63;
+                        else if(perc <= 0.66)
+                            active_alpha = 127;
+                        else if(perc <= 0.90)
+                            active_alpha = 190;
+                    }else{
+                        active_alpha *= perc;
+                    }
                 }
                 if(is_dirty){
                     if(dirty_count > 0){
@@ -444,7 +453,7 @@ QColor UberDelegate::paint_bg_active(const QRect &adjusted, bool active, QPainte
     if(gradient_cell_bg){
         QLinearGradient grad(adjusted.topLeft(),adjusted.bottomRight());
         grad.setColorAt(0,bg);
-        bg.setAlpha(75);
+        bg.setAlpha(70);
         grad.setColorAt(1,bg);
         p->fillRect(adjusted, grad);
     }else{

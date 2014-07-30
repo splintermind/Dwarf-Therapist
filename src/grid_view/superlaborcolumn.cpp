@@ -126,8 +126,6 @@ void SuperLaborColumn::refresh(Dwarf *d, QStandardItem *item, QString title){
             .arg(labors_desc)
             .arg(tooltip_name_footer(d));
 
-    tooltip.append("<br/>Sort val:").append(QString::number(item->data(DwarfModel::DR_SORT_VALUE).toFloat(),'f',2));
-
     item->setToolTip(tooltip);
 }
 

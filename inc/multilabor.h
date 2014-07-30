@@ -3,6 +3,7 @@
 
 #include <QtWidgets>
 #include "gamedatareader.h"
+#include "labor.h"
 
 class Dwarf;
 

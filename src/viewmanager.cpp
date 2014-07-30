@@ -287,8 +287,7 @@ void ViewManager::add_weapons_view(QList<GridView*> &built_in_views){
 
 void ViewManager::draw_views() {
     // see if we have a saved tab order...
-    QTime start = QTime::currentTime();
-    int idx = currentIndex();
+    QTime start = QTime::currentTime();    
     disconnect(tabBar(), SIGNAL(currentChanged(int)), this, SLOT(setCurrentIndex(int)));
     while (count()) {
         QWidget *w = widget(0);
@@ -301,20 +300,17 @@ void ViewManager::draw_views() {
             "gui_options/tab_order").toStringList();
     if (tab_order.size() == 0) {
         tab_order << "Labors" << "Military" << "Social" << "Attributes" << "Roles" << "Animals";
-    }
+    }    
     if (tab_order.size() > 0) {
         foreach(QString name, tab_order) {
             foreach(GridView *v, m_views) {
-                if (v->name() == name)
+                if (v->name() == name){
                     add_tab_for_gridview(v);
+                }
             }
         }
     }
-    if (idx >= 0 && idx <= count() - 1) {
-        setCurrentIndex(idx);
-    } else {
-        setCurrentIndex(0);
-    }
+    setCurrentWidget(widget(0));
     QTime stop = QTime::currentTime();
     LOGI << QString("redrew views in %L1ms").arg(start.msecsTo(stop));
 }
@@ -428,13 +424,6 @@ StateTableView *ViewManager::get_stv(int idx) {
         idx = currentIndex();
     QWidget *w = widget(idx);
     if (w) {
-//    StateTableView *s;
-//    for(int i =0; w->children().count(); i++){
-//        s = qobject_cast<StateTableView*>(w->children().at(i));
-//        if(s)
-//            break;
-//    }
-//    return s;
         return qobject_cast<StateTableView*>(w);
     }
     return 0;
@@ -593,7 +582,6 @@ int ViewManager::add_tab_from_action() {
 
     GridView *v = (GridView*)(a->data().toULongLong());
     int idx = add_tab_for_gridview(v);
-    setCurrentIndex(idx);
     return idx;
 }
 
@@ -617,6 +605,7 @@ int ViewManager::add_tab_for_gridview(GridView *v) {
     m_reset_sorting = true;
     int new_idx = addTab(stv, v->name()); //this calls setCurrentIndex, redrawing and sorting the view
     m_reset_sorting = false;
+    setCurrentWidget(stv);
     write_tab_settings();
     return new_idx;
 }
