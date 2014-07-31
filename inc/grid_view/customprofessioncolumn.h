@@ -20,31 +20,30 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#ifndef BELIEF_H
-#define BELIEF_H
+#ifndef CUSTOMPROFESSIONCOLUMN_H
+#define CUSTOMPROFESSIONCOLUMN_H
 
-#include <QtWidgets>
+#include "viewcolumn.h"
+#include "superlaborcolumn.h"
 #include "global_enums.h"
-#include "dwarfstats.h"
-#include "gamedatareader.h"
-#include "fortressentity.h"
+#include "multilabor.h"
 
-class Belief : public QObject {
+class ViewColumn;
+class Dwarf;
+class Attribute;
+
+class CustomProfessionColumn : public SuperLaborColumn {
     Q_OBJECT
-
-private:
-    //! this map will hold the minimum_value -> string (e.g. level 76-90 of ANXIETY_PROPENSITY is "Is always tense and jittery")
-    QMap<int, QString> m_level_string;
-
 public:
-    Belief(int id, QSettings &s, QObject *parent = 0);
-
-    QString name;
-    int m_id;
-
-    int belief_id(){return m_id;}
-    bool is_active(const short &personal_val);
-    QString level_message(const short &val);
+    CustomProfessionColumn(const QString &title, QString id, ViewColumnSet *set = 0, QObject *parent = 0);
+    CustomProfessionColumn(QSettings &s, ViewColumnSet *set = 0, QObject *parent = 0);
+    CustomProfessionColumn(const CustomProfessionColumn &to_copy); // copy ctor
+    CustomProfessionColumn* clone() {return new CustomProfessionColumn(*this);}
+    QStandardItem *build_cell(Dwarf *d);
+    QStandardItem *build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves);
+protected:
+    MultiLabor* get_base_object();
+private:
+    void init();
 };
-
-#endif
+#endif // CUSTOMPROFESSIONCOLUMN_H

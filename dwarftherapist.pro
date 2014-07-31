@@ -78,7 +78,7 @@ else:macx {
     QMAKE_BUNDLE_DATA += etc
 
     layouts.path = Contents/MacOS/etc/memory_layouts/osx
-    layouts.files += etc/memory_layouts/osx/v034.11.ini
+    layouts.files += etc/memory_layouts/osx/v040.04.ini
     QMAKE_BUNDLE_DATA += layouts
 }
 else:unix {
@@ -90,16 +90,21 @@ else:unix {
     target.path = /usr/bin
     INSTALLS += target
 
-    bin.path = /usr/bin; cp dist/dwarftherapist $(INSTALL_ROOT)/usr/bin/dwarftherapist
-    bin.files += bin/release/DwarfTherapist; chmod +x $(INSTALL_ROOT)/usr/bin/dwarftherapist
+    bin.path = /usr/bin
+    bin.files += dist/dwarftherapist
     INSTALLS += bin
 
+    bin_mod.path = /usr/bin
+    bin_mod.extra = chmod +x $(INSTALL_ROOT)/usr/bin/dwarftherapist
+    INSTALLS += bin_mod
+
     application.path = /usr/share/applications
-    application.files = dist/dwarftherapist.desktop
+    application.files += dist/dwarftherapist.desktop
     INSTALLS += application
 
     doc.path = /usr/share/doc/dwarftherapist
-    doc.extra = cp LICENSE $(INSTALL_ROOT)/usr/share/doc/dwarftherapist/copyright; cp README.md $(INSTALL_ROOT)/usr/share/doc/dwarftherapist/README.Debian
+    doc.files += LICENSE.txt
+    doc.files += README.md
     INSTALLS += doc
 
     icon.path = /usr/share/pixmaps
@@ -107,14 +112,13 @@ else:unix {
     icon.files += img/dwarftherapist.xpm
     INSTALLS += icon
 
-    share.path = /usr/share/dwarftherapist
-    share.extra = mkdir -p $(INSTALL_ROOT)/usr/share/dwarftherapist/etc; \
-        mkdir -p $(INSTALL_ROOT)/usr/share/dwarftherapist/etc/memory_layouts; \
-        mkdir -p $(INSTALL_ROOT)/usr/share/dwarftherapist/etc/memory_layouts/linux; \
-        cp etc/game_data.ini $(INSTALL_ROOT)/usr/share/dwarftherapist/etc; \
-        cp etc/memory_layouts/linux/* $(INSTALL_ROOT)/usr/share/dwarftherapist/etc/memory_layouts/linux
+    memory_layouts.path = /usr/share/dwarftherapist/etc/memory_layouts/linux
+    memory_layouts.files += etc/memory_layouts/linux/*
+    INSTALLS += memory_layouts
 
-    INSTALLS += share
+    game_data.path = /usr/share/dwarftherapist/etc
+    game_data.files += etc/game_data.ini
+    INSTALLS += game_data
 }
 
 # Translation files
@@ -194,7 +198,6 @@ HEADERS += inc/win_structs.h \
     inc/global_enums.h \
     inc/grid_view/weaponcolumn.h \
     inc/roledialog.h \
-    inc/rolecalc.h \
     inc/reaction.h \
     inc/races.h \
     inc/languages.h \    
@@ -246,7 +249,11 @@ HEADERS += inc/win_structs.h \
     inc/ecdf.h \
     inc/contextmenuhelper.h \
     inc/belief.h \
-    inc/unitbelief.h
+    inc/unitbelief.h \
+    inc/superlabor.h \
+    inc/grid_view/superlaborcolumn.h \
+    inc/grid_view/customprofessioncolumn.h \
+    inc/multilabor.h
 SOURCES += src/viewmanager.cpp \
     src/uberdelegate.cpp \
     src/truncatingfilelogger.cpp \
@@ -298,7 +305,6 @@ SOURCES += src/viewmanager.cpp \
     src/attribute.cpp \
     src/grid_view/weaponcolumn.cpp \
     src/roledialog.cpp \
-    src/rolecalc.cpp \
     src/races.cpp \
     src/languages.cpp \    
     src/caste.cpp \
@@ -330,7 +336,11 @@ SOURCES += src/viewmanager.cpp \
     src/itemweaponsubtype.cpp \
     src/ecdf.cpp \
     src/rolestats.cpp \
-    src/belief.cpp
+    src/belief.cpp \
+    src/grid_view/superlaborcolumn.cpp \
+    src/superlabor.cpp \
+    src/multilabor.cpp \
+    src/grid_view/customprofessioncolumn.cpp
 FORMS += ui/scriptdialog.ui \
     ui/scannerdialog.ui \
     ui/pendingchanges.ui \
@@ -346,5 +356,6 @@ FORMS += ui/scriptdialog.ui \
     ui/about.ui \
     ui/selectparentlayoutdialog.ui \
     ui/roledialog.ui \
-    ui/optimizereditor.ui
+    ui/optimizereditor.ui \
+    ui/superlabor.ui
 RESOURCES += images.qrc
