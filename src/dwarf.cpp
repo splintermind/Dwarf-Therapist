@@ -2631,9 +2631,6 @@ float Dwarf::calc_role_rating(Role *m_role){
         }
         rating_att = (rating_att / total_weight) * 100.0f; //weighted average percentile
     }
-    else
-        //rating_att = 0.5f;
-        ;
     //********************************
 
 
@@ -2656,9 +2653,6 @@ float Dwarf::calc_role_rating(Role *m_role){
         }
         rating_trait = (rating_trait / total_weight) * 100.0f;//weighted average percentile
     }
-    else
-            //rating_trait = 0.5f;
-        ;
     //********************************
 
     //************ SKILLS ************
@@ -2694,9 +2688,6 @@ float Dwarf::calc_role_rating(Role *m_role){
             rating_skill = (rating_skill / total_weight) * 100.0f;//weighted average percentile
         }
     }
-    else
-        //rating_skill = 0.5f;
-        ;
     //********************************
 
     //************ PREFERENCES ************
@@ -2718,19 +2709,11 @@ float Dwarf::calc_role_rating(Role *m_role){
             }
         }
         if(total_weight > 0)
-        //if( (aspect_value <= 0) || (!aspect_value) )
             rating_prefs = (rating_prefs / total_weight) * 100.0f;//weighted average percentile
         else //set to rating_prefs of 0
             //aspect_value by default has been preset to 0
             rating_prefs = DwarfStats::get_preference_rating(aspect_value);
-            //rating_prefs = 0;
-            //rating_prefs = (rating_prefs / total_weight) * 100.0f;//weighted average percentile
     }
-    else
-        //if (m_role->prefs.count()=0)
-        //set to .5?
-        //rating_prefs = 0.5f;
-        ;
     //********************************
 
     //weighted average percentile total
