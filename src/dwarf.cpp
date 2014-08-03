@@ -93,7 +93,7 @@ Dwarf::Dwarf(DFInstance *df, const uint &addr, QObject *parent)
     , m_current_job_id(-1)
     , m_hist_id(-1)
     , m_squad_id(-1)
-    , m_squad_position(-1)    
+    , m_squad_position(-1)
     , m_pending_squad_name(QString::null)
     , m_age(0)
     , m_hist_nickname(0)
@@ -287,13 +287,13 @@ void Dwarf::refresh_data() {
     if(!m_validated)
         this->is_valid();
     if(m_is_valid){
-        read_caste(); //read before age        
+        read_caste(); //read before age
         read_labors();
         read_happiness();
         read_squad_info(); //read squad before job
         read_uniform();
         read_current_job();
-        read_syndromes(); //read syndromes before attributes        
+        read_syndromes(); //read syndromes before attributes
         read_turn_count(); //load time/date stuff for births/migrations - read before age
         set_age_and_migration(m_address + m_mem->dwarf_offset("birth_year"), m_address + m_mem->dwarf_offset("birth_time")); //set age before profession
         read_profession(); //read profession before building the names
@@ -593,7 +593,7 @@ void Dwarf::read_states(){
 }
 
 void Dwarf::read_curse(){
-    m_curse_name = capitalizeEach(m_df->read_string(m_address + m_mem->dwarf_offset("curse")));  
+    m_curse_name = capitalizeEach(m_df->read_string(m_address + m_mem->dwarf_offset("curse")));
 
     if(!m_curse_name.isEmpty()){
         m_curse_type = eCurse::OTHER;
@@ -1474,7 +1474,7 @@ void Dwarf::read_inventory(){
             if(affection_level > 0)
                 i->set_affection(affection_level);
 
-            if(i_type == WEAPON){                
+            if(i_type == WEAPON){
                 ItemWeapon *iw = new ItemWeapon(*i);
                 process_inv_item(category_name,iw);
 
@@ -1685,7 +1685,7 @@ void Dwarf::read_personality() {
         VIRTADDR personality_addr = m_first_soul + m_mem->soul_detail("personality");
 
         //read personal beliefs before traits, as a dwarf will have a conflict with either personal beliefs or cultural beliefs
-        QVector<VIRTADDR> m_beliefs_addrs = m_df->enumerate_vector(personality_addr + m_mem->soul_detail("beliefs"));        
+        QVector<VIRTADDR> m_beliefs_addrs = m_df->enumerate_vector(personality_addr + m_mem->soul_detail("beliefs"));
         foreach(VIRTADDR addr, m_beliefs_addrs){
             int belief_id = m_df->read_int(addr);
             if(belief_id >= 0){
@@ -2159,7 +2159,7 @@ void Dwarf::reset_custom_profession(bool reset_labors){
             set_labor(labor_id,false,false);
         }
     }
-     m_pending_custom_profession = "";
+    m_pending_custom_profession = "";
 }
 
 QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
@@ -2294,7 +2294,7 @@ QString Dwarf::tooltip_text() {
                     continue;
                 Belief *b = gdr->get_belief(belief_id);
                 if (!b)
-                    continue;                
+                    continue;
                 beliefs_list.append(capitalize(b->level_message(m_beliefs.value(belief_id).belief_value())));
             }
             if(beliefs_list.size() > 0)
@@ -2602,6 +2602,22 @@ float Dwarf::calc_role_rating(Role *m_role){
     float global_trait_weight = m_role->traits.count() <= 0 ? 0 : m_role->traits_weight.weight;
     float global_pref_weight = m_role->prefs.count() <= 0 ? 0 : m_role->prefs_weight.weight;
 
+    //int to float
+    //myFloat = *(float *)&myInt ;
+    float temp1 = m_role->attributes.count();
+    float temp2 = m_role->skills.count();
+    float temp3 = m_role->traits.count();
+    float temp4 = m_role->prefs.count();
+
+    float temp1w = m_role->attributes_weight.weight;
+    float temp2w = m_role->skills_weight.weight;
+    float temp3w = m_role->traits_weight.weight;
+    float temp4w = m_role->prefs_weight.weight;
+
+
+    if ( (temp1 * temp1w) + (temp2 * temp2w) + (temp3 * temp3w) + (temp4 * temp4w) == 0)
+        return 50.0f;
+
     if((global_att_weight + global_skill_weight + global_trait_weight + global_pref_weight) == 0)
         return 0.0001;
 
@@ -2712,7 +2728,7 @@ float Dwarf::calc_role_rating(Role *m_role){
             rating_prefs = (rating_prefs / total_weight) * 100.0f;//weighted average percentile
         else //set to rating_prefs of 0
             //aspect_value by default has been preset to 0
-            rating_prefs = DwarfStats::get_preference_rating(aspect_value);
+            rating_prefs = DwarfStats::get_preference_rating(aspect_value) * 100.0f;
     }
     //********************************
 
@@ -2777,18 +2793,18 @@ QList<double> Dwarf::get_role_pref_match_counts(Role *r){
 }
 
 double Dwarf::get_role_pref_match_counts(Preference *role_pref){
-        double matches = 0;
-        int key = role_pref->get_pref_category();
-        QMultiMap<int, Preference *>::iterator i = m_preferences.find(key);
-        while(i != m_preferences.end() && i.key() == key){
-            matches += (double)static_cast<Preference*>(i.value())->matches(role_pref,this);
-            i++;
-        }
-        //give a 0.1 bonus for each match after the first, this only applies when getting matches for groups
-        if(matches > 1.0)
-            matches = 1.0f + ((matches-1.0f) / 10.0f);
+    double matches = 0;
+    int key = role_pref->get_pref_category();
+    QMultiMap<int, Preference *>::iterator i = m_preferences.find(key);
+    while(i != m_preferences.end() && i.key() == key){
+        matches += (double)static_cast<Preference*>(i.value())->matches(role_pref,this);
+        i++;
+    }
+    //give a 0.1 bonus for each match after the first, this only applies when getting matches for groups
+    if(matches > 1.0)
+        matches = 1.0f + ((matches-1.0f) / 10.0f);
 
-        return matches;
+    return matches;
 }
 
 Reaction *Dwarf::get_reaction()
