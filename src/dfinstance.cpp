@@ -643,16 +643,16 @@ void DFInstance::load_role_ratings(){
         foreach(Role *r, GameDataReader::ptr()->get_roles().values()){
             if(r->prefs.count() > 0){
                 foreach(double rating, d->get_role_pref_match_counts(r)){
-                    if(rating > 0){
+                    //if(rating > 0){
                         pref_values.append(rating);
-                        pref_values << 0; //assume for every match there's a non-match
-                    }
+                        //pref_values << 0; //assume for every match there's a non-match
+                   //}
                 }
             }
         }
 
     }
-    pref_values << 0; //pad a final 0 to prefs to ensure median = 0
+    //pref_values << 0; //pad a final 0 to prefs to ensure median = 0
 
     QTime tr;
     tr.start();
