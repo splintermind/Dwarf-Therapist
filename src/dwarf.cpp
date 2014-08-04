@@ -2489,6 +2489,21 @@ float Dwarf::calc_role_rating(Role *m_role){
     float global_trait_weight = m_role->traits.count() <= 0 ? 0 : m_role->traits_weight.weight;
     float global_pref_weight = m_role->prefs.count() <= 0 ? 0 : m_role->prefs_weight.weight;
 
+    //int to float
+    //myFloat = *(float *)&myInt ;
+    float temp1 = m_role->attributes.count();
+    float temp2 = m_role->skills.count();
+    float temp3 = m_role->traits.count();
+    float temp4 = m_role->prefs.count();
+
+    float temp1w = m_role->attributes_weight.weight;
+    float temp2w = m_role->skills_weight.weight;
+    float temp3w = m_role->traits_weight.weight;
+    float temp4w = m_role->prefs_weight.weight;
+
+    if ( (temp1 * temp1w) + (temp2 * temp2w) + (temp3 * temp3w) + (temp4 * temp4w) == 0)
+        return 50.0f;
+
     if((global_att_weight + global_skill_weight + global_trait_weight + global_pref_weight) == 0)
         return 0.0001;
 
@@ -2583,16 +2598,23 @@ float Dwarf::calc_role_rating(Role *m_role){
         aspect_value = 0;
         foreach(Preference *role_pref,m_role->prefs){
             aspect_value = get_role_pref_match_counts(role_pref);
-            aspect_value = DwarfStats::get_preference_rating(aspect_value);
+            //preferences are slightly different due to their binary nature. large numbers of preferences result in a very low weighted average
+            //so if there isn't a match, don't include it in the weighted average to try to keep roles relatively equal regardless of how many preferences they have
+            if(aspect_value > 0){
+                aspect_value = DwarfStats::get_preference_rating(aspect_value);
+                weight = role_pref->pref_aspect->weight;
+                if(role_pref->pref_aspect->is_neg)
+                    aspect_value = 1-aspect_value;
 
-            weight = role_pref->pref_aspect->weight;
-            if(role_pref->pref_aspect->is_neg)
-                aspect_value = 1-aspect_value;
-
-            rating_prefs += (aspect_value*weight);
-            total_weight += weight;
+                rating_prefs += (aspect_value*weight);
+                total_weight += weight;
+            }
         }
-        rating_prefs = (rating_prefs / total_weight) * 100.0f;//weighted average percentile
+        if(total_weight > 0)
+            rating_prefs = (rating_prefs / total_weight) * 100.0f;//weighted average percentile
+        else //set to rating_prefs of 0
+            //aspect_value by default has been preset to 0
+            rating_prefs = DwarfStats::get_preference_rating(aspect_value) * 100.0f;
     }
     //********************************
 
