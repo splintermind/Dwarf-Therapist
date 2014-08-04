@@ -1,9 +1,7 @@
 TEMPLATE = app
 TARGET = DwarfTherapist
-QT += network \
+QT += concurrent \
     script \
-    core \
-    gui \
     widgets
 CONFIG(debug, debug|release) { 
     message(Debug Mode)
@@ -21,6 +19,11 @@ else {
     RCC_DIR = bin$${DIR_SEPARATOR}release
     OBJECTS_DIR = bin$${DIR_SEPARATOR}release
 }
+
+QMAKE_CFLAGS += $$(CFLAGS)
+QMAKE_CXXFLAGS += $$(CXXFLAGS)
+QMAKE_LFLAGS += $$(LDFLAGS)
+
 INCLUDEPATH += inc \
     inc$${DIR_SEPARATOR}models \
     inc$${DIR_SEPARATOR}grid_view \
@@ -78,7 +81,9 @@ else:macx {
     QMAKE_BUNDLE_DATA += etc
 
     layouts.path = Contents/MacOS/etc/memory_layouts/osx
-    layouts.files += etc/memory_layouts/osx/v040.04.ini
+    layouts.files += etc/memory_layouts/osx/v0.40.04_osx.ini
+    layouts.files += etc/memory_layouts/osx/v0.40.05_osx.ini
+    layouts.files += etc/memory_layouts/osx/v0.40.06_osx.ini
     QMAKE_BUNDLE_DATA += layouts
 }
 else:unix {
@@ -96,6 +101,7 @@ else:unix {
 
     bin_mod.path = /usr/bin
     bin_mod.extra = chmod +x $(INSTALL_ROOT)/usr/bin/dwarftherapist
+    bin_mod.depends = install_bin
     INSTALLS += bin_mod
 
     application.path = /usr/share/applications
@@ -253,7 +259,8 @@ HEADERS += inc/win_structs.h \
     inc/superlabor.h \
     inc/grid_view/superlaborcolumn.h \
     inc/grid_view/customprofessioncolumn.h \
-    inc/multilabor.h
+    inc/multilabor.h \
+    inc/eventfilterlineedit.h
 SOURCES += src/viewmanager.cpp \
     src/uberdelegate.cpp \
     src/truncatingfilelogger.cpp \
