@@ -1,9 +1,8 @@
 TEMPLATE = app
 TARGET = DwarfTherapist
-QT += network \
+QT += concurrent \
+    network \
     script \
-    core \
-    gui \
     widgets
 CONFIG(debug, debug|release) { 
     message(Debug Mode)
@@ -21,6 +20,9 @@ else {
     RCC_DIR = bin$${DIR_SEPARATOR}release
     OBJECTS_DIR = bin$${DIR_SEPARATOR}release
 }
+QMAKE_CFLAGS += $$(CFLAGS)
+QMAKE_CXXFLAGS += $$(CXXFLAGS)
+QMAKE_LFLAGS += $$(LDFLAGS)
 INCLUDEPATH += inc \
     inc$${DIR_SEPARATOR}models \
     inc$${DIR_SEPARATOR}grid_view \
