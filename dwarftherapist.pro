@@ -23,7 +23,6 @@ else {
 QMAKE_CFLAGS += $$(CFLAGS)
 QMAKE_CXXFLAGS += $$(CXXFLAGS)
 QMAKE_LFLAGS += $$(LDFLAGS)
-
 INCLUDEPATH += inc \
     inc$${DIR_SEPARATOR}models \
     inc$${DIR_SEPARATOR}grid_view \
