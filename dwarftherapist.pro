@@ -125,6 +125,15 @@ else:unix {
     game_data.path = /usr/share/dwarftherapist/etc
     game_data.files += etc/game_data.ini
     INSTALLS += game_data
+    
+    log.path = /usr/share/dwarftherapist/log
+    log.files += dist/run.log
+    INSTALLS += log
+
+    log_mod.path = /usr/share/dwarftherapist/log
+    log_mod.extra = chmod 766 $(INSTALL_ROOT)/usr/share/dwarftherapist/log/run.log
+    log_mod.depends = install_log
+    INSTALLS += log_mod
 }
 
 # Translation files
