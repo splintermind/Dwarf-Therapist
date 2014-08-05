@@ -167,7 +167,8 @@ function provide_gui_to_setcap {
         fi
         
         # Check if libcap2 is already installed
-        if [ $(which setcap) ] ; then
+        if [ $(which setcap) ] ; 
+        then
             # Setcap was found, set $_buttons and $_DIALOG accordingly 
             # (_buttons="<buttonname[1]>:<return_value[1]>,<buttonname[X]:<return_value[X]>"
             _buttons=" RUN AS ROOT :2, SETCAP PTRACE :3, EXIT :0"
@@ -208,13 +209,16 @@ function verify_log_folder {
     # String to send_notification
     _MSG_no_log_folder="WARNING: '$USER' has no access permissions for ${_ETC_BASE_FOLDER}/log.\n\
     \nDwarfTherapist can not write logfile, in order to enable logging run:\n\
-    \nsudo chmod 777 ${_ETC_BASE_FOLDER}/log\
-    \nsudo chmod 777 ${_ETC_BASE_FOLDER}/log/run.log"
+    \nsudo mkdir ${_ETC_BASE_FOLDER}/log\
+    \nsudo touch ${_ETC_BASE_FOLDER}/log/run.log\
+    \nsudo chmod 766 ${_ETC_BASE_FOLDER}/log/run.log"
     
     # Verify user can write in /log/run.log and _SUDO=""
-    if [ ! -w ${_ETC_BASE_FOLDER}/log ] && [ ! -w ${_ETC_BASE_FOLDER}/log/run.log ] && [ "${_SUDO}" == "" ] ; then
+    if [ ! -w ${_ETC_BASE_FOLDER}/log/run.log ] && [ "${_SUDO}" == "" ] ;
+    then
         # Send $_MSG_ only once per day in case user doesn't care about logs
         [ "$(date +%F)" != "$(cat /tmp/.dwarf-therapist/log_warning-was-shown 2>/dev/null)" ] &&  send_notification "${_MSG_no_log_folder}"
+        
         # write date in tmp file
         mkdir -p /tmp/.dwarf-therapist
         date +%F > /tmp/.dwarf-therapist/log_warning-was-shown
