@@ -6,6 +6,7 @@ from within QTCreator.
 For Linux, do the following:
 
 # Install required packages
+* g++
 * qtchooser
 * qtbase5-dev
 * qtbase5-dev-tools
@@ -18,7 +19,7 @@ For Linux, do the following:
 
 For Debian-derived (Ubuntu, Mint, etc.) distributions, you can run the following command from a terminal:
 
-    > sudo apt-get install git qtchooser qtbase5-dev qtbase5-dev-tools qtscript5-dev qt5-qmake libqt5script5 libqt5scripttools5 libqxt-core0 libqxt-gui0
+    > sudo apt-get install git g++ qtchooser qtbase5-dev qtbase5-dev-tools qtscript5-dev qt5-qmake libqt5script5 libqt5scripttools5 libqxt-core0 libqxt-gui0
 
 
 # Clone the project using git
