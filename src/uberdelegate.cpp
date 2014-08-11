@@ -208,52 +208,95 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
         paint_wear_cell(adjusted,p,opt,idx,wear_level);
     }
         break;
-    case CT_ROLE:
+    case CT_ROLE: case CT_SUPER_LABOR: case CT_CUSTOM_PROFESSION:
     {
-        bool active_labors = false;
+        Dwarf *d = m_model->get_dwarf_by_id(idx.data(DwarfModel::DR_ID).toInt());
+
+        bool check_active = true;
+        bool is_dirty = false;
+        bool is_active = false;
+        bool cp_border = false;
+
+        if(type == CT_CUSTOM_PROFESSION){
+            QString custom_prof_name = idx.data(DwarfModel::DR_CUSTOM_PROF).toString();
+            if(!custom_prof_name.isEmpty()){
+                if(d->profession() == custom_prof_name)
+                    cp_border = true;
+                is_dirty = d->is_custom_profession_dirty(custom_prof_name);
+            }
+        }
+
         int dirty_alpha = 255;
         int active_alpha = 255;
-        bool dirty = false;
-        Dwarf *d = m_model->get_dwarf_by_id(idx.data(DwarfModel::DR_ID).toInt());
+        int min_alpha = 75;        
+
         if(d){
-            if(idx.data(DwarfModel::DR_SPECIAL_FLAG).canConvert<QVariantList>()){
-                QVariantList labors = idx.data(DwarfModel::DR_SPECIAL_FLAG).toList();
+            if(idx.data(DwarfModel::DR_LABORS).canConvert<QVariantList>()){
+                QVariantList labors = idx.data(DwarfModel::DR_LABORS).toList();
                 int active_count = 0;
                 int dirty_count = 0;
                 foreach(QVariant id, labors){
                     if(d->labor_enabled(id.toInt())){
-                        active_labors = true;
+                        is_active = true;
                         active_count++;
                     }
                     if(d->is_labor_state_dirty(id.toInt())){
-                        dirty = true;
+                        is_dirty = true;
                         dirty_count++;
                     }
                 }
-                if(active_labors)
-                    active_alpha = (255 * ((float)active_count / labors.count()));
-                if(dirty)
-                    dirty_alpha = (255 * ((float)dirty_count / labors.count()));                                
+                float perc = 0.0;
+                if(check_active && is_active){
+                    perc = (float)active_count / labors.count();
+                    if(labors.count() > 5){
+                        if(perc <= 0.33)
+                            active_alpha = 63;
+                        else if(perc <= 0.66)
+                            active_alpha = 127;
+                        else if(perc <= 0.90)
+                            active_alpha = 190;
+                    }else{
+                        active_alpha *= perc;
+                    }
+                }
+                if(is_dirty){
+                    if(dirty_count > 0){
+                        dirty_alpha = (255 * ((float)dirty_count / labors.count()));
+                        if(dirty_alpha < min_alpha)
+                            dirty_alpha = min_alpha;
+                    }
+                }
             }
         }
+
         QColor bg;
         QColor color_active_adjusted = color_active_labor;
-        if(active_labors){
+        if(is_active){
             color_active_adjusted.setAlpha(active_alpha);
-            bg = paint_bg_active(adjusted, active_labors, p, opt, idx, color_active_adjusted);
+            bg = paint_bg_active(adjusted, is_active, p, opt, idx, color_active_adjusted);
         }else{
             bg = paint_bg(adjusted, p, opt, idx);
         }
-        double limit_range = (DwarfStats::get_role_max() - DwarfStats::get_role_min()) * 0.05;
-        paint_values(adjusted, rating, text_rating, bg, p, opt, idx,50.0f, DwarfStats::get_role_min() + limit_range,DwarfStats::get_role_max() - limit_range,45.0f,55.0f);
-        if(dirty){
+
+        if(type == CT_ROLE){
+            paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50.0f, 5.0f, 95.0f, 40.0f, 60.0f);
+        }else if(rating >= 0){
+            limit = 15.0f;
+            paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 0, 0, limit, 0, 0);
+        }
+
+        if(is_dirty){
             QColor color_dirty_adjusted = color_dirty_border;
             color_dirty_adjusted.setAlpha(dirty_alpha);
             paint_border(adjusted,p,color_dirty_adjusted);
             paint_grid(adjusted,false,p,opt,idx,false);
+        }else if(cp_border){
+            paint_border(adjusted,p,color_active_labor);
+            paint_grid(adjusted, false, p, opt, idx,false);
         }else{
-            paint_grid(adjusted, dirty, p, opt, idx);
+            paint_grid(adjusted, false, p, opt, idx);
         }
+
     }
         break;
     case CT_IDLE:
@@ -288,7 +331,13 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
     {
         QColor bg = paint_bg(adjusted, p, opt, idx);
         paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50, 10, 90);
-        paint_grid(adjusted, false, p, opt, idx);
+        int alpha = idx.data(DwarfModel::DR_SPECIAL_FLAG).toInt();
+        if(alpha > 0){
+            paint_border(adjusted,p,QColor(168, 10, 44, alpha));
+            paint_grid(adjusted, false, p, opt, idx, false);
+        }else{
+            paint_grid(adjusted, false, p, opt, idx);
+        }
     }
         break;
     case CT_ATTRIBUTE:
@@ -403,7 +452,7 @@ QColor UberDelegate::paint_bg_active(const QRect &adjusted, bool active, QPainte
     if(gradient_cell_bg){
         QLinearGradient grad(adjusted.topLeft(),adjusted.bottomRight());
         grad.setColorAt(0,bg);
-        bg.setAlpha(75);
+        bg.setAlpha(70);
         grad.setColorAt(1,bg);
         p->fillRect(adjusted, grad);
     }else{
@@ -500,10 +549,12 @@ void UberDelegate::paint_values(const QRect &adjusted, float rating, QString tex
                 adj_rating = adj_rating / median * 50.0f;
             }else{
                 adj_rating = ((adj_rating - median) / (100.0f-median) * 50.0f) + 50.0f;
+                //adj_rating = (((adj_rating - min_limit) * (100.0f - 0)) / (max_limit - min_limit)) + 0;
             }
         }
         //also invert the value if it was below the median, and rescale our drawing values from 0-50 and 50-100
         if(adj_rating > 50.0f){
+            //adj_rating = (((adj_rating - 0) * (100.0f - 50.0f)) / (max_limit - min_limit)) + 50.0f;
             adj_rating = (adj_rating - 50.0f) * 2.0f;
         }else{
             adj_rating = 100 - (adj_rating * 2.0f);
@@ -525,17 +576,13 @@ void UberDelegate::paint_values(const QRect &adjusted, float rating, QString tex
         } else if (rating > -1 && rating < max_limit) {
             //0.05625 is the smallest dot we can draw here, so scale to ensure the smallest exp value (1/500 or .002) can always be drawn
             //relative to our maximum limit for this range. this could still be improved to take into account the cell size, as having even
-            //smaller cells than the default (16) may not draw very low dabbling skill xp levels
-            //float offset = (225 * max_limit - 8 * perc_of_cell) / (4000*perc_of_cell + 225);
-            //double size = perc_of_cell * ((roundf(adj_rating)+offset) / (max_limit-offset))
+            //smaller cells than the default (16) may not draw very low dabbling skill xp levels            
             float perc_of_cell = 0.76f; //max amount of the cell to fill
-            //double size = (((adj_rating-min_limit) * (perc_of_cell - 0.05625)) / (max_limit - min_limit)) + 0.05625;
             double size = (((adj_rating-min_limit) * (perc_of_cell - 0.05625)) / (max_limit - min_limit)) + 0.05625;
+            //double size = (((adj_rating-0) * (perc_of_cell - 0.05625)) / (100.0f-0)) + 0.05625;
             //size = roundf(size * 100) / 100; //this is to aid in the problem of an odd number of pixel in an even size cell, or vice versa
             double inset = (1.0f - size) / 2.0f;
-            //p->translate(adjusted.x()-inset,adjusted.y()-inset);
             p->translate(adjusted.x(),adjusted.y());
-            //p->scale(adjusted.width()-size,adjusted.height()-size);
             p->scale(adjusted.width(),adjusted.height());
             p->fillRect(QRectF(inset, inset, size, size), QBrush(color_fill));
         }

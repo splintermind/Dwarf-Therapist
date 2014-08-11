@@ -88,6 +88,7 @@ public:
         void reselect(QVector<int> ids);
 
         void refresh_custom_professions();
+        void rebuild_global_sort_keys();
 
 private:
 	QList<GridView*> m_views;
@@ -96,7 +97,8 @@ private:
 	QToolButton *m_add_tab_button;
     QList<Dwarf*> m_selected_dwarfs;    
     int m_last_index;
-    QErrorMessage *m_squad_warning;    
+    QErrorMessage *m_squad_warning;
+    bool m_reset_sorting;
 
     StateTableView *get_stv(int idx = -1);    
 

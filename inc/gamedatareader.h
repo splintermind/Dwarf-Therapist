@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include <QtCore>
 #include "raws/rawobjectlist.h"
 #include "global_enums.h"
+#include "utils.h"
 
 // forward declaration
 class QSettings;
@@ -40,6 +41,7 @@ class MilitaryPreference;
 class Profession;
 class DwarfJob;
 class Thought;
+class Belief;
 
 // exceptions
 class MissingValueException : public std::runtime_error {
@@ -78,8 +80,10 @@ public:
     QHash<QString, Role*>& get_roles(){return m_dwarf_roles;}
     QList<QPair<QString, Role*> > get_ordered_roles() {return m_ordered_roles;}
     QVector<QString> get_default_roles() {return m_default_roles;}
-    QHash<int,QVector<Role*> > get_skill_roles() {return m_skill_roles;}
+    QHash<int,QVector<Role*> > get_skill_roles() {return m_skill_roles;}    
     QHash<int,QString> get_skills(){return m_skills;}
+    QList<QPair<int,QString> > get_ordered_beliefs(){return m_ordered_beliefs;}
+    QList<QPair<int,QString> > get_ordered_goals(){return m_ordered_goals;}
 
     QList<QPair<QString, laborOptimizerPlan*> > get_ordered_opt_plans() {return m_ordered_opts;}
     QHash<QString, laborOptimizerPlan*>& get_opt_plans(){return m_opt_plans;}
@@ -87,10 +91,12 @@ public:
 
     Labor *get_labor(const int &labor_id);
     Trait *get_trait(const int &trait_id);
-    QString get_trait_name(short trait_id);
+    QString get_trait_name(const short &trait_id);
+    Belief *get_belief(const int &belief_id);
+    QString get_belief_name(const int &belief_id);
 
     QMap<short, Thought*> get_thoughts(){return m_unit_thoughts;}
-    Thought *get_thought(short id){return m_unit_thoughts.value(id);}
+    Thought *get_thought(short id);
 
     DwarfJob *get_job(const short &job_id);
     QList<QPair<int, QString> > get_ordered_jobs() {return m_ordered_jobs;}
@@ -101,7 +107,7 @@ public:
     void load_role_mappings();
     void load_optimization_plans();
     void refresh_opt_plans();
-    void refresh_traits();
+    void refresh_facets();
 
     QString get_attribute_name(int id){return m_attribute_names.value(id);}
     QHash<int,QString> get_attributes(){return m_attribute_names;}
@@ -112,6 +118,7 @@ public:
     QString get_skill_level_name(short level);
     QString get_skill_name(short skill_id, bool moodable = false);
     int get_total_skill_count() {return m_skills.count();}
+    int get_total_belief_count() {return m_beliefs.count();}
 
     QColor get_color(QString key);
 
@@ -138,6 +145,9 @@ public:
     const QVector<int> moodable_skills() {return m_moodable_skills;}
     int get_pref_from_skill(int skill_id) const {return m_mood_skills_profession_map.value(skill_id,-1);}
 
+    QString get_goal_desc(int id, bool realized);
+    QString get_goal_name(int id){return capitalize(m_goals.value(id).first);}
+
     static QStringList m_seasons;
     static QStringList m_months;
 
@@ -153,6 +163,12 @@ private:
 
     QHash<int, Trait*> m_traits;
     QList<QPair<int, Trait*> > m_ordered_traits;
+
+    QHash<int, Belief*> m_beliefs;
+    QList<QPair<int,QString> > m_ordered_beliefs;
+
+    QHash<int,QPair<QString,QString> > m_goals; //id key with pair name and desc
+    QList<QPair<int,QString> > m_ordered_goals;
 
     QHash<int, QString> m_skills;
     QList<QPair<int, QString> > m_ordered_skills;    

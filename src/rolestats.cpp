@@ -73,10 +73,15 @@ void RoleStats::init_list(){
 
         QVector<double>::Iterator i_last = std::upper_bound(ecdf_avgs.begin()+(idx_mid -1),ecdf_avgs.end(),m_ecdf_median);
         int upper_start_idx = i_last - ecdf_avgs.begin();
-        m_upper->set_list(ecdf_avgs.mid(upper_start_idx)); //upper ecdf from the avg ecdf values
 
-        //check upper max / upper 3rd quartile > 5.0 to determine if additional adjustment is needed on the values > median
-        float q4_q3_check = (m_raws->sorted_data().last() / m_raws->sorted_data().at((int)((m_upper->sorted_data().count() *0.75f)+upper_start_idx)));
+        float q4_q3_check = 0;
+        if(upper_start_idx < m_raws->sorted_data().size()){
+            m_upper->set_list(ecdf_avgs.mid(upper_start_idx)); //upper ecdf from the avg ecdf values
+            //check upper max / upper 3rd quartile > 5.0 to determine if additional adjustment is needed on the values > median
+            float q3 = m_raws->sorted_data().at((int)((m_upper->sorted_data().count() *0.75f)+upper_start_idx));
+            if(q3 > 0)
+                q4_q3_check = (m_raws->sorted_data().last() / q3);
+        }
         LOGD << "     - checking q4/q3 = " << q4_q3_check;
         if(q4_q3_check > 2.0f){
             //use the default ecdf/rank for the lower values, and a minmax conversion for upper values
@@ -87,6 +92,7 @@ void RoleStats::init_list(){
                 //use the default ecdf/rank for the lower values
                 calculate_factor_value(true,upper_start_idx);
             }else{
+                LOGD << "     - setting up multiple transformations failed, using ecdf/rank for values above median";
                 m_transformations.clear();
                 calculate_factor_value(true,upper_start_idx);
             }
@@ -126,7 +132,6 @@ double RoleStats::get_rating(double val){
             if(val <= m_raw_median){
                 rating *= m_factor;
             }else{
-                //Q_ASSERT(m_upper_raw_min > 0);
                 if(m_upper_raw_min > 0)
                     rating = ((val - m_upper_raw_min)/m_upper_minmax_diff/2.0f+0.5f); //minmax
                 else
@@ -195,6 +200,9 @@ double RoleStats::find_median(QVector<double> v){
 }
 
 bool RoleStats::load_transformations(QVector<double> list){
+    if(list.size() <= 0)
+        return false;
+
     m_transform_one_percent = 1.0f/(float)list.count();
     transform_stats ts = load_list_stats(list); //0 = raws
 

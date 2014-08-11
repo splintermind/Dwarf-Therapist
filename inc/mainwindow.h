@@ -74,7 +74,7 @@ public:
         void read_dwarves();
         void scan_memory();
         void new_pending_changes(int);
-        void new_creatures_count(int,int,int,QString);
+        void new_creatures_count(int,int,int,QString);        
         void lost_df_connection();
 
         //settings
@@ -94,7 +94,7 @@ public:
         void list_pending();
 
         //custom profession
-        void draw_professions();
+        void load_customizations();
         void draw_custom_profession_context_menu(const QPoint &);
 
         //filter scripts
@@ -120,10 +120,11 @@ public:
         void go_to_project_home();
         void go_to_new_issue();
 
-        // progress
+        // progress/status
         void set_progress_message(const QString &msg);
         void set_progress_range(int min, int max);
         void set_progress_value(int value);
+        void set_status_message(QString msg, QString tooltip_msg);
 
         // misc
         void show_dwarf_details_dock(Dwarf *d = 0);
@@ -160,7 +161,6 @@ private:
     ScriptDialog *m_script_dialog;
     roleDialog *m_role_editor;
     optimizereditor *m_optimize_plan_editor;
-    QNetworkAccessManager *m_http;
     bool m_reading_settings;
     bool m_show_result_on_equal; //! used during version checks
     QCompleter *m_dwarf_name_completer;
@@ -191,10 +191,13 @@ private:
         void edit_custom_role();
         void remove_custom_role();
         void display_group(const int);
-        void preference_selected(QList<QPair<QString,QString> > vals);
+        void apply_filter();
+        void apply_filter(QModelIndex);
+        void preference_selected(QList<QPair<QString,QString> > vals, QString filter_name = "");
         void thought_selected(QList<short> ids);
         void health_legend_selected(QList<QPair<int,int> > vals);
         //optimization stuff
+        void toggle_opts_menu();
         void edit_opt();
         void remove_opt();
         void done_editing_opt_plan(int result);

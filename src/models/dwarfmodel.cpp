@@ -47,6 +47,9 @@ THE SOFTWARE.
 #include "gamedatareader.h"
 #include "dwarfjob.h"
 #include "unithealth.h"
+#include "customprofession.h"
+
+#include "superlaborcolumn.h"
 
 DwarfModel::DwarfModel(QObject *parent)
     : QStandardItemModel(parent)
@@ -54,8 +57,6 @@ DwarfModel::DwarfModel(QObject *parent)
     , m_group_by(GB_NOTHING)
     , m_selected_col(-1)
     , m_gridview(0x0)
-//    , m_global_sort_col(-1)
-//    , m_global_sort_view("")
 {
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
     read_settings();
@@ -102,15 +103,12 @@ void DwarfModel::load_dwarves() {
     clear_all(false);
 
     m_df->attach();
-
-//    m_df->load_fortress();
-//    m_df->load_squads();
-
     foreach(Dwarf *d, m_df->load_dwarves()) {
         m_dwarves[d->id()] = d;
     }
-
     m_df->detach();
+
+    emit units_refreshed();
 }
 
 QList<Squad*> DwarfModel::active_squads(){
@@ -266,7 +264,7 @@ void DwarfModel::build_rows() {
             }else if(m_group_by == GB_SEX){
                 m_grouped_dwarves[get_gender_desc(d->get_gender())].append(d);
             }else if(m_group_by == GB_MIGRATION_WAVE){
-                m_grouped_dwarves[d->get_migration_desc()].append(d);
+                m_grouped_dwarves[d->get_migration_desc()].append(d);                
             }else if(m_group_by == GB_AGE){
                 if(d->is_baby()){
                     m_grouped_dwarves[d->profession()].append(d);
@@ -345,6 +343,10 @@ void DwarfModel::build_rows() {
                         m_grouped_dwarves[tr("Losers")].append(d);
                 }else if(m_group_by == GB_HAPPINESS){
                     m_grouped_dwarves[d->happiness_name(d->get_happiness())].append(d);
+                }else if(m_group_by == GB_GOALS){
+                    m_grouped_dwarves[tr("%1 Goals Realized").arg(d->goals_realized())].append(d);
+                }else if(m_group_by == GB_SKILL_RUST){
+                    m_grouped_dwarves[Skill::get_rust_level_desc(d->rust_level())].append(d);
                 }else if(m_group_by == GB_CURRENT_JOB){
                     QString job_desc = GameDataReader::ptr()->get_job(d->current_job_id())->description;
                     //if the job is some kind of reaction that doesn't use a material, use the reaction's name
@@ -431,7 +433,7 @@ void DwarfModel::build_row(const QString &key) {
         //        agg_first_col->setData(build_gradient_brush(QColor(Qt::gray),125,0,QPoint(0,0),QPoint(1,0)),Qt::BackgroundRole);
         agg_first_col->setData(true, DR_IS_AGGREGATE);
         agg_first_col->setData(key, DR_GROUP_NAME);
-        agg_first_col->setData(0, DR_RATING);        
+        agg_first_col->setData(0, DR_RATING);
         //root->setData(title, DR_SORT_VALUE);
         // for integer based values we want to make sure they sort by the int
         // values instead of the string values
@@ -447,6 +449,10 @@ void DwarfModel::build_row(const QString &key) {
                 agg_first_col->setData(first_dwarf->highest_moodable().name(), DR_SORT_VALUE);
         } else if (m_group_by == GB_TOTAL_SKILL_LEVELS) {
             agg_first_col->setData(first_dwarf->total_skill_levels(), DR_SORT_VALUE);
+        } else if (m_group_by == GB_GOALS) {
+            agg_first_col->setData(first_dwarf->goals_realized(), DR_SORT_VALUE);
+        } else if (m_group_by == GB_SKILL_RUST) {
+            agg_first_col->setData(first_dwarf->rust_level(), DR_SORT_VALUE);
         } else if (m_group_by == GB_HAPPINESS) {
             agg_first_col->setData(first_dwarf->get_happiness(), DR_SORT_VALUE);
         } else if (m_group_by == GB_ASSIGNED_LABORS) {
@@ -464,16 +470,19 @@ void DwarfModel::build_row(const QString &key) {
         } else if (m_group_by == GB_SQUAD){
             int squad_id = first_dwarf->squad_id();
             if(squad_id != -1){
-                int squad_count = m_df->get_squad(first_dwarf->squad_id())->assigned_count();
-                title = QString("%1 (%2)").arg(key).arg(squad_count);
-                agg_first_col->setText(title);
-                if(squad_count != m_grouped_dwarves.value(key).size()){
-                    agg_first_col->setToolTip(tr("The count may be different as Dwarf Fortress keeps missing, dead dwarves in squads until they're found."));
-                    agg_first_col->setIcon(QIcon(":img/exclamation-red-frame.png"));
+                Squad *s = m_df->get_squad(first_dwarf->squad_id());
+                if(s){
+                    int squad_count = s->assigned_count();
+                    title = QString("%1 (%2)").arg(key).arg(squad_count);
+                    agg_first_col->setText(title);
+                    if(squad_count != m_grouped_dwarves.value(key).size()){
+                        agg_first_col->setToolTip(tr("The count may be different as Dwarf Fortress keeps missing, dead dwarves in squads until they're found."));
+                        agg_first_col->setIcon(QIcon(":img/exclamation-red-frame.png"));
+                    }
+                    agg_first_col->setData(squad_id, DR_SORT_VALUE);
+                    agg_first_col->setData(squad_id,DR_ID);
+                    agg_first_col->setData(key,DR_GROUP_NAME);
                 }
-                agg_first_col->setData(squad_id, DR_SORT_VALUE);
-                agg_first_col->setData(squad_id,DR_ID);
-                agg_first_col->setData(key,DR_GROUP_NAME);
             }else{
                 //put non squads at the bottom of the groups when grouping by squad
                 agg_first_col->setData(QChar(128), DR_SORT_VALUE);
@@ -510,7 +519,7 @@ void DwarfModel::build_row(const QString &key) {
         QStandardItem *i_name = new QStandardItem(d->nice_name());
         bool name_italic = false;
 
-        if((m_group_by==GB_SQUAD && d->squad_position()==0) || d->noble_position() != ""){
+        if((m_group_by==GB_SQUAD && (m_df->get_squad(d->squad_id()) && d->squad_position()==0)) || d->noble_position() != ""){
             i_name->setText(QString("%1 %2 %1").arg(m_symbol).arg(i_name->text()));
             name_italic = true;
         }
@@ -656,7 +665,7 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
     }
 
     COLUMN_TYPE type = static_cast<COLUMN_TYPE>(idx.data(DwarfModel::DR_COL_TYPE).toInt());
-    if (type != CT_LABOR && type != CT_FLAGS && type != CT_ROLE)
+    if (type != CT_LABOR && type != CT_FLAGS && type != CT_ROLE && type != CT_SUPER_LABOR && type != CT_CUSTOM_PROFESSION)
         return;
 
     Q_ASSERT(item);
@@ -689,8 +698,45 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
         QModelIndex left = index(0, 0, first_col);
         QModelIndex right = index(rowCount(first_col) - 1, columnCount(first_col) - 1, first_col);
         emit dataChanged(left, right); // tell the view we changed every dwarf under this agg to pick up implicit exclusive changes
-        //DT->emit_labor_counts_updated(); //update column header text
     } else {
+        if (type == CT_LABOR)
+            m_dwarves[dwarf_id]->toggle_labor(labor_id);
+        else if (type == CT_FLAGS)
+            m_dwarves[dwarf_id]->toggle_flag_bit(labor_id);
+        else if (type == CT_ROLE || type == CT_SUPER_LABOR || type == CT_CUSTOM_PROFESSION){
+            Dwarf *d  = m_dwarves[dwarf_id];
+            bool cp_applied = false;
+            if(type == CT_CUSTOM_PROFESSION){
+                QString new_prof_name = idx.data(DwarfModel::DR_CUSTOM_PROF).toString();
+                if(!new_prof_name.isEmpty()){
+                    CustomProfession *cp = DT->get_custom_profession(new_prof_name);
+                    if(cp){
+                        if(d->custom_profession_name() == cp->get_name()){
+                            d->reset_custom_profession(true);
+                        }else{
+                            d->apply_custom_profession(cp);
+                        }
+                        cp_applied = true;
+                    }
+                }
+            }
+            if(!cp_applied){
+                QVariantList labors = item->data(DwarfModel::DR_LABORS).toList();
+                int limit = ceil((double)labors.count() / 2.0f);
+                int enabled = 0;
+                bool enabling = true;
+                foreach(QVariant id, labors){
+                    if(d->labor_enabled(id.toInt()))
+                        enabled++;
+                }
+                if((enabled < limit && enabled > 0) || enabled == labors.count())
+                    enabling = false;
+                foreach(QVariant id, labors){
+                    d->set_labor(id.toInt(),enabling,false);
+                }
+            }
+        }
+
         QModelIndex left = index(idx.parent().row(), 0, idx.parent().parent());
         QModelIndex right = index(idx.parent().row(), columnCount(idx.parent()) - 1, idx.parent().parent());
         emit dataChanged(left, right); // update the agg row
@@ -698,36 +744,17 @@ void DwarfModel::cell_activated(const QModelIndex &idx) {
         left = index(idx.row(), 0, idx.parent());
         right = index(idx.row(), columnCount(idx.parent()) - 1, idx.parent());
         emit dataChanged(left, right); // update the dwarf row
-        if (type == CT_LABOR)
-            m_dwarves[dwarf_id]->toggle_labor(labor_id);
-        else if (type == CT_FLAGS)
-            m_dwarves[dwarf_id]->toggle_flag_bit(labor_id);
-        else if (type == CT_ROLE){
-            QVariantList labors = item->data(DwarfModel::DR_SPECIAL_FLAG).toList();
-            int limit = ceil((double)labors.count() / 2.0f);
-            int enabled = 0;
-            Dwarf *d  = m_dwarves[dwarf_id];
-            bool enabling = true;
-            foreach(QVariant id, labors){
-                if(d->labor_enabled(id.toInt()))
-                    enabled++;
-            }
-            if((enabled < limit && enabled > 0) || enabled == labors.count())
-                enabling = false;
-            foreach(QVariant id, labors){
-                d->set_labor(id.toInt(),enabling,false);
-            }
-        }
     }
-    //calculate_pending();
-    TRACE << "toggling" << labor_id << "for dwarf:" << dwarf_id;
 }
 
 void DwarfModel::set_group_by(int group_by) {
     LOGI << "group_by now set to" << group_by << " for view " << current_grid_view()->name();
     m_group_by = static_cast<GROUP_BY>(group_by);
     if(m_df){
-        build_rows();        
+        QTime t;
+        t.start();
+        build_rows();
+        LOGI << "loaded rows for" << m_gridview->name() << t.elapsed() << "ms";
     }
 }
 

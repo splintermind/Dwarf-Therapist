@@ -22,7 +22,12 @@ THE SOFTWARE.
 */
 #include "trait.h"
 #include "gamedatareader.h"
+#include "belief.h"
 
+QColor Trait::goal_color = QColor(255,153,0,255);
+QColor Trait::belief_color = QColor(32,156,158,255);
+
+//personality facets
 Trait::Trait(int trait_id, QSettings &s, QObject *parent)
     : QObject(parent)
 {
@@ -32,15 +37,25 @@ Trait::Trait(int trait_id, QSettings &s, QObject *parent)
 
     //read in conflicting skills
     int count = s.beginReadArray("conflicts");
-    int skill_id;
+    int id;
     for(int i = 0; i < count; i++) {
         s.setArrayIndex(i);
-        skill_id = s.value("skill_id").toInt();
-        conflict c;
+        id = s.value("skill_id").toInt();
+        skill_conflict c;
         c.limit = s.value("limit").toInt();
-        c.skill_id = abs(skill_id);
-        c.gains_skill = skill_id > 0 ? true : false;
-        m_conflicts.insert(c.skill_id,c);
+        c.skill_id = abs(id);
+        c.gains_skill = id > 0 ? true : false;
+        m_skill_conflicts.insert(c.skill_id,c);
+    }
+    s.endArray();
+
+    //read in conflicting beliefs
+    count = s.beginReadArray("belief_conflicts");
+    int belief_id;
+    for(int i = 0; i < count; i++) {
+        s.setArrayIndex(i);
+        belief_id = s.value("belief_id").toInt();
+        m_belief_conflicts.append(belief_id);
     }
     s.endArray();
 
@@ -84,25 +99,27 @@ QString Trait::level_message(const short &val){
             ret_val = i.value();
             break;
         }
-    }
-    return ret_val;
+    }            
+    return capitalize(ret_val);
 }
 
-
-QString Trait::conflicts_messages(const short &val){
+QString Trait::skill_conflicts_msgs(const short &val){
+    if(m_skill_conflicts.size() <= 0)
+        return "";
     QStringList items;
     QString msg;
-    foreach(int skill_id, m_conflicts.uniqueKeys()){
-        msg = conflict_message(skill_id,val);
+    foreach(int skill_id, m_skill_conflicts.uniqueKeys()){
+        msg = skill_conflict_msg(skill_id,val);
         if(!msg.isEmpty())
             items.append(msg);
     }
     return items.join(tr(" and "));
 }
 
-QString Trait::conflict_message(const short &skill_id, const short &val){
-    if(m_conflicts.contains(skill_id)){
-        conflict c = m_conflicts.value(skill_id);
+QString Trait::skill_conflict_msg(const short &skill_id, const short &val){
+    //TODO: still unknown effects in DF2014
+    if(m_skill_conflicts.contains(skill_id)){
+        skill_conflict c = m_skill_conflicts.value(skill_id);
 
         if((c.limit < 0 && abs(val) < abs(c.limit)) || (c.limit > 0 && abs(val) > abs(c.limit))){
             return tr("%1 be a %2")
@@ -113,7 +130,42 @@ QString Trait::conflict_message(const short &skill_id, const short &val){
     return "";
 }
 
+QString Trait::belief_conflicts_names(){    
+    QStringList items;
+    foreach(int belief_id, m_belief_conflicts){
+        items.append(GameDataReader::ptr()->get_belief_name(belief_id));
+    }
+    return items.join(tr(" and "));
+}
+
+QString Trait::belief_conficts_msgs(short raw_value, QList<UnitBelief> conflicting_beliefs){
+    if(conflicting_beliefs.size() <= 0)
+        return "";
+
+    QStringList cultural_conflicts;
+    QStringList personal_conflicts;
+    foreach(UnitBelief ub, conflicting_beliefs){
+        short belief_id = ub.belief_id();
+        Belief *b = GameDataReader::ptr()->get_belief(belief_id);
+        QString msg = QString("%1 (%2)").arg(b->level_message(ub.belief_value()).toLower()).arg(b->name);
+        if(ub.is_personal()){
+            personal_conflicts.append(msg);
+        }else{
+            cultural_conflicts.append(msg);
+        }
+    }
+    QStringList combined;
+    if(cultural_conflicts.size() > 0)
+        combined << (raw_value > 50 ? tr(", but") : tr(", and")) + tr(" is conflicted because their culture %1").arg(nice_list(cultural_conflicts));
+    if(personal_conflicts.size() > 0)
+        combined << tr(" although %1").arg(nice_list(personal_conflicts));
+    QString msgs = nice_list(combined);
+    return msgs;
+}
+
 QString Trait::special_messages(const short &val){
+    if(m_special.size() <=0 )
+        return "";
     QStringList items;
     int limit;
     bool include;

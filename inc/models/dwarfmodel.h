@@ -58,7 +58,7 @@ public:
         GB_AGE,
         GB_CASTE,
         GB_CASTE_TAG,
-        GB_CURRENT_JOB,
+        GB_CURRENT_JOB,        
         GB_HAPPINESS,
         GB_HAS_NICKNAME,
         GB_HIGHEST_MOODABLE,
@@ -73,6 +73,8 @@ public:
         GB_ASSIGNED_LABORS,
         GB_TOTAL_SKILL_LEVELS,
         GB_HEALTH,
+        GB_GOALS,
+        GB_SKILL_RUST,
         GB_TOTAL
     } GROUP_BY;
     typedef enum {
@@ -93,7 +95,9 @@ public:
         DR_AGE, //right click sort on first column
         DR_NAME, //right click sort on first column
         DR_SIZE, //right click sort on first column
-        DR_GLOBAL
+        DR_GLOBAL,
+        DR_CUSTOM_PROF, //custom profession name
+        DR_LABORS //qvariant list of labor id
     } DATA_ROLES;
 
     DwarfModel(QObject *parent = 0);
@@ -172,5 +176,6 @@ signals:
     void set_index_as_spacer(int);
     void clear_spacers();
     void need_redraw();
+    void units_refreshed();
 };
 #endif

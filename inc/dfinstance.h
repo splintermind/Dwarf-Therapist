@@ -146,7 +146,7 @@ public:
     static const int STRING_BUFFER_OFFSET = 4;  // Default value for older windows releases
     static const int STRING_LENGTH_OFFSET = 16; // Relative to STRING_BUFFER_OFFSET
     static const int STRING_CAP_OFFSET = 20;    // Relative to STRING_BUFFER_OFFSET
-    static const int VECTOR_POINTER_OFFSET = 4;
+    static const int VECTOR_POINTER_OFFSET = 0;
 #endif
 #ifdef Q_OS_LINUX
     static const int STRING_BUFFER_OFFSET = 0;
@@ -204,7 +204,7 @@ public:
 
     VIRTADDR get_item_address(ITEM_TYPE itype, int item_id);
 
-    QString get_item_name(ITEM_TYPE itype, int subtype, short mat_type, int mat_index, int mat_class = -1);
+    QString get_item_name(ITEM_TYPE itype, int subtype, short mat_type, int mat_index, MATERIAL_CLASS mat_class = MC_NONE);
     QString get_item_name(ITEM_TYPE itype,int item_id);
 
     QString get_color(int index);
@@ -251,6 +251,7 @@ protected:
 
     void load_population_data();    
     void load_role_ratings();
+    bool check_vector(const VIRTADDR start, const VIRTADDR end, const VIRTADDR addr);
 
 
     /*! this hash will hold a map of all loaded and valid memory layouts found
@@ -312,7 +313,7 @@ private:
 
     VIRTADDR m_squad_vector;
 
-    QList<Squad*> m_squads;    
+    QList<Squad*> m_squads;
 };
 
 #endif // DFINSTANCE_H

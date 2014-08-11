@@ -1,3 +1,57 @@
+### Version 23.4 Patch Notes
+
+***
+
+- added memory layouts for 40.06
+- the filter box on the top for names can also be used to search preferences (BETA)
+- adjusts preferences in roles for edge cases and weights
+- fixes inconsistency with the equipment columns
+
+### Version 23.3 Patch Notes
+
+***
+
+- fixes for which beliefs should be shown in the tooltips/details pane
+- fixed game_data.ini for hero profession labors and descriptions
+- traits are checked for conflicts with personal beliefs in addition to cultural conflicts
+
+### Version 23.2 Patch Notes
+
+***
+
+- adjusted preferences to even out roles with many preferences vs those with very few
+- conflicting traits and beliefs are now shown in the dwarf detail pane (highlighted in red) along with their full descriptions of the conflict
+- fixed active squads not showing up
+- removed the background colors and used them for the text color in the dwarf details pane (rust, moodable skill, beliefs, goals) to prevent a rainbow atrocity
+- trait cells are now highlighted with a dynamic opacity border (darker means more conflicts) if they conflict with a cultural belief
+- changing the group by now resets the sorting to the group's aggregate values, rather than keeping the previous sort method
+- added a new thought, and support for unknown thoughts
+
+### Version 23.1 Patch Notes
+
+***
+
+- added missing immortality goal
+- reduced personality trait descriptions where possible
+- added a group for skill rust. currently just groups into the different levels of rust, using the worst rust level found among each unit's skills
+- added a group for goals realized. since it's unknown yet whether or not unit's can have multiple goals, i've opted to go with a count of realized goals for now.
+- since goal realization is now detected, the goal description has been updated with 'and that goal was realized' when applicable
+- skill rust level can also be checked via scripts. eg d.rust_level() > 0/1/2/3, higher being more rust
+- set the value of realized goals in the dwarf details pane to 100 if the goal has been realized
+- changed 'content' to 'quite content' as per the game status
+- fix for older worlds with many inactive squads being loaded which was slowing down the read
+- fix for units that belong to inexistent squads
+- fixed role rating drawings in cells in certain edge cases
+
+### Version 23.0 Patch Notes
+
+***
+
+- updated for DF2014
+- added new skills, updated job descriptions
+- added support for the new personality facets, goals and beliefs
+- removed old incompatible memory layouts
+
 ### Version 22.0 Patch Notes
 
 ***

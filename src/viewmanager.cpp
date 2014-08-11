@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "spacercolumn.h"
 #include "dfinstance.h"
 #include "itemweaponsubtype.h"
+#include "dwarf.h"
 
 QMap<COLUMN_TYPE, ViewColumn::COLUMN_SORT_TYPE> ViewManager::m_default_column_sort;
 
@@ -49,6 +50,7 @@ ViewManager::ViewManager(DwarfModel *dm, DwarfModelProxy *proxy,
     , m_model(dm)
     , m_proxy(proxy)
     , m_add_tab_button(new QToolButton(this))
+    , m_reset_sorting(false)
 {
     m_proxy->setSourceModel(m_model);
     setTabsClosable(true);
@@ -74,10 +76,7 @@ ViewManager::ViewManager(DwarfModel *dm, DwarfModelProxy *proxy,
 }
 
 ViewManager::~ViewManager(){
-    foreach(GridView *v, m_views){
-        v->deleteLater();
-    }
-
+    qDeleteAll(m_views);
     m_views.clear();
 
     m_model = 0;
@@ -292,8 +291,7 @@ void ViewManager::add_weapons_view(QList<GridView*> &built_in_views){
 
 void ViewManager::draw_views() {
     // see if we have a saved tab order...
-    QTime start = QTime::currentTime();
-    int idx = currentIndex();
+    QTime start = QTime::currentTime();    
     disconnect(tabBar(), SIGNAL(currentChanged(int)), this, SLOT(setCurrentIndex(int)));
     while (count()) {
         QWidget *w = widget(0);
@@ -306,22 +304,17 @@ void ViewManager::draw_views() {
             "gui_options/tab_order").toStringList();
     if (tab_order.size() == 0) {
         tab_order << "Labors" << "Military" << "Social" << "Attributes" << "Roles" << "Animals";
-    }
+    }    
     if (tab_order.size() > 0) {
         foreach(QString name, tab_order) {
-//            if (name == "Weapons")
-//                m_add_weapons_tab = true;
             foreach(GridView *v, m_views) {
-                if (v->name() == name)
+                if (v->name() == name){
                     add_tab_for_gridview(v);
+                }
             }
         }
     }
-    if (idx >= 0 && idx <= count() - 1) {
-        setCurrentIndex(idx);
-    } else {
-        setCurrentIndex(0);
-    }
+    setCurrentWidget(widget(0));
     QTime stop = QTime::currentTime();
     LOGI << QString("redrew views in %L1ms").arg(start.msecsTo(stop));
 }
@@ -435,13 +428,6 @@ StateTableView *ViewManager::get_stv(int idx) {
         idx = currentIndex();
     QWidget *w = widget(idx);
     if (w) {
-//    StateTableView *s;
-//    for(int i =0; w->children().count(); i++){
-//        s = qobject_cast<StateTableView*>(w->children().at(i));
-//        if(s)
-//            break;
-//    }
-//    return s;
         return qobject_cast<StateTableView*>(w);
     }
     return 0;
@@ -490,7 +476,9 @@ void ViewManager::setCurrentIndex(int idx) {
                 }else{
                     sel_group = stv->get_last_group_by();
                 }
-            }            
+            }
+
+            //rows are built here
             m_model->set_group_by(sel_group);
 
             if(scroll_all){
@@ -523,20 +511,27 @@ void ViewManager::setCurrentIndex(int idx) {
 
             stv->setSortingEnabled(true);
 
-            if(prev_view){
-                m_proxy->sort(0, static_cast<DwarfModelProxy::DWARF_SORT_ROLE>(m_model->get_global_group_sort_info().value(stv->get_last_group_by()).first),
-                              m_model->get_global_group_sort_info().value(stv->get_last_group_by()).second); //sort the groups/name column                
-                //if there's a second sort on a specific column, apply that sort as well
-                QPair<QString,int> key_pair = m_model->get_global_sort_info().value(stv->get_last_group_by());
-                if(key_pair.second != 0){
-                    LOGI << "sorting view" << stv->get_view_name() << "with the global sort for the group";
-                    stv->sortByColumn(1, prev_view->m_last_sort_order); //global sort                    
-                }else{
-                    LOGI << "not sorting view" << stv->get_view_name();
-                }
-                stv->m_last_sort_order = prev_view->m_last_sort_order;
-            }else{
+            if(m_reset_sorting){ //on group by changed, sort by the group aggregate rows
                 m_proxy->sort(0,DwarfModelProxy::DSR_DEFAULT,Qt::AscendingOrder);
+                stv->m_last_sorted_col = 0;
+                stv->m_last_sort_order = Qt::AscendingOrder;
+                m_model->set_global_group_sort_info(DwarfModelProxy::DSR_DEFAULT,Qt::AscendingOrder); //sort by the sort value, asc
+            }else{
+                if(prev_view){
+                    m_proxy->sort(0, static_cast<DwarfModelProxy::DWARF_SORT_ROLE>(m_model->get_global_group_sort_info().value(stv->get_last_group_by()).first),
+                                  m_model->get_global_group_sort_info().value(stv->get_last_group_by()).second); //sort the groups/name column
+                    //if there's a second sort on a specific column, apply that sort as well
+                    QPair<QString,int> key_pair = m_model->get_global_sort_info().value(stv->get_last_group_by());
+                    if(key_pair.second != 0){
+                        LOGD << "sorting view" << stv->get_view_name() << "with the global sort for the group";
+                        stv->sortByColumn(1, prev_view->m_last_sort_order); //global sort
+                    }else{
+                        LOGD << "not sorting view" << stv->get_view_name();
+                    }
+                    stv->m_last_sort_order = prev_view->m_last_sort_order;
+                }else{
+                    m_proxy->sort(0,DwarfModelProxy::DSR_DEFAULT,Qt::AscendingOrder);
+                }
             }
 
             stv->m_selected_rows.clear(); //will be reloaded below when re-selecting, however after committing, selection is cleared..
@@ -596,7 +591,6 @@ int ViewManager::add_tab_from_action() {
 
     GridView *v = (GridView*)(a->data().toULongLong());
     int idx = add_tab_for_gridview(v);
-    setCurrentIndex(idx);
     return idx;
 }
 
@@ -617,7 +611,10 @@ int ViewManager::add_tab_for_gridview(GridView *v) {
                                          const QItemSelection &)));
     connect(stv,SIGNAL(squad_leader_changed()),this,SLOT(show_squad_warning()),Qt::UniqueConnection);
     stv->show();
-    int new_idx = addTab(stv, v->name());    
+    m_reset_sorting = true;
+    int new_idx = addTab(stv, v->name()); //this calls setCurrentIndex, redrawing and sorting the view
+    m_reset_sorting = false;
+    setCurrentWidget(stv);
     write_tab_settings();
     return new_idx;
 }
@@ -675,7 +672,9 @@ void ViewManager::set_group_by(int group_by) {
     if (m_model){
         get_stv(currentIndex())->set_last_group_by(group_by);
     }
-    redraw_current_tab();
+    m_reset_sorting = true;
+    setCurrentIndex(currentIndex());
+    m_reset_sorting = false;
 }
 
 void ViewManager::redraw_current_tab() {
@@ -725,4 +724,31 @@ void ViewManager::refresh_custom_professions(){
     StateTableView *s = get_stv(currentIndex());
     if(s)
         s->build_custom_profession_menu();
+}
+
+void ViewManager::rebuild_global_sort_keys(){
+    //on a read of the data, find all the columns that were sorted on, and rebuild the sort keys for each dwarf, for each sort group
+    if(m_model->get_global_sort_info().count() > 0){
+        QPair<QString,int> key_pair;
+        foreach(int group_id, m_model->get_global_sort_info().uniqueKeys()){
+            key_pair = m_model->get_global_sort_info().value(group_id);
+            //sorting on the name column is handled by the model proxy and persists through reads
+            if(key_pair.second <= 0)
+                continue;
+            //find the view containing the column that was used to sort for this group
+            GridView *gv = get_view(key_pair.first);
+            if(gv){
+                //find the specific column that was sorted on
+                ViewColumn *vc = gv->get_column(key_pair.second);
+                if(vc){
+                    LOGD << "refreshing global sort for group" << group_id << "with keys from gridview" << gv->name() << "column" << vc->title();
+                    //update each dwarf's sort key for the group, based on the cell's sort role
+                    foreach(Dwarf *d, m_model->get_dwarves()){
+                        QStandardItem *item = vc->build_cell(d); //sort role is calculated/built when the cell is built
+                        d->set_global_sort_key(group_id, item->data(DwarfModel::DR_SORT_VALUE));
+                    }
+                }
+            }
+        }
+    }
 }

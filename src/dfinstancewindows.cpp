@@ -72,36 +72,18 @@ uint DFInstanceWindows::calculate_checksum() {
 }
 
 QVector<VIRTADDR> DFInstanceWindows::enumerate_vector(const VIRTADDR &addr) {
-    TRACE << "beginning vector enumeration at" << hex << addr;
     QVector<VIRTADDR> addresses;
-    VIRTADDR start = read_addr(addr + 4);
-    TRACE << "start of vector" << hex << start;
-    VIRTADDR end = read_addr(addr + 8);
-    TRACE << "end of vector" << hex << end;
-
-    int entries = (end - start) / sizeof(VIRTADDR);
-    TRACE << "there appears to be" << entries << "entries in this vector";
-
-    if (entries > 5000) {
-        LOGW << "vector at" << hexify(addr) << "has over 5000 entries! (" <<
-                entries << ")";
-    }
-
-    if (m_layout->is_complete()) {
-        Q_ASSERT(end >= start);
-        Q_ASSERT((end - start) % 4 == 0);
-        Q_ASSERT(start % 4 == 0);
-        Q_ASSERT(end % 4 == 0);        
-    }
-
-    for (VIRTADDR ptr = start; ptr < end; ptr += 4 ) {
-        VIRTADDR a = read_addr(ptr);
-        //if (is_valid_address(a)) {
+    VIRTADDR start = read_addr(addr);
+    VIRTADDR end = read_addr(addr + 4);
+    if(check_vector(start,end,addr)){
+        for (VIRTADDR ptr = start; ptr < end; ptr += 4 ) {
+            VIRTADDR a = read_addr(ptr);
             addresses.append(a);
-        //}
+        }
+        TRACE << "FOUND" << addresses.size()<< "addresses in vector at" << hexify(addr);
+    }else{
+        TRACE << "vector at" << hexify(addr) << "failed the check";
     }
-    TRACE << "FOUND" << addresses.size()<< "addresses in vector at"
-            << hexify(addr);
     return addresses;
 }
 

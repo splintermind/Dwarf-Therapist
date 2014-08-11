@@ -27,6 +27,7 @@ THE SOFTWARE.
 #include "dfinstance.h"
 #include "skill.h"
 #include "trait.h"
+#include "belief.h"
 #include "dwarfjob.h"
 #include "defines.h"
 #include "gamedatareader.h"
@@ -110,6 +111,8 @@ Dwarf::Dwarf(DFInstance *df, const uint &addr, QObject *parent)
     , m_validated(false)
     , m_is_valid(false)
     , m_uniform(0x0)
+    , m_goals_realized(0)
+    , m_worst_rust_level(0)
     , m_curse_type(eCurse::NONE)
 {
     read_settings();
@@ -137,6 +140,9 @@ Dwarf::~Dwarf() {
     m_actions_memory.clear();
 
     m_traits.clear();
+    m_beliefs.clear();
+    m_conflicting_beliefs.clear();
+
     m_skills.clear();
     m_sorted_skills.clear();
     m_attributes.clear();
@@ -832,7 +838,7 @@ void Dwarf::read_profession() {
     }else{
         cp = DT->get_custom_prof_icon(m_raw_profession);
     }
-    if(cp)
+    if(cp && cp->has_icon())
         m_icn_prof = cp->get_pixmap();
 
     LOGD << "reading profession for" << nice_name() << m_raw_profession << prof_name;
@@ -857,6 +863,7 @@ void Dwarf::read_preferences(){
     ITEM_TYPE itype;
     PREF_TYPES ptype;
     Preference *p;
+    QStringList valid_prefs;
     foreach(VIRTADDR pref, preferences){
         pref_type = m_df->read_short(pref);
         pref_id = m_df->read_short(pref + 0x2);
@@ -979,7 +986,13 @@ void Dwarf::read_preferences(){
             m_preferences.insert(pref_type, p);
         //        if(itype < NUM_OF_TYPES && itype != NONE)
         //            LOGW << pref_name << " " << (int)itype << " " << Item::get_item_desc(itype);
+
+        if(pref_type <= 6)
+            valid_prefs.append(pref_name);
     }
+
+    //load a pref string purely for filtering purposes
+    m_pref_search = valid_prefs.join(" ");
 
     //add a special preference (actually a misc trait) for like outdoors
     if(has_state(14)){
@@ -1258,15 +1271,13 @@ void Dwarf::read_soul_aspects() {
 
     read_skills();
     read_attributes();
-    read_traits();
+    read_personality();
 
     TRACE << "SKILLS:" << m_skills.size();
     TRACE << "TRAITS:" << m_traits.size();
     TRACE << "ATTRIBUTES:" << m_attributes.size();
 }
 
-
-/******* OTHER CRAP*/
 
 QString Dwarf::profession() {
     if (!m_pending_custom_profession.isEmpty())
@@ -1280,8 +1291,6 @@ bool Dwarf::active_military() {
     Profession *p = GameDataReader::ptr()->get_profession(m_raw_profession);
     return p && p->is_military();
 }
-
-
 
 DWARF_HAPPINESS Dwarf::happiness_from_score(int score) {
     if (score < 1)
@@ -1363,7 +1372,7 @@ QString Dwarf::happiness_name(DWARF_HAPPINESS happiness) {
     case DH_VERY_UNHAPPY: return tr("Very Unhappy");
     case DH_UNHAPPY: return tr("Unhappy");
     case DH_FINE: return tr("Fine");
-    case DH_CONTENT: return tr("Content");
+    case DH_CONTENT: return tr("Quite Content");
     case DH_HAPPY: return tr("Happy");
     case DH_ECSTATIC: return tr("Ecstatic");
     default: return "UNKNOWN";
@@ -1394,7 +1403,9 @@ void Dwarf::read_squad_info() {
     m_squad_position = m_df->read_int(m_address + m_mem->dwarf_offset("squad_position"));
     m_pending_squad_position = m_squad_position;
     if(m_pending_squad_id >= 0 && !m_is_animal && is_adult()){
-        m_pending_squad_name = m_df->get_squad(m_pending_squad_id)->name();
+        Squad *s = m_df->get_squad(m_pending_squad_id);
+        if(s)
+            m_pending_squad_name = s->name();
     }
 }
 
@@ -1402,7 +1413,7 @@ void Dwarf::read_uniform(){
     if(!m_is_animal && is_adult()){
         if(m_pending_squad_id >= 0){
             Squad *s = m_df->get_squad(m_pending_squad_id);
-            if(s != 0){
+            if(s){
                 //military uniform
                 m_uniform = s->get_uniform(m_pending_squad_position);
             }
@@ -1670,31 +1681,79 @@ void Dwarf::read_skills() {
                     (m_highest_moodable_skill == -1 || s.actual_exp() > get_skill(m_highest_moodable_skill).actual_exp()))
                 m_highest_moodable_skill = type;
         }
+
+        if(s.rust_level() > m_worst_rust_level)
+            m_worst_rust_level = s.rust_level();
     }
 }
 
-void Dwarf::read_traits() {
-    VIRTADDR addr = m_first_soul + m_mem->soul_detail("traits");
-    m_traits.clear();    
-    for (int i = 0; i < 30; ++i) {
-        short val = m_df->read_short(addr + i * 2);
-        if(val < 0)
-            val = 0;
-        if(val > 100)
-            val = 100;        
-        m_traits.insert(i, val);
-    }
+void Dwarf::read_personality() {
+    if(!m_is_animal){
+        VIRTADDR personality_addr = m_first_soul + m_mem->soul_detail("personality");
 
-    //check the misc. traits for the level of detachment and add a special trait for it
-    if(!m_is_animal && has_state(15)){
-        int val = state_value(15);        
-        m_traits.insert(30,val);        
+        //read personal beliefs before traits, as a dwarf will have a conflict with either personal beliefs or cultural beliefs
+        QVector<VIRTADDR> m_beliefs_addrs = m_df->enumerate_vector(personality_addr + m_mem->soul_detail("beliefs"));        
+        foreach(VIRTADDR addr, m_beliefs_addrs){
+            int belief_id = m_df->read_int(addr);
+            if(belief_id >= 0){
+                short val = m_df->read_short(addr + 0x0004);
+                UnitBelief ub(belief_id,val,true);
+                m_beliefs.insert(belief_id, ub);
+            }
+        }
+
+        VIRTADDR traits_addr = personality_addr + m_mem->soul_detail("traits");
+        m_traits.clear();
+        int trait_count = GameDataReader::ptr()->get_traits().count();
+
+        for (int trait_id = 0; trait_id < trait_count; ++trait_id) {
+            short val = m_df->read_short(traits_addr + trait_id * 2);
+            if(val < 0)
+                val = 0;
+            if(val > 100)
+                val = 100;
+            m_traits.insert(trait_id, val);
+
+            QList<int> possible_conflicts = GameDataReader::ptr()->get_trait(trait_id)->get_conflicting_beliefs();
+            foreach(int belief_id, possible_conflicts){
+                UnitBelief ub = get_unit_belief(belief_id);
+                if((ub.belief_value() > 10 && val < 40)  || (ub.belief_value() < -10 && val > 60)){
+                    m_conflicting_beliefs.insertMulti(trait_id, ub);
+                }
+            }
+        }
+
+        QVector<VIRTADDR> m_goals_addrs = m_df->enumerate_vector(personality_addr + m_mem->soul_detail("goals"));
+        foreach(VIRTADDR addr, m_goals_addrs){
+            int goal_type = m_df->read_int(addr + 0x0004);
+            if(goal_type >= 0){
+                short val = m_df->read_short(addr + m_mem->soul_detail("goal_realized")); //goal realized
+                //if we're not showing vampires, and this dwarf is a vampire, keep the goal hidden so they can't be identified from that
+                if(goal_type == 11 && m_curse_type == eCurse::VAMPIRE &&  DT->user_settings()->value("options/highlight_cursed", false).toBool()==false)
+                    continue;
+
+                if(val > 0)
+                    m_goals_realized++;
+                m_goals.insert(goal_type,val);
+            }
+        }
+
+        //TODO: see if this is still affecting things in DF2014
+        //    //check the misc. traits for the level of detachment and add a special trait for it
+        //    if(!m_is_animal && has_state(15)){
+        //        int val = state_value(15);
+        //        m_traits.insert(41,val);
+        //    }
     }
+}
+
+bool Dwarf::trait_is_conflicted(const int &trait_id){
+    return (m_conflicting_beliefs.values(trait_id).count() > 0);
 }
 
 bool Dwarf::trait_is_active(int trait_id){
     //if it's a special trait, always show it
-    if(trait_id >= 30)
+    if(trait_id >= 50)
         return true;
     short val = trait(trait_id);
     int deviation = abs(val - 50); // how far from the norm is this trait?
@@ -1702,6 +1761,19 @@ bool Dwarf::trait_is_active(int trait_id){
         return false;
     }
     return true;
+}
+
+bool Dwarf::belief_is_active(const int &belief_id){
+    return (m_beliefs.value(belief_id).is_active());
+}
+
+//this returns either the personal belief (if it exists), or the cultural belief (default)
+UnitBelief Dwarf::get_unit_belief(int belief_id){
+    if(!m_beliefs.contains(belief_id)){
+        UnitBelief ub(belief_id,m_df->fortress()->get_belief_value(belief_id),false);
+        m_beliefs.insert(belief_id,ub);
+    }
+    return m_beliefs.value(belief_id);
 }
 
 void Dwarf::read_attributes() {
@@ -1832,6 +1904,11 @@ bool Dwarf::labor_enabled(int labor_id) {
 
 bool Dwarf::is_labor_state_dirty(int labor_id) {
     return m_labors[labor_id] != m_pending_labors[labor_id];
+}
+
+bool Dwarf::is_custom_profession_dirty(QString name){
+    return ((name == m_pending_custom_profession || name == m_custom_profession) &&
+            m_pending_custom_profession != m_custom_profession);
 }
 
 QVector<int> Dwarf::get_dirty_labors() {
@@ -1969,10 +2046,14 @@ void Dwarf::clear_pending() {
     //revert any squad changes
     if(m_pending_squad_id != m_squad_id){
         if(m_pending_squad_id >= 0){
-            m_df->get_squad(m_pending_squad_id)->remove_from_squad(this);
+            Squad *s = m_df->get_squad(m_pending_squad_id);
+            if(s)
+                s->remove_from_squad(this);
         }
         if(m_squad_id >= 0){
-            m_df->get_squad(m_squad_id)->assign_to_squad(this);
+            Squad *s = m_df->get_squad(m_squad_id);
+            if(s)
+                s->assign_to_squad(this);
         }
     }
 
@@ -2061,18 +2142,31 @@ void Dwarf::set_custom_profession_text(const QString &prof_text) {
     m_pending_custom_profession = prof_text;
 }
 
-int Dwarf::apply_custom_profession(CustomProfession *cp) {
-    foreach(int labor_id, m_pending_labors.uniqueKeys()) {
-        //only turn off all labours if it's NOT a mask
-        if(!cp->is_mask())
+void Dwarf::apply_custom_profession(CustomProfession *cp) {
+    //clear all labors if the custom profession is not being applied as a mask
+    if(!cp->is_mask()){
+        foreach(int labor_id, m_pending_labors.uniqueKeys()) {
             set_labor(labor_id, false,false);
+        }
     }
+    //enable the custom profession's labors
     foreach(int labor_id, cp->get_enabled_labors()) {
-        set_labor(labor_id, true,false); // only turn on what this prof has enabled...
+        set_labor(labor_id, true,false);
     }
     m_pending_custom_profession = cp->get_name();
+}
 
-    return get_dirty_labors().size();
+void Dwarf::reset_custom_profession(bool reset_labors){
+    CustomProfession *cp = DT->get_custom_profession(m_pending_custom_profession);
+    if(cp){
+        if(reset_labors && !cp->is_mask()){
+            m_pending_labors = m_labors;
+        }
+        foreach(int labor_id, cp->get_enabled_labors()){
+            set_labor(labor_id,false,false);
+        }
+    }
+     m_pending_custom_profession = "";
 }
 
 QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
@@ -2082,14 +2176,14 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
     d_item->setData(0, Qt::UserRole, id());
     if (m_caged != m_unit_flags.at(0)) {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
-        i->setText(0, tr("Caged change to %1").arg(hexify(m_caged)));
+        i->setText(0, tr("Caged changed to %1").arg(hexify(m_caged)));
         i->setIcon(0, QIcon(":img/book_edit.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
     }
     if (m_butcher != m_unit_flags.at(1)) {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
-        i->setText(0, tr("Butcher change to %1").arg(hexify(m_butcher)));
+        i->setText(0, tr("Butcher changed to %1").arg(hexify(m_butcher)));
         i->setIcon(0, QIcon(":img/book_edit.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
@@ -2099,7 +2193,7 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
         QString nick = m_pending_nick_name;
         if (nick.isEmpty())
             nick = tr("DEFAULT");
-        i->setText(0, tr("Nickname change to %1").arg(nick));
+        i->setText(0, tr("Nickname changed to %1").arg(nick));
         i->setIcon(0, QIcon(":img/book_edit.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
@@ -2109,7 +2203,7 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
         QString prof = m_pending_custom_profession;
         if (prof.isEmpty())
             prof = tr("DEFAULT");
-        i->setText(0, tr("Profession change to %1").arg(prof));
+        i->setText(0, tr("Profession changed to %1").arg(prof));
         i->setIcon(0, QIcon(":img/book_edit.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
@@ -2118,7 +2212,7 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
         QString title = "";
         QString icn = "plus-circle.png";
-        if(m_pending_squad_id < 0){
+        if(m_pending_squad_id < 0 && m_df->get_squad(m_squad_id) != 0){
             title = tr("Remove from squad %1").arg(m_df->get_squad(m_squad_id)->name());
             icn = "minus-circle.png";
         }else{
@@ -2150,7 +2244,7 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
 QString Dwarf::tooltip_text() {
     QSettings *s = DT->user_settings();
     GameDataReader *gdr = GameDataReader::ptr();
-    QString skill_summary, trait_summary, roles_summary, preference_summary;
+    QString skill_summary, personality_summary, roles_summary, preference_summary;
     int max_roles = s->value("options/role_count_tooltip",3).toInt();
     if(max_roles > sorted_role_ratings().count())
         max_roles = sorted_role_ratings().count();
@@ -2170,31 +2264,57 @@ QString Dwarf::tooltip_text() {
     }
 
     if(!m_is_animal){
-        if(!m_traits.isEmpty() && s->value("options/tooltip_show_traits",true).toBool()){
-            QStringList notes;
-            for (int i = 0; i < m_traits.size(); ++i) {
-                notes.clear();
-                if (trait_is_active(i)){
-                    Trait *t = gdr->get_trait(i);
-                    if (!t)
-                        continue;
-                    int val = m_traits.value(i);
-                    trait_summary.append(t->level_message(val));
-                    QString temp = t->conflicts_messages(val);
-                    if(!temp.isEmpty())
-                        notes.append("<u>" + temp + "</u>");
-                    temp = t->special_messages(val);
-                    if(!temp.isEmpty())
-                        notes.append(temp);
+        if(s->value("options/tooltip_show_traits",true).toBool()){
+            QString conflict_color = QColor(176,23,31).name();
+            if(!m_traits.isEmpty()){
+                QStringList notes;
+                for (int trait_id = 0; trait_id < m_traits.size(); ++trait_id) {
+                    notes.clear();
+                    if (trait_is_active(trait_id)){
+                        Trait *t = gdr->get_trait(trait_id);
+                        if (!t)
+                            continue;
+                        int val = m_traits.value(trait_id);
+                        QString msg = capitalize(t->level_message(val));
+                        if(trait_is_conflicted(trait_id))
+                            msg = QString("<font color=%1>%2</font>").arg(conflict_color).arg(msg);
+                        personality_summary.append(msg);
+                        QString temp = t->skill_conflicts_msgs(val);
+                        if(!temp.isEmpty())
+                            notes.append("<u>" + temp + "</u>");
+                        temp = t->special_messages(val);
+                        if(!temp.isEmpty())
+                            notes.append(temp);
 
-                    if(!notes.isEmpty())
-                        trait_summary.append(" (" + notes.join(" and ") + ")");
+                        if(!notes.isEmpty())
+                            personality_summary.append(" (" + notes.join(" and ") + ")");
 
-                    trait_summary.append(", ");
+                        personality_summary.append(". ");
+                    }
                 }
             }
-            if(trait_summary.lastIndexOf(",") == trait_summary.length()-2)
-                trait_summary.chop(2);
+
+            //beliefs
+            QStringList beliefs_list;
+            foreach(int belief_id, m_beliefs.uniqueKeys()) {
+                if(!belief_is_active(belief_id))
+                    continue;
+                Belief *b = gdr->get_belief(belief_id);
+                if (!b)
+                    continue;                
+                beliefs_list.append(capitalize(b->level_message(m_beliefs.value(belief_id).belief_value())));
+            }
+            if(beliefs_list.size() > 0)
+                personality_summary.append(QString("<font color=%1>%2. </font>").arg(Trait::belief_color.name()).arg(beliefs_list.join(". ")));
+
+            //goals
+            QStringList goal_list;
+            for(int i=0;i<m_goals.size();i++){
+                QString desc = capitalize(gdr->get_goal_desc(m_goals.keys().at(i),(bool)m_goals.values().at(i)));
+                goal_list.append(desc);
+            }
+            if(goal_list.size() > 0)
+                personality_summary.append(QString("<font color=%1>%2.</font>").arg(Trait::goal_color.name()).arg(goal_list.join(". ")));
         }
 
         QList<Role::simple_rating> sorted_roles = sorted_role_ratings();
@@ -2265,8 +2385,8 @@ QString Dwarf::tooltip_text() {
         tt.append(tr("<b>Highest Moodable Skill:</b> %1")
                   .arg(gdr->get_skill_name(m_highest_moodable_skill, true)));
 
-    if(!trait_summary.isEmpty())
-        tt.append(tr("<p style=\"margin:0px;\"><b>Traits:</b> %1</p>").arg(trait_summary));
+    if(!personality_summary.isEmpty())
+        tt.append(tr("<p style=\"margin:0px;\"><b>Personality:</b> %1</p>").arg(personality_summary));
 
     if(!preference_summary.isEmpty())
         tt.append(tr("<p style=\"margin:0px;\">%1</p>").arg(preference_summary));
@@ -2490,7 +2610,7 @@ float Dwarf::calc_role_rating(Role *m_role){
     float global_pref_weight = m_role->prefs.count() <= 0 ? 0 : m_role->prefs_weight.weight;
 
     if((global_att_weight + global_skill_weight + global_trait_weight + global_pref_weight) == 0)
-        return 0.0001;
+        return 50.0f;
 
     RoleAspect *a;
 
@@ -2583,16 +2703,22 @@ float Dwarf::calc_role_rating(Role *m_role){
         aspect_value = 0;
         foreach(Preference *role_pref,m_role->prefs){
             aspect_value = get_role_pref_match_counts(role_pref);
-            aspect_value = DwarfStats::get_preference_rating(aspect_value);
+            //preferences are slightly different due to their binary nature. large numbers of preferences result in a very low weighted average
+            //so if there isn't a match, don't include it in the weighted average to try to keep roles relatively equal regardless of how many preferences they have
+            if(aspect_value > 0){
+                aspect_value = DwarfStats::get_preference_rating(aspect_value);
+                weight = role_pref->pref_aspect->weight;
+                if(role_pref->pref_aspect->is_neg)
+                    aspect_value = 1-aspect_value;
 
-            weight = role_pref->pref_aspect->weight;
-            if(role_pref->pref_aspect->is_neg)
-                aspect_value = 1-aspect_value;
-
-            rating_prefs += (aspect_value*weight);
-            total_weight += weight;
+                rating_prefs += (aspect_value*weight);
+                total_weight += weight;
+            }
         }
-        rating_prefs = (rating_prefs / total_weight) * 100.0f;//weighted average percentile
+        if(total_weight > 0)
+            rating_prefs = (rating_prefs / total_weight) * 100.0f;//weighted average percentile
+        else
+            rating_prefs = DwarfStats::get_preference_rating(0.0f) * 100.0f;
     }
     //********************************
 
@@ -2664,8 +2790,9 @@ double Dwarf::get_role_pref_match_counts(Preference *role_pref){
             matches += (double)static_cast<Preference*>(i.value())->matches(role_pref,this);
             i++;
         }
+        //give a 0.1 bonus for each match after the first, this only applies when getting matches for groups
         if(matches > 1.0)
-            matches = 1.0f + (matches / 10.0f);
+            matches = 1.0f + ((matches-1.0f) / 10.0f);
 
         return matches;
 }
@@ -2684,15 +2811,9 @@ bool Dwarf::has_preference(QString pref_name, QString category, bool exactMatch)
 
     if(category.isEmpty()){
         if(exactMatch){
-            foreach(QString key, m_grouped_preferences.uniqueKeys()){
-                return m_grouped_preferences.value(key)->contains(pref_name,Qt::CaseInsensitive);
-            }
+            return m_pref_search.contains(pref_name, Qt::CaseInsensitive);
         }else{
-            foreach(QString key, m_grouped_preferences.uniqueKeys()){
-                pref = m_grouped_preferences.value(key)->join(", ");
-                if(pref.contains(str_search))
-                    return true;
-            }
+            return m_pref_search.contains(str_search);
         }
         return false;
     }else{
@@ -2701,7 +2822,7 @@ bool Dwarf::has_preference(QString pref_name, QString category, bool exactMatch)
         if(exactMatch){
             return m_grouped_preferences.value(category)->contains(pref_name,Qt::CaseInsensitive);
         }else{
-            pref = m_grouped_preferences.value(category)->join(", ");
+            pref = m_grouped_preferences.value(category)->join(" ");
             if(pref.contains(str_search))
                 return true;
         }
