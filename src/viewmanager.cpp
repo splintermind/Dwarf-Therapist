@@ -20,6 +20,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+#include <QMenu>
+#include <QMessageBox>
+#include <QInputDialog>
+#include <QHeaderView>
 #include "viewmanager.h"
 #include "statetableview.h"
 #include "dwarfmodel.h"
@@ -495,8 +499,13 @@ void ViewManager::setCurrentIndex(int idx) {
             }
 
             if(stv->header()->count() > 0){
+#if QT_VERSION >= 0x050000
                 stv->header()->setSectionResizeMode(QHeaderView::Fixed);
                 stv->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+#else
+                stv->header()->setResizeMode(QHeaderView::Fixed);
+                stv->header()->setResizeMode(0, QHeaderView::ResizeToContents);
+#endif
             }
 
             //setup our sort types by column in case we've since changed them

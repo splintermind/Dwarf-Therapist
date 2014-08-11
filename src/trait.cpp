@@ -22,7 +22,6 @@ THE SOFTWARE.
 */
 #include "trait.h"
 #include "gamedatareader.h"
-#include <QtWidgets>
 
 Trait::Trait(int trait_id, QSettings &s, QObject *parent)
     : QObject(parent)

@@ -24,7 +24,11 @@ THE SOFTWARE.
 #define MAINWINDOW_H
 
 #include <QtCore>
-#include <QtWidgets>
+#include <QMainWindow>
+#include <QLabel>
+#include <QProgressBar>
+#include <QCompleter>
+#include <QToolButton>
 #include <QtNetwork>
 
 #include "thoughtsdock.h"

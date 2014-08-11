@@ -1,7 +1,8 @@
 #ifndef ROLEDIALOG_H
 #define ROLEDIALOG_H
 
-#include <QtWidgets>
+#include <QSplitter>
+#include <QDialog>
 #include "utils.h"
 #include "global_enums.h"
 #include "defines.h"

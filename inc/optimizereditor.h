@@ -1,7 +1,7 @@
 #ifndef OPTIMIZEREDITOR_H
 #define OPTIMIZEREDITOR_H
 
-#include <QtWidgets>
+#include <QDialog>
 
 class DwarfTherapist;
 class GameDataReader;

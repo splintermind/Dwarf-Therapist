@@ -23,8 +23,6 @@ THE SOFTWARE.
 #ifndef VIEW_COLUMN_SET_H
 #define VIEW_COLUMN_SET_H
 
-#include <QtWidgets>
-
 class ViewManager;
 class ViewColumn;
 class ViewColumnSetDialog;

@@ -1,5 +1,4 @@
 #include "iconchooser.h"
-#include <QtWidgets>
 
 const int imageSize = 16;
 

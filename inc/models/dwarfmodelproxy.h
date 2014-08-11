@@ -23,7 +23,7 @@ THE SOFTWARE.
 #ifndef DWARF_MODEL_PROXY_H
 #define DWARF_MODEL_PROXY_H
 
-#include <QtWidgets>
+#include <QSortFilterProxyModel>
 
 class Dwarf;
 class DwarfModel;
