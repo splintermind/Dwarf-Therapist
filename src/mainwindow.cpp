@@ -803,7 +803,7 @@ void MainWindow::load_customizations() {
 
     //add super labors
     QTreeWidgetItem *super_labors = new QTreeWidgetItem();
-    super_labors->setText(0,"Super Labors");
+    super_labors->setText(0,"Super Labor Columns");
     foreach(SuperLabor *sl, DT->get_super_labors()){
             i = new QTreeWidgetItem(super_labors);
             i->setText(0, sl->get_name());
@@ -860,32 +860,37 @@ void MainWindow::go_to_new_issue() {
     QDesktopServices::openUrl(QUrl("https://github.com/splintermind/Dwarf-Therapist/issues?state=open"));
 }
 
+void MainWindow::open_help(){
+    QString manual_path = QString("file://%1/Therapist Manual.pdf").arg(QCoreApplication::applicationDirPath());
+    QDesktopServices::openUrl(QUrl::fromLocalFile(manual_path));
+}
+
 QToolBar *MainWindow::get_toolbar() {
     return ui->main_toolbar;
 }
 
 void MainWindow::export_custom_professions() {
     ImportExportDialog d(this);
-    d.setup_for_profession_export();
-    d.exec();
+    if(d.setup_for_profession_export())
+        d.exec();
 }
 
 void MainWindow::import_custom_professions() {
     ImportExportDialog d(this);
-    d.setup_for_profession_import();
-    d.exec();
+    if(d.setup_for_profession_import())
+        d.exec();
 }
 
 void MainWindow::export_custom_roles(){
     ImportExportDialog d(this);
-    d.setup_for_role_export();
-    d.exec();
+    if(d.setup_for_role_export())
+        d.exec();
 }
 
 void MainWindow::import_custom_roles(){
     ImportExportDialog d(this);
-    d.setup_for_role_import();
-    d.exec();
+    if(d.setup_for_role_import())
+        d.exec();
 }
 
 void MainWindow::save_gridview_csv()
@@ -934,17 +939,18 @@ void MainWindow::save_gridview_csv()
 
 void MainWindow::export_gridviews() {
     ImportExportDialog d(this);
-    d.setup_for_gridview_export();
-    d.exec();
+    if(d.setup_for_gridview_export())
+        d.exec();
 }
 
 void MainWindow::import_gridviews() {
     ImportExportDialog d(this);
-    d.setup_for_gridview_import();
-    if (d.exec()) {
-        GridViewDock *dock = qobject_cast<GridViewDock*>(QObject::findChild<GridViewDock*>("GridViewDock"));
-        if(dock)
-            dock->draw_views();        
+    if(d.setup_for_gridview_import()){
+        if (d.exec()) {
+            GridViewDock *dock = qobject_cast<GridViewDock*>(QObject::findChild<GridViewDock*>("GridViewDock"));
+            if(dock)
+                dock->draw_views();
+        }
     }
 }
 
