@@ -2,6 +2,7 @@
 #define OPTIMIZEREDITOR_H
 
 #include <QDialog>
+#include <QKeyEvent>
 
 class DwarfTherapist;
 class GameDataReader;

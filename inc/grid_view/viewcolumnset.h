@@ -23,6 +23,11 @@ THE SOFTWARE.
 #ifndef VIEW_COLUMN_SET_H
 #define VIEW_COLUMN_SET_H
 
+#include <QObject>
+#include <QColor>
+#include <QStandardItemModel>
+#include <QSettings>
+
 class ViewManager;
 class ViewColumn;
 class ViewColumnSetDialog;

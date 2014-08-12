@@ -141,10 +141,9 @@ void DwarfTherapist::setup_logging() {
     if (log) {
         LogAppender *app = m_log_mgr->add_appender("core", log, LL_TRACE);
         if (app) {
+            app->set_minimum_level(min_level);
             Version v; // current version
             LOGI << "Dwarf Therapist" << v.to_string() << "starting normally.";
-            //app->set_minimum_level(min_level);
-            app->set_minimum_level(min_level);
         } else {
             qCritical() << "Could not open logfile!";
             qApp->exit(1);

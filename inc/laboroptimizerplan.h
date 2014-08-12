@@ -24,6 +24,8 @@ THE SOFTWARE.
 #define LABOROPTIMIZERPLAN_H
 
 #include <QObject>
+#include <QSettings>
+#include <QVector>
 
 class PlanDetail;
 

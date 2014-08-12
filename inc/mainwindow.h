@@ -29,7 +29,6 @@ THE SOFTWARE.
 #include <QProgressBar>
 #include <QCompleter>
 #include <QToolButton>
-#include <QtNetwork>
 
 #include "thoughtsdock.h"
 

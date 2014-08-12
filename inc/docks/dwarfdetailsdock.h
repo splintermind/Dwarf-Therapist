@@ -23,6 +23,7 @@ THE SOFTWARE.
 #ifndef DWARF_DETAILS_H
 #define DWARF_DETAILS_H
 
+#include <QLabel>
 #include "basedock.h"
 
 class Dwarf;

@@ -1,3 +1,4 @@
+#include <QMessageBox>
 #include "roledialog.h"
 #include "utils.h"
 #include "ui_roledialog.h"
@@ -23,6 +24,10 @@
 #include "sortabletableitems.h"
 
 #include "qscriptengine.h"
+
+#if QT_VERSION < 0x050000
+# define setSectionResizeMode setResizeMode
+#endif
 
 roleDialog::~roleDialog()
 {

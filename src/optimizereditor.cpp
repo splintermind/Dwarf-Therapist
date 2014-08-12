@@ -1,3 +1,7 @@
+#include <QComboBox>
+#include <QMessageBox>
+#include <QMenu>
+#include <QFileDialog>
 #include "optimizereditor.h"
 #include "ui_optimizereditor.h"
 #include "gamedatareader.h"
@@ -15,6 +19,10 @@
 
 #include "labor.h"
 #include "math.h"
+
+#if QT_VERSION < 0x050000
+# define setSectionResizeMode setResizeMode
+#endif
 
 //optimizereditor::optimizereditor(QString name, QWidget *parent) :
 optimizereditor::optimizereditor(QWidget *parent) :

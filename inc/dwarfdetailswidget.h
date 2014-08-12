@@ -24,6 +24,8 @@ THE SOFTWARE.
 #define DWARF_DETAILS_WIDGET_H
 
 #include <QWidget>
+#include <QGridLayout>
+#include <QTableWidget>
 
 class Dwarf;
 

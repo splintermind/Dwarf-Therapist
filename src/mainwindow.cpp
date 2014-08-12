@@ -23,7 +23,6 @@ THE SOFTWARE.
 #include <QDesktopServices>
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QtNetwork>
 #include <QtDebug>
 #include <QShortcut>
 

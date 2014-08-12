@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 #include <QObject>
 #include <QSettings>
+#include <QVector>
 #include "math.h"
 
 class Preference;

@@ -42,6 +42,10 @@ THE SOFTWARE.
 #include "itemweaponsubtype.h"
 #include "dwarf.h"
 
+#if QT_VERSION < 0x050000
+# define setSectionResizeMode setResizeMode
+#endif
+
 QMap<COLUMN_TYPE, ViewColumn::COLUMN_SORT_TYPE> ViewManager::m_default_column_sort;
 
 ViewManager::ViewManager(DwarfModel *dm, DwarfModelProxy *proxy,

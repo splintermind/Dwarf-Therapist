@@ -1,3 +1,4 @@
+#include <QGridLayout>
 #include "iconchooser.h"
 
 const int imageSize = 16;
