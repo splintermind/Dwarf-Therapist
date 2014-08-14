@@ -579,15 +579,12 @@ void Dwarf::read_animal_type(){
 
         //additionally if it's an animal set a flag if it's currently a pet
         //since butchering available pets simply by setting the flag breaks shit in game
-        //due to not being able to remove the pet entry from the special_refs for the unit stuff
-        if(m_mem->dwarf_offset("specific_refs") != -1){
-            QVector<VIRTADDR> refs = m_df->enumerate_vector(m_address + m_mem->dwarf_offset("specific_refs"));
-            foreach(VIRTADDR ref, refs){
-                if(m_df->read_int(ref)==7){ //pet type
-                    m_is_pet = true;
-                    break;
-                }
-            }
+        qint32 owner_offset = m_mem->dwarf_offset("pet_owner_id");
+        if(owner_offset >=0){
+            int pet_owner_id = m_df->read_int(m_address + owner_offset); //check for an owner
+            m_is_pet = (pet_owner_id > 0);
+        }else{
+            m_is_pet = (!m_first_name.isEmpty() && !m_last_name.isEmpty()); //assume that a first and last name on an animal is a pet
         }
     }
 }
@@ -1418,6 +1415,7 @@ void Dwarf::read_uniform(){
 }
 
 void Dwarf::read_inventory(){
+    LOGD << "reading inventory for" << m_nice_name;
     m_coverage_ratings.clear();
     m_inventory_wear.clear();
     m_inventory_grouped.clear();
@@ -1435,6 +1433,7 @@ void Dwarf::read_inventory(){
     short inv_type = -1;
     short bp_id = -1;
     QString category_name = "";
+    int inv_count = 0;
     foreach(VIRTADDR inventory_item_addr, m_df->enumerate_vector(m_address + m_mem->dwarf_offset("inventory"))){
         inv_type = m_df->read_short(inventory_item_addr + m_mem->dwarf_offset("inventory_item_mode"));
         bp_id = m_df->read_short(inventory_item_addr + m_mem->dwarf_offset("inventory_item_bodypart"));
@@ -1453,10 +1452,10 @@ void Dwarf::read_inventory(){
             if(affection_level > 0)
                 i->set_affection(affection_level);
 
-            if(i_type == WEAPON){                
+            if(i_type == WEAPON){
                 ItemWeapon *iw = new ItemWeapon(*i);
                 process_inv_item(category_name,iw);
-
+                LOGD << "  + found weapon:" << iw->display_name(false);
             }else if(Item::is_armor_type(i_type)){
                 ItemArmor *ir = new ItemArmor(*i);
                 process_inv_item(category_name,ir);
@@ -1471,18 +1470,27 @@ void Dwarf::read_inventory(){
                 if(ir->wear() > m_inventory_wear.value(i_type))
                     m_inventory_wear.insert(i_type,ir->wear());
 
+                LOGD << "  + found armor/clothing:" << ir->display_name(false);
             }else if(Item::is_supplies(i_type) || Item::is_ranged_equipment(i_type)){
                 process_inv_item(category_name,i);
+                LOGD << "  + found supplies/ammo/quiver:" << i->display_name(false);
+            }else{
+                LOGD << "  + found other item:" << i->display_name(false);
             }
 
             //process any items inside this item (ammo, food?, drink?)
             if(i->contained_items().count() > 0){
                 foreach(Item *contained_item, i->contained_items()){
                     process_inv_item(category_name,contained_item,true);
+                    LOGD << "    + contained item(s):" << contained_item->display_name(false);
                 }
             }
+            inv_count++;
+        }else{
+            LOGD << "  - skipping inventory item due to invalid type (" + QString::number(inv_type) + ")";
         }
-    }
+    }    
+    LOGD << "  total inventory items found:" << inv_count;
 
     //missing uniform items
     if(m_uniform && m_uniform->get_missing_items().count() > 0){
@@ -2062,7 +2070,7 @@ void Dwarf::commit_pending(bool single) {
     if (m_caged != m_unit_flags.at(0))
         m_df->write_raw(m_address + m_mem->dwarf_offset("flags1"), 4, &m_caged);
     if (m_butcher != m_unit_flags.at(1))
-        m_df->write_raw(m_address + m_mem->dwarf_offset("flags2"), 4, &m_butcher);
+        m_df->write_raw(m_address + m_mem->dwarf_offset("flags2"), 4, &m_butcher);    
 
     int pen_sq_id = -1;
     int pen_sq_pos = -1;
