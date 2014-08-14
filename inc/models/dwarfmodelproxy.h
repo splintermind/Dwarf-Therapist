@@ -25,9 +25,14 @@ THE SOFTWARE.
 
 #include <QSortFilterProxyModel>
 
+#if QT_VERSION < 0x050000
+# include <QScriptEngine>
+#else
+# include <QJSEngine>
+#endif
+
 class Dwarf;
 class DwarfModel;
-class QScriptEngine;
 
 class DwarfModelProxy: public QSortFilterProxyModel {
     Q_OBJECT
@@ -75,7 +80,12 @@ protected:
 private:
 	QString m_filter_text;
     QString m_test_script;
-    QScriptEngine *m_engine;    
+#if QT_VERSION < 0x050000
+    QScriptEngine
+#else
+    QJSEngine
+#endif
+              *m_engine;
     QHash<QString,QString> m_scripts;
 };
 

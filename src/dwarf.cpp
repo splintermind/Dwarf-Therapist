@@ -21,7 +21,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 #include <QVector>
-#include <QtScript>
+
+#if QT_VERSION < 0x050000
+# include <QScriptEngine>
+# define QJSEngine QScriptEngine
+# define QJSValue QScriptValue
+#else
+# include <QJSEngine>
+#endif
+
 #include <QDebug>
 #include <QAction>
 #include <QDialog>
@@ -665,47 +673,6 @@ void Dwarf::read_first_name() {
     if (m_first_name.size() > 1)
         m_first_name[0] = m_first_name[0].toUpper();
     TRACE << "FIRSTNAME:" << m_first_name;
-}
-
-//! used by read_last_name to find word chunks
-QString Dwarf::word_chunk(uint word, bool use_generic) {
-    QString out = "";
-    if (word != 0xFFFFFFFF) {
-        if (use_generic) {
-            out = DT->get_generic_word(word);
-        } else {
-            out = DT->get_dwarf_word(word);
-        }
-    }
-    return out;
-}
-
-QString Dwarf::read_chunked_name(const VIRTADDR &addr, bool use_generic) {
-    // last name reading taken from patch by Zhentar (issue 189)
-    QString first, second, third;
-
-    first.append(word_chunk(m_df->read_addr(addr), use_generic));
-    first.append(word_chunk(m_df->read_addr(addr + 0x4), use_generic));
-    second.append(word_chunk(m_df->read_addr(addr + 0x8), use_generic));
-    second.append(word_chunk(m_df->read_addr(addr + 0x14), use_generic));
-    third.append(word_chunk(m_df->read_addr(addr + 0x18), use_generic));
-
-    QString out = first;
-    out = out.toLower();
-    if (!out.isEmpty()) {
-        out[0] = out[0].toUpper();
-    }
-    if (!second.isEmpty()) {
-        second = second.toLower();
-        second[0] = second[0].toUpper();
-        out.append(" " + second);
-    }
-    if (!third.isEmpty()) {
-        third = third.toLower();
-        third[0] = third[0].toUpper();
-        out.append(" " + third);
-    }
-    return out;
 }
 
 void Dwarf::read_last_name(VIRTADDR name_offset) {
@@ -2591,8 +2558,8 @@ QList<float> Dwarf::calc_role_ratings(){
 float Dwarf::calc_role_rating(Role *m_role){
     //if there's a script, use this in place of any aspects
     if(!m_role->script.trimmed().isEmpty()){
-        QScriptEngine m_engine;
-        QScriptValue d_obj = m_engine.newQObject(this);
+        QJSEngine m_engine;
+        QJSValue d_obj = m_engine.newQObject(this);
         m_engine.globalObject().setProperty("d", d_obj);
         return  m_engine.evaluate(m_role->script).toNumber(); //just show the raw value the script generates
     }

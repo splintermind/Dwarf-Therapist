@@ -1,4 +1,13 @@
 #include <QMessageBox>
+
+#if QT_VERSION < 0x050000
+# include <QScriptEngine>
+# define QJSEngine QScriptEngine
+# define QJSValue QScriptValue
+#else
+# include <QJSEngine>
+#endif
+
 #include "roledialog.h"
 #include "utils.h"
 #include "ui_roledialog.h"
@@ -1078,15 +1087,27 @@ void roleDialog::calc_new_role(){
     //if using a script, check the syntax
     QString script = ui->te_script->toPlainText().trimmed();
     if(!script.isEmpty()){
-        QScriptEngine m_engine;
-        QScriptValue d_obj = m_engine.newQObject(m_dwarf);
+        QJSEngine m_engine;
+        QJSValue d_obj = m_engine.newQObject(m_dwarf);
         m_engine.globalObject().setProperty("d", d_obj);
-        QScriptSyntaxCheckResult check = m_engine.checkSyntax(script);
-        if(check.state() != 2){
-        QString err_msg = (tr("<font color=red>Script Error: %1<br/>Line: %2, Column: %3</font>")
-                                         .arg(check.errorMessage())
-                                         .arg(check.errorLineNumber())
-                                         .arg(check.errorColumnNumber()));
+        QJSValue ret = m_engine.evaluate(m_role->script);
+        if(!ret.isNumber()){
+            QString err_msg;
+            if(ret.isError()) {
+                err_msg = tr("<font color=red>%1: %2<br/>%3</font>")
+                                 .arg(ret.property("name").toString())
+                                 .arg(ret.property("message").toString())
+                                 .arg(ret.property("stack").toString().replace("\n", "<br/>"));
+            }else{
+                m_engine.globalObject().setProperty("__internal_role_return_value_check", ret);
+                err_msg = tr("<font color=red>Script returned %1 instead of number</font>")
+                                 .arg(m_engine.evaluate(QString("typeof __internal_role_return_value_check")).toString());
+#if QT_VERSION < 0x050000
+                m_engine.globalObject().setProperty("__internal_role_return_value_check", QScriptValue());
+#else
+                m_engine.globalObject().deleteProperty("__internal_role_return_value_check");
+#endif
+            }
             ui->te_script->setStatusTip(err_msg);
             ui->txt_status_tip->setText(err_msg);
             return;
