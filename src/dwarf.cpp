@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 #include <QVector>
-#include <QtScript>
+#include <QJSEngine>
 #include <QDebug>
 #include "dwarf.h"
 #include "dfinstance.h"
@@ -660,47 +660,6 @@ void Dwarf::read_first_name() {
     if (m_first_name.size() > 1)
         m_first_name[0] = m_first_name[0].toUpper();
     TRACE << "FIRSTNAME:" << m_first_name;
-}
-
-//! used by read_last_name to find word chunks
-QString Dwarf::word_chunk(uint word, bool use_generic) {
-    QString out = "";
-    if (word != 0xFFFFFFFF) {
-        if (use_generic) {
-            out = DT->get_generic_word(word);
-        } else {
-            out = DT->get_dwarf_word(word);
-        }
-    }
-    return out;
-}
-
-QString Dwarf::read_chunked_name(const VIRTADDR &addr, bool use_generic) {
-    // last name reading taken from patch by Zhentar (issue 189)
-    QString first, second, third;
-
-    first.append(word_chunk(m_df->read_addr(addr), use_generic));
-    first.append(word_chunk(m_df->read_addr(addr + 0x4), use_generic));
-    second.append(word_chunk(m_df->read_addr(addr + 0x8), use_generic));
-    second.append(word_chunk(m_df->read_addr(addr + 0x14), use_generic));
-    third.append(word_chunk(m_df->read_addr(addr + 0x18), use_generic));
-
-    QString out = first;
-    out = out.toLower();
-    if (!out.isEmpty()) {
-        out[0] = out[0].toUpper();
-    }
-    if (!second.isEmpty()) {
-        second = second.toLower();
-        second[0] = second[0].toUpper();
-        out.append(" " + second);
-    }
-    if (!third.isEmpty()) {
-        third = third.toLower();
-        third[0] = third[0].toUpper();
-        out.append(" " + third);
-    }
-    return out;
 }
 
 void Dwarf::read_last_name(VIRTADDR name_offset) {
@@ -1446,6 +1405,7 @@ void Dwarf::read_uniform(){
 }
 
 void Dwarf::read_inventory(){
+    LOGD << "reading inventory for" << m_nice_name;
     m_coverage_ratings.clear();
     m_inventory_wear.clear();
     m_inventory_grouped.clear();
@@ -1463,11 +1423,12 @@ void Dwarf::read_inventory(){
     short inv_type = -1;
     short bp_id = -1;
     QString category_name = "";
+    int inv_count = 0;
     foreach(VIRTADDR inventory_item_addr, m_df->enumerate_vector(m_address + m_mem->dwarf_offset("inventory"))){
         inv_type = m_df->read_short(inventory_item_addr + m_mem->dwarf_offset("inventory_item_mode"));
         bp_id = m_df->read_short(inventory_item_addr + m_mem->dwarf_offset("inventory_item_bodypart"));
 
-        if(inv_type == 1 || inv_type == 2 || inv_type == 4 || inv_type == 8){
+        if(inv_type == 1 || inv_type == 2 || inv_type == 4 || inv_type == 8 || inv_type == 10){
             if(bp_id >= 0)
                 category_name = m_caste->get_body_part(bp_id)->name();
             else
@@ -1481,10 +1442,10 @@ void Dwarf::read_inventory(){
             if(affection_level > 0)
                 i->set_affection(affection_level);
 
-            if(i_type == WEAPON){                
+            if(i_type == WEAPON){
                 ItemWeapon *iw = new ItemWeapon(*i);
                 process_inv_item(category_name,iw);
-
+                LOGD << "  + found weapon:" << iw->display_name(false);
             }else if(Item::is_armor_type(i_type)){
                 ItemArmor *ir = new ItemArmor(*i);
                 process_inv_item(category_name,ir);
@@ -1499,18 +1460,27 @@ void Dwarf::read_inventory(){
                 if(ir->wear() > m_inventory_wear.value(i_type))
                     m_inventory_wear.insert(i_type,ir->wear());
 
+                LOGD << "  + found armor/clothing:" << ir->display_name(false);
             }else if(Item::is_supplies(i_type) || Item::is_ranged_equipment(i_type)){
                 process_inv_item(category_name,i);
+                LOGD << "  + found supplies/ammo/quiver:" << i->display_name(false);
+            }else{
+                LOGD << "  + found other item:" << i->display_name(false);
             }
 
             //process any items inside this item (ammo, food?, drink?)
             if(i->contained_items().count() > 0){
                 foreach(Item *contained_item, i->contained_items()){
                     process_inv_item(category_name,contained_item,true);
+                    LOGD << "    + contained item(s):" << contained_item->display_name(false);
                 }
             }
+            inv_count++;
+        }else{
+            LOGD << "  - skipping inventory item due to invalid type (" + QString::number(inv_type) + ")";
         }
-    }
+    }    
+    LOGD << "  total inventory items found:" << inv_count;
 
     //missing uniform items
     if(m_uniform && m_uniform->get_missing_items().count() > 0){
@@ -2586,8 +2556,8 @@ QList<float> Dwarf::calc_role_ratings(){
 float Dwarf::calc_role_rating(Role *m_role){
     //if there's a script, use this in place of any aspects
     if(!m_role->script.trimmed().isEmpty()){
-        QScriptEngine m_engine;
-        QScriptValue d_obj = m_engine.newQObject(this);
+        QJSEngine m_engine;
+        QJSValue d_obj = m_engine.newQObject(this);
         m_engine.globalObject().setProperty("d", d_obj);
         return  m_engine.evaluate(m_role->script).toNumber(); //just show the raw value the script generates
     }
