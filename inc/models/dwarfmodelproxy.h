@@ -23,8 +23,13 @@ THE SOFTWARE.
 #ifndef DWARF_MODEL_PROXY_H
 #define DWARF_MODEL_PROXY_H
 
-#include <QJSEngine>
-#include <QtWidgets>
+#include <QSortFilterProxyModel>
+
+#if QT_VERSION < 0x050000
+# include <QScriptEngine>
+#else
+# include <QJSEngine>
+#endif
 #include "global_enums.h"
 
 class Dwarf;
@@ -83,7 +88,13 @@ protected:
 private:
 	QString m_filter_text;
     QString m_test_script;
-    QJSEngine *m_engine;
+#if QT_VERSION < 0x050000
+    QScriptEngine
+#else
+    QJSEngine
+#endif
+              *m_engine;
+    QHash<QString,QString> m_scripts;
     QHash<QString,script_info> m_scripts;
     QMultiHash<FILTER_SCRIPT_TYPE,QString> m_scripts_by_type;
 };

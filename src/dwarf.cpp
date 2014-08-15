@@ -21,8 +21,21 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 #include <QVector>
-#include <QJSEngine>
+
+#if QT_VERSION < 0x050000
+# include <QScriptEngine>
+# define QJSEngine QScriptEngine
+# define QJSValue QScriptValue
+#else
+# include <QJSEngine>
+#endif
+
 #include <QDebug>
+#include <QAction>
+#include <QDialog>
+#include <QTextEdit>
+#include <QMessageBox>
+#include <QClipboard>
 #include "dwarf.h"
 #include "dfinstance.h"
 #include "skill.h"

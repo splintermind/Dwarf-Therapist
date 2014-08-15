@@ -21,9 +21,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include <QtWidgets>
 #include <QtDebug>
-#include <QtConcurrent/QtConcurrent>
+#include <QMessageBox>
+#if QT_VERSION >= 0x050000
+# include <QtConcurrent>
+#endif
 #include "defines.h"
 #include "dfinstance.h"
 #include "dwarf.h"
