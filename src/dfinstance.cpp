@@ -23,6 +23,7 @@ THE SOFTWARE.
 
 #include <QtDebug>
 #include <QMessageBox>
+#include <QtConcurrent>
 #include "defines.h"
 #include "dfinstance.h"
 #include "dwarf.h"
