@@ -97,10 +97,11 @@ QString DFInstanceLinux::calculate_checksum() {
     // ELF binaries don't seem to store a linker timestamp, so just MD5 the file.
     QFile proc(QString("/proc/%1/exe").arg(m_pid));
     QCryptographicHash hash(QCryptographicHash::Md5);
-    if (!proc.open(QIODevice::ReadOnly) || !hash.addData(&proc)) {
+    if (!proc.open(QIODevice::ReadOnly)) {
         LOGE << "FAILED TO READ DF EXECUTABLE";
         return QString("UNKNOWN");
     }
+    hash.addData(proc.readAll());
     QString md5 = hexify(hash.result().mid(0, 4)).toLower();
     TRACE << "GOT MD5:" << md5;
     return md5;
@@ -236,7 +237,7 @@ int DFInstanceLinux::read_raw(const VIRTADDR &addr, size_t bytes, QByteArray &bu
         if (errno == ENOSYS) {
             return read_raw_ptrace(addr, bytes, buffer);
         } else {
-            error(0, errno, "error reading %u bytes from 0x%0u to %p", bytes, addr, buffer.data());
+            error(0, errno, "error reading %zu bytes from 0x%0u to %p", bytes, addr, buffer.data());
         }
     }
 
