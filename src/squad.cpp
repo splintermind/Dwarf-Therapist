@@ -68,6 +68,7 @@ void Squad::read_data() {
         read_id();
     read_name();
     read_members();
+    read_activities();
 }
 
 void Squad::read_id() {
@@ -109,8 +110,8 @@ void Squad::read_members() {
     Uniform *u;    
     foreach(addr, m_members_addr){
         u = new Uniform(m_df,this);
-
-        m_members.insert(position,m_df->read_int(addr));
+        int hist_id = m_df->read_int(addr);
+        m_members.insert(position,hist_id);
         read_equip_category(addr+m_mem->squad_offset("armor_vector"),ARMOR,u);
         read_equip_category(addr+m_mem->squad_offset("helm_vector"),HELM,u);
         read_equip_category(addr+m_mem->squad_offset("pants_vector"),PANTS,u);
@@ -131,6 +132,107 @@ void Squad::read_members() {
 
         m_uniforms.insert(position,u);
         position++;
+
+        QVector<VIRTADDR> orders = m_df->enumerate_vector(addr+0x0004);
+        foreach(VIRTADDR addr, orders){
+            read_order(addr,hist_id);
+        }
+    }
+}
+
+void Squad::read_order(VIRTADDR addr, int hist_id){
+    VIRTADDR vtable_addr = m_df->read_addr(addr);
+    int ot = m_df->read_int(m_df->read_addr(vtable_addr+0xc)+0x1);
+    ACT_ORDER_TYPE ord_type = ORDER_MOVE;
+    if(ot > 0){
+        ord_type = static_cast<ACT_ORDER_TYPE>(ot+(int)ORDER_MOVE);
+    }
+    if(ord_type != ORDER_TRAIN){
+        if(hist_id >= 0){
+            squad_activity sa;
+            sa.act_type = ord_type;
+            sa.skill_id = -1;
+            m_unit_activities.insert(hist_id,sa);
+        }else{
+            m_squad_order = ord_type;
+        }
+    }
+}
+
+void Squad::read_activities(){
+    QVector<VIRTADDR> orders_addrs = m_df->enumerate_vector(m_address + 0x009c);
+    m_squad_order = ACT_NONE;
+    foreach(VIRTADDR addr, orders_addrs){
+        read_order(addr);
+    }
+
+    QVector<VIRTADDR> schedule_orders = m_df->enumerate_vector(m_address + 0xac);
+    int offset_step = 0x0040;
+    foreach(VIRTADDR sch_addr, schedule_orders){ //array of 12 structs, 0x40 in size
+        VIRTADDR base_addr = sch_addr;
+        for(int idx = 0; idx < 12; idx++){ //only check the current month's orders
+            QVector<VIRTADDR> sch_ord_addrs = m_df->enumerate_vector(base_addr + 0x20);
+            foreach(VIRTADDR sch_ord_addr, sch_ord_addrs){
+                VIRTADDR ord_adr = m_df->read_addr(sch_ord_addr);
+                read_order(ord_adr);
+            }
+            base_addr += offset_step;
+        }
+    }
+
+    //if(m_squad_order == ACT_NONE){
+        //read individual activities
+        int m_activity = m_df->read_int(m_address + 0x00f4);
+        QVector<VIRTADDR> all_activites_addrs = m_df->enumerate_vector(m_mem->get_base_addr() + 0x1ab3410);
+        foreach(VIRTADDR addr, all_activites_addrs){
+            int id = m_df->read_int(addr);
+            if(id == m_activity){
+                QVector<VIRTADDR> events = m_df->enumerate_vector(addr+0x0008);
+                foreach(VIRTADDR evt_addr, events){
+                    VIRTADDR vtable_addr = m_df->read_addr(evt_addr);
+                    ACT_ORDER_TYPE evt_type = static_cast<ACT_ORDER_TYPE>(m_df->read_int(m_df->read_addr(vtable_addr)+0x1));
+                    if(evt_type >= ACT_TRAINING && evt_type <= ACT_RANGED){
+                        squad_activity sa_lead;
+                        sa_lead.skill_id = -1;
+                        if(evt_type == ACT_SKILL_DEMO){
+                            int leader_id = m_df->read_int(evt_addr+0x0064);
+                            sa_lead.skill_id = m_df->read_int(evt_addr+0x0068);
+                            sa_lead.act_type = ACT_LEAD_DEMO;
+                            m_unit_activities.insert(leader_id,sa_lead);
+                        }
+                        foreach(VIRTADDR hist_id, m_df->enumerate_vector(evt_addr+0x0014)){
+                            if(evt_type > static_cast<squad_activity>(m_unit_activities.value(hist_id)).act_type){
+                                squad_activity sa;
+                                sa.skill_id = -1;
+                                if(evt_type == ACT_SKILL_DEMO){
+                                    sa.skill_id = sa_lead.skill_id;
+                                    sa.act_type = ACT_WATCH_DEMO;
+                                    m_unit_activities.insert(hist_id,sa);
+                                }else{
+                                    sa.act_type = evt_type;
+                                    m_unit_activities.insert(hist_id,sa);
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    //}
+}
+
+QPair<ACT_ORDER_TYPE,QString> Squad::get_current_activity(int hist_id){
+    QString activity;
+    if(m_unit_activities.contains(hist_id)){
+        squad_activity sa = m_unit_activities.value(hist_id);
+        activity = get_activity_desc(static_cast<ACT_ORDER_TYPE>(sa.act_type));
+        if(sa.skill_id >= 0){
+            activity = activity.replace("??",GameDataReader::ptr()->get_skill_name(sa.skill_id));
+        }
+        return qMakePair(sa.act_type,activity);
+    }else{
+        return qMakePair(m_squad_order,get_activity_desc(m_squad_order));
     }
 }
 

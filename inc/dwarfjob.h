@@ -113,7 +113,12 @@ public:
         DJT_DOOR_MAKE,
         DJT_CHAIR_MAKE,
         DJT_SOLDIER,
-        DJT_ON_BREAK
+        DJT_ON_BREAK,
+        DJT_TRAIN_INDIV,
+        DJT_TRAIN_SPAR,
+        DJT_TRAIN_RANGED,
+        DJT_TRAIN_DEMO,
+        DJT_GUARD
     } DWARF_JOB_TYPE;
 
     static DWARF_JOB_TYPE get_type(const QString &type) {

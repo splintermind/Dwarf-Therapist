@@ -297,7 +297,7 @@ typedef enum{
 } CREATURE_FLAGS;
 
 typedef enum{
-    AMPHIBIOUS=0,    
+    AMPHIBIOUS=0,
     NO_EAT=13,
     NO_DRINK=14,
     NO_SLEEP=15,
@@ -440,5 +440,45 @@ typedef enum {
     SCR_PREF_EXP, //explicitly chosen from the filter text search
     SCR_ALL
 } FILTER_SCRIPT_TYPE;
+
+typedef enum{
+    ACT_NONE = -1,
+    ACT_TRAINING = 0,
+    ACT_COMBAT = 1,
+    ACT_SKILL_DEMO = 2,
+    ACT_INDV_TRAIN = 3,
+    ACT_SPAR = 4,
+    ACT_RANGED = 5,
+    ACT_GUARD = 9,
+    ACT_WATCH_DEMO = 99,
+    ACT_LEAD_DEMO = 100,
+    ORDER_MOVE=200,
+    ORDER_KILL=201,
+    ORDER_DEFEND=202,
+    ORDER_PATROL=203,
+    ORDER_TRAIN=204
+} ACT_ORDER_TYPE;
+
+static inline QString get_activity_desc(const ACT_ORDER_TYPE &type) {
+    switch (type) {
+    case ACT_TRAINING: return QObject::tr("Training Session");
+    case ACT_COMBAT: return QObject::tr("Combat Training");
+    case ACT_SKILL_DEMO: return QObject::tr("Skill Demonstration");
+    case ACT_INDV_TRAIN: return QObject::tr("Individual Training");
+    case ACT_SPAR: return QObject::tr("Sparring");
+    case ACT_RANGED: return QObject::tr("Ranged Practice");
+    case ACT_WATCH_DEMO: return QObject::tr("Watch ?? Demonstration");
+    case ACT_LEAD_DEMO: return QObject::tr("Lead ?? Demonstration");
+    case ACT_GUARD: return QObject::tr("On Guard Duty");
+    case ORDER_MOVE: return QObject::tr("Order: Move");
+    case ORDER_KILL: return QObject::tr("Order: Kill");
+    case ORDER_DEFEND: return QObject::tr("Order: Defend");
+    case ORDER_PATROL: return QObject::tr("Order: Patrol");
+    case ORDER_TRAIN: return QObject::tr("Order: Train");
+    default:
+        return "";
+    }
+    return "";
+}
 
 #endif // GLOBAL_ENUMS_H

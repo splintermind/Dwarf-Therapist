@@ -153,6 +153,14 @@
         <file alias="img/chair--plus.png">resources/img/chair--plus.png</file>
         <file alias="img/safe--plus.png">resources/img/safe--plus.png</file>
         <file alias="img/exclamation-shield-frame.png">resources/img/exclamation-shield-frame.png</file>
+        <file alias="img/shield-green.png">resources/img/shield-green.png</file>
+        <file alias="img/shield-purple.png">resources/img/shield-purple.png</file>
+        <file alias="img/shield-teal.png">resources/img/shield-teal.png</file>
+        <file alias="img/shield-brown.png">resources/img/shield-brown.png</file>
+        <file alias="img/shield-grey.png">resources/img/shield-grey.png</file>
+        <file alias="img/arrow-repeat.png">resources/img/arrow-repeat.png</file>
+        <file alias="img/shield--arrow.png">resources/img/shield--arrow.png</file>
+        <file alias="img/skull-mad.png">resources/img/skull-mad.png</file>
     </qresource>
     <qresource prefix="/happiness">
         <file alias="Ecstatic.png">resources/img/Ecstatic.png</file>

@@ -240,6 +240,18 @@ GameDataReader::GameDataReader(QObject *parent)
     job_names << m_dwarf_jobs[-2]->description;
     m_dwarf_jobs[-3] = new DwarfJob(-3,tr("No Job"), DwarfJob::DJT_IDLE, "", this);
     job_names << m_dwarf_jobs[-3]->description;
+
+    m_dwarf_jobs[-4] = new DwarfJob(-4,tr("Individual"), DwarfJob::DJT_TRAIN_INDIV, "", this);
+    job_names << m_dwarf_jobs[-4]->description;
+    m_dwarf_jobs[-5] = new DwarfJob(-5,tr("Sparring"), DwarfJob::DJT_TRAIN_SPAR, "", this);
+    job_names << m_dwarf_jobs[-5]->description;
+    m_dwarf_jobs[-6] = new DwarfJob(-6,tr("Ranged"), DwarfJob::DJT_TRAIN_RANGED, "", this);
+    job_names << m_dwarf_jobs[-6]->description;
+    m_dwarf_jobs[-7] = new DwarfJob(-7,tr("Demo"), DwarfJob::DJT_TRAIN_DEMO, "", this);
+    job_names << m_dwarf_jobs[-7]->description;
+    m_dwarf_jobs[-8] = new DwarfJob(-8,tr("Guard"), DwarfJob::DJT_GUARD, "", this);
+    job_names << m_dwarf_jobs[-8]->description;
+
     for (short i = 0; i < job_count; ++i) {
         m_data_settings->setArrayIndex(i);
 

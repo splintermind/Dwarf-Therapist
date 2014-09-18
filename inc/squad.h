@@ -27,7 +27,6 @@ THE SOFTWARE.
 #include <QTreeWidgetItem>
 #include "utils.h"
 #include "global_enums.h"
-//#include "itemdefuniform.h"
 
 class Dwarf;
 class Word;
@@ -59,6 +58,8 @@ public:
     void clear_pending();
     int pending_changes();
 
+    QPair<ACT_ORDER_TYPE, QString> get_current_activity(int hist_id);
+
 private:
     VIRTADDR m_address;
     int m_id;
@@ -72,10 +73,20 @@ private:
     bool m_inactive;
     QString m_pending_name;
 
+    struct squad_activity{
+        int skill_id;
+        ACT_ORDER_TYPE act_type;
+    };
+
+    QHash<int, squad_activity> m_unit_activities;
+    ACT_ORDER_TYPE m_squad_order;
+
     void read_data();
     void read_id();
     void read_name();
     void read_members();
+    void read_activities();
+    void read_order(VIRTADDR addr, int hist_id=-1);
     void read_equip_category(VIRTADDR vec_addr, ITEM_TYPE itype, Uniform *u);
     int find_position(int hist_id);
 

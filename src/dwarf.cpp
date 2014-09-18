@@ -106,7 +106,8 @@ Dwarf::Dwarf(DFInstance *df, const uint &addr, QObject *parent)
     , m_current_job_id(-1)
     , m_hist_figure(0x0)
     , m_squad_id(-1)
-    , m_squad_position(-1)    
+    , m_squad_position(-1)
+    , m_squad_job(ACT_NONE)
     , m_pending_squad_name(QString::null)
     , m_age(0)
     , m_noble_position("")
@@ -1283,7 +1284,18 @@ void Dwarf::read_current_job() {
         }
 
     } else {
-        if(active_military()){
+        if(m_squad_id >= 0){
+            Squad *s = m_df->get_squad(m_squad_id);
+            QPair<ACT_ORDER_TYPE,QString> squad_activity;
+            if(s){
+                squad_activity = s->get_current_activity(m_hist_figure->id());
+            }
+            if(squad_activity.second != ""){
+                m_current_job_id = -4;
+                m_squad_job = squad_activity.first;
+                m_current_job = squad_activity.second;
+            }
+        }else if(active_military()){
             m_current_job = tr("Soldier");
             m_current_job_id = -1;
         }else{

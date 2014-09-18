@@ -193,10 +193,11 @@ public:
     //! return this dwarf's squad reference id
     Q_INVOKABLE int squad_id(bool original = false) { return (original ? m_squad_id : m_pending_squad_id);}
     Q_INVOKABLE int squad_position(bool original = false) { return (original ? m_squad_position : m_pending_squad_position);}
-    Q_INVOKABLE int historical_id();
-    HistFigure *hist_figure();
-
+    ACT_ORDER_TYPE current_squad_activity() {return m_squad_job;}
     void update_squad_info(int squad_id, int position, QString name);
+
+    Q_INVOKABLE int historical_id();
+    HistFigure *hist_figure();    
 
     //! return this dwarf's caste id
     Q_INVOKABLE short get_caste_id() { return m_caste_id; }
@@ -321,10 +322,10 @@ public:
     const QList<Role::simple_rating> &sorted_role_ratings();
 
     //! return the text string describing what this dwarf is currently doing ("Idle", "Construct Rock Door" etc...)
-    const QString &current_job() {return m_current_job;}    
+    const QString &current_job() {return m_current_job;}
 
     //! return the id of the job this dwarf is currently doing
-    Q_INVOKABLE short current_job_id() {return m_current_job_id;}
+    Q_INVOKABLE short current_job_id() {return m_current_job_id;}    
 
     //! return the id of the sub job this dwarf is currently doing
     const QString &current_sub_job_id() { return m_current_sub_job_id; }
@@ -557,7 +558,7 @@ private:
     bool m_can_set_labors; // used to prevent cheating
     short m_current_job_id;
     QString m_current_job;
-    QString m_current_sub_job_id;    
+    QString m_current_sub_job_id;
     QHash<int,Skill> m_skills;
     QMultiMap<float, int> m_sorted_skills; //level, skill_id
     QHash<int, short> m_traits;
@@ -573,6 +574,7 @@ private:
     int m_squad_position;
     int m_pending_squad_id;
     int m_pending_squad_position;
+    ACT_ORDER_TYPE m_squad_job;
     QString m_pending_squad_name; //The name of the squad that the dwarf belongs to (if any)
     QList<quint32> m_unit_flags;
     quint32 m_caged;

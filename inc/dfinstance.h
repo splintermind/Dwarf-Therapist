@@ -75,7 +75,7 @@ public:
 
     // memory reading
     QVector<VIRTADDR> enumerate_vector(const VIRTADDR &addr);
-    QVector<qint16> enumerate_vector_short(const VIRTADDR &addr);
+    QVector<qint16> enumerate_vector_short(const VIRTADDR &addr);    
 
     virtual QString read_string(const VIRTADDR &addr) = 0;
 
