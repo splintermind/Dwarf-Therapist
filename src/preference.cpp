@@ -20,68 +20,59 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-
 #include "preference.h"
-#include "dwarftherapist.h"
-#include "material.h"
+
+#include "dfinstance.h"
 #include "roleaspect.h"
 #include "dwarf.h"
-#include "itemweapon.h"
+#include "itemweaponsubtype.h"
+#include "itemarmorsubtype.h"
+#include "races.h"
+#include "caste.h"
+#include "plant.h"
 
 Preference::Preference(QObject *parent)
-    :QObject(parent)
-    ,pref_aspect(new RoleAspect())
-    ,m_name("")
-    ,m_pType(LIKES_NONE)
-    ,m_iType(NONE)
-    ,m_material_flags()
-    ,m_special_flags()
-    ,m_exact_match(false)
+    : QObject(parent)
+    , pref_aspect(new RoleAspect(parent))
+    , m_name("")
+    , m_pType(LIKES_NONE)
+    , m_iType(NONE)
+    , m_flags()
+    , m_exact_match(false)
 {}
 
 Preference::Preference(PREF_TYPES category, ITEM_TYPE iType, QObject *parent)
-    :QObject(parent)
-    ,pref_aspect(new RoleAspect())
-    ,m_name("")
-    ,m_pType(category)
-    ,m_iType(iType)
-    ,m_material_flags()
-    ,m_special_flags()
-    ,m_exact_match(false)
+    : QObject(parent)
+    , pref_aspect(new RoleAspect(parent))
+    , m_name("")
+    , m_pType(category)
+    , m_iType(iType)
+    , m_flags()
+    , m_exact_match(false)
 {}
 
 Preference::Preference(PREF_TYPES category, QString name, QObject *parent)
-    :QObject(parent)
-    ,pref_aspect(new RoleAspect())
-    ,m_name(name)
-    ,m_pType(category)
-    ,m_iType(NONE)
-    ,m_material_flags()
-    ,m_special_flags()
-    ,m_exact_match(false)
+    : QObject(parent)
+    , pref_aspect(new RoleAspect(parent))
+    , m_name(name)
+    , m_pType(category)
+    , m_iType(NONE)
+    , m_flags()
+    , m_exact_match(false)
 {}
 
-
 Preference::Preference(const Preference &p)
-    :QObject(p.parent())
-{
-    pref_aspect = p.pref_aspect;
-    m_name = p.m_name;
-    m_pType = p.m_pType;
-    m_iType = p.m_iType;
-    m_material_flags = p.m_material_flags;
-    m_special_flags = p.m_special_flags;
-    m_exact_match = p.m_exact_match;
-}
-
-Preference::~Preference(){
-    delete(pref_aspect);
-    pref_aspect = 0;
-}
+    : QObject(p.parent())
+    , pref_aspect(p.pref_aspect)
+    , m_name(p.m_name)
+    , m_pType(p.m_pType)
+    , m_iType(p.m_iType)
+    , m_flags(p.m_flags)
+    , m_exact_match(p.m_exact_match)
+{}
 
 void Preference::add_flag(int flag){
-    if(!m_special_flags.contains(flag))
-        m_special_flags.append(flag);
+    m_flags.set_flag(flag,true);
 }
 
 int Preference::matches(Preference *role_pref, Dwarf *d){
@@ -90,56 +81,123 @@ int Preference::matches(Preference *role_pref, Dwarf *d){
     if(m_pType == role_pref->get_pref_category()){
         result = 1; //so far so good..
 
-        if(m_iType != role_pref->get_item_type()){
+        if(m_iType >= 0 && role_pref->get_item_type() >= 0 && m_iType != role_pref->get_item_type()){
             result = 0;
         }
 
-        //compare any other flags ie. weapon melee/ranged flags
-        if(role_pref->special_flags().count() > 0){
-            if(result==1)
-                result = 0; //reset to 0, only match on these flags
-            if(m_special_flags.count() > 0){
-                foreach(int f, role_pref->special_flags()){
-                    if(m_special_flags.contains(f)){
-                        result = 1;
-                    }
-                }
-            }
-        }
-
-        //compare material flags
-        if(!m_material_flags.no_flags()){
-            if(result == 0) //no match yet, so assume we'll get a match here unless a flag fails
-                result = 1;
-            foreach(int f, role_pref->special_flags()){
-                if(!m_material_flags.has_flag(f)){
-                    result = 0;
-                    break;
-                }
-            }
-        }
-
-        //check for an exact match on the string, if this is required, reset our result again and check        
-        if(role_pref->exact_match())
-            result = 0;                    
-
-        if(result <= 0){ //only check for an exact match if we don't already have a match
+        //check for an exact match on the string, if this is required, reset our result again and check
+        if(role_pref->exact_match()){
             result = (QString::compare(role_pref->get_name(),m_name,Qt::CaseInsensitive) == 0);
+        }else{
+
+            //check our unit's pref's flags for all the role's pref's flags
+            if(role_pref->flags().count() > 0){
+                if(m_flags.count() > 0){
+                    int matches = 0;
+                    foreach(int f, role_pref->flags().active_flags()){
+                        if(m_flags.has_flag(f)){
+                            matches++;
+                        }
+                    }
+                    result = (result & (matches == role_pref->flags().count()));
+                }else{
+                    result = 0;
+                }
+            }
+
+            if(result <= 0){ //only check for an exact match if we don't already have a match
+                result = (QString::compare(role_pref->get_name(),m_name,Qt::CaseInsensitive) == 0);
+            }
+
         }
-
-
         if(d){
             //if it's a weapon, and a match, ensure the dwarf can actually wield it as well
             if(result > 0 && (role_pref->get_item_type() == WEAPON ||
-                              (role_pref->special_flags().count() > 0 && (special_flags().contains((int)ITEMS_WEAPON) || special_flags().contains((int)ITEMS_WEAPON_RANGED))))){
-                ItemWeaponSubtype *w = d->get_df_instance()->get_weapon_def(capitalizeEach(m_name));
-                if(!w || d->body_size() < w->multi_grasp())
-                    result = 0;
-                w = 0;
+                              (m_pType == LIKE_ITEM &&
+                               role_pref->flags().count() > 0 &&
+                               (m_flags.has_flag(ITEMS_WEAPON) || m_flags.has_flag(ITEMS_WEAPON_RANGED))))){
+                ItemWeaponSubtype *w = d->get_df_instance()->find_weapon_subtype(m_name);
+                if(w){
+                    result = (d->body_size(true) >= w->multi_grasp());
+                }
             }
         }
-
     }
 
     return result;
+}
+
+void Preference::set_pref_flags(Race *r){
+    if(r){
+        set_flag(r->flags(),HATEABLE);
+
+        Caste *c = r->get_caste_by_id(0);
+        if(c){
+            QList<int> flags;
+            flags << TRAINABLE << SHEARABLE << FISHABLE << BUTCHERABLE << MILKABLE;
+            set_flags(c->flags(),flags);
+
+            if(set_flag(c->flags(),HAS_EXTRACTS)){
+                if(r->caste_flag(FISHABLE)){
+                    add_flag(VERMIN_FISH);
+                }else{
+                    add_flag(HAS_EXTRACTS);
+                }
+            }
+        }
+    }
+    m_exact_match = true;
+}
+
+void Preference::set_pref_flags(Plant *p){
+    if(p){
+        if(!p->flags().has_flag(P_SAPLING) && !p->flags().has_flag(P_TREE)){
+            QList<int> flags = QList<int>() << P_DRINK << P_MILL << P_HAS_EXTRACTS;
+            set_flags(p->flags(),flags);
+            if(set_flag(p->flags(),P_CROP)){
+                set_flag(p->flags(),P_SEED);
+            }
+        }
+    }
+    m_exact_match = true;
+}
+
+void Preference::set_pref_flags(const FlagArray &flags){
+    m_flags = FlagArray(flags);
+}
+
+void Preference::set_pref_flags(ItemSubtype *i){
+    m_exact_match = true;
+    if(i->flags().count() <= 0)
+        return;
+
+    QList<int> flags;
+    FlagArray originals;
+    ItemWeaponSubtype *w = qobject_cast<ItemWeaponSubtype*>(i);
+    if(w){
+        originals = w->flags();
+        flags << ITEMS_WEAPON << ITEMS_WEAPON_RANGED;
+    }
+    ItemArmorSubtype *a = qobject_cast<ItemArmorSubtype*>(i);
+    if(a){
+        originals = a->flags();
+        flags << IS_ARMOR << IS_CLOTHING;
+    }
+    if(originals.count() > 0 && flags.size() > 0)
+        set_flags(originals,flags);
+}
+
+void Preference::set_flags(FlagArray origin, const QList<int> flags){
+    foreach(int f, flags){
+        set_flag(origin,f);
+    }
+}
+
+bool Preference::set_flag(FlagArray origin, const int flag){
+    if(origin.has_flag(flag)){
+        add_flag(flag);
+        return true;
+    }else{
+        return false;
+    }
 }

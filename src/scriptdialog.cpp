@@ -27,9 +27,7 @@ THE SOFTWARE.
 #include "gamedatareader.h"
 #include "labor.h"
 #include "trait.h"
-#include "skill.h"
 #include "dwarftherapist.h"
-#include "attribute.h"
 #include "unithealth.h"
 #include "healthcategory.h"
 #include "healthinfo.h"
@@ -75,7 +73,7 @@ ScriptDialog::ScriptDialog(QWidget *parent)
     //ATTRIBUTES
     QString attribute_list = "<b>Attribute Reference</b><table border=1 cellpadding=3 cellspacing=0 width=100%>"
         "<tr><th width=24%>Attribute ID</th><th>Attribute</th></tr>";
-    QPair<int, QString> att_pair;
+    QPair<ATTRIBUTES_TYPE, QString> att_pair;
     foreach(att_pair, gdr->get_ordered_attribute_names()) {
         attribute_list.append(QString("<tr><td><font color=blue>%1</font></td><td><b>%2</b></td></tr>").arg(att_pair.first).arg(att_pair.second));
     }
@@ -118,13 +116,13 @@ ScriptDialog::ScriptDialog(QWidget *parent)
         job_list.append(QString("<tr><td><font color=blue>%1</font></td><td><b>%2</b></td></tr>").arg(job_pair.first).arg(job_pair.second));
     }
     job_list.append("</table>");
-    ui->text_jobs->append(job_list);    
+    ui->text_jobs->append(job_list);
 
     //HEALTH
     QString health_list = "<b>Health Reference</b><table border=1 cellpadding=3 cellspacing=0 width=100%>"
         "<tr><th width=24%>Category ID</th><th>Title</th><th>Descriptors</th></tr>";
 
-    QPair<int,QString> cat_pair;
+    QPair<eHealth::H_INFO,QString> cat_pair;
     foreach(cat_pair, UnitHealth::ordered_category_names()) {
         HealthCategory *hc = UnitHealth::get_display_categories().value(cat_pair.first);
         health_list.append(QString("<tr><td><font color=blue>%1</font></td><td><b>%2</b></td>").arg(hc->id()).arg(hc->name()));
@@ -137,7 +135,7 @@ ScriptDialog::ScriptDialog(QWidget *parent)
         health_list.append("</table></td></tr>");
     }
     health_list.append("</table>");
-    ui->text_health->append(health_list);    
+    ui->text_health->append(health_list);
 
     //EQUIPMENT/ITEMS
     QString item_list = "<b>Item Reference</b><table border=1 cellpadding=3 cellspacing=0 width=100%>"
@@ -165,7 +163,7 @@ ScriptDialog::ScriptDialog(QWidget *parent)
 
 void ScriptDialog::reposition_horiz_splitters(){
     foreach(QSplitter *s, ui->tabInfo->findChildren<QSplitter*>()){
-        if(!s->orientation() == Qt::Horizontal)
+        if(s->orientation() != Qt::Horizontal)
             continue;
         s->setStretchFactor(0,1);
         s->setStretchFactor(1,3);
@@ -245,7 +243,7 @@ bool ScriptDialog::script_is_valid(){
     return true;
 }
 
-void ScriptDialog::save_pressed() {        
+void ScriptDialog::save_pressed() {
     QString m_old_name = m_name;
     m_name = ui->txt_script_name->text();
 

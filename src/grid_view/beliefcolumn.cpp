@@ -64,8 +64,11 @@ QStandardItem *BeliefColumn::build_cell(Dwarf *d) {
     int raw_value = ub.belief_value();
     int display_value = raw_value + 50; //adjust from -50 to 50 -> 0 to 100 for drawing
     QStringList infos;
-    if (b)
+    if (b){
         infos << b->level_message(raw_value);
+    }else{
+        infos << tr("Unknown belief");
+    }
 
     if(!d->belief_is_active(m_id)){
         infos << tr("Not an active belief for this dwarf.");
@@ -73,9 +76,12 @@ QStandardItem *BeliefColumn::build_cell(Dwarf *d) {
     }
 
     //show a description of all possible conflicts
-    int all_trait_conflicts = b->get_trait_conflicts().count();
-    if(all_trait_conflicts > 0){
-        infos << tr("<br/>This belief can conflict with %1").arg(b->trait_conflict_names());
+    int all_trait_conflicts = 1;
+    if(b){
+        all_trait_conflicts = b->get_trait_conflicts().count();
+        if(all_trait_conflicts > 0){
+            infos << tr("<br/>This belief can conflict with %1").arg(b->trait_conflict_names());
+        }
     }
 
     infos.removeAll("");
@@ -88,7 +94,7 @@ QStandardItem *BeliefColumn::build_cell(Dwarf *d) {
     }
 
     item->setText(QString::number(raw_value));
-    item->setData(raw_value, DwarfModel::DR_SORT_VALUE);
+    item->setData(display_value, DwarfModel::DR_SORT_VALUE);
     item->setData(display_value, DwarfModel::DR_RATING);
     item->setData(raw_value, DwarfModel::DR_DISPLAY_RATING);
     set_export_role(DwarfModel::DR_RATING);

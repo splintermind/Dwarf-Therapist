@@ -26,15 +26,14 @@ THE SOFTWARE.
 #include "gamedatareader.h"
 #include "dwarf.h"
 #include "defines.h"
-#include "gridview.h"
 #include "columntypes.h"
 #include "utils.h"
 #include "dwarftherapist.h"
 #include "skill.h"
 #include "labor.h"
-#include "customprofession.h"
 #include "defaultfonts.h"
-#include "dwarfstats.h"
+#include "item.h"
+#include <QPainter>
 
 UberDelegate::UberDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
@@ -90,6 +89,7 @@ void UberDelegate::read_settings() {
     color_mood_cells = s->value("options/grid/color_mood_cells",false).toBool();
     color_health_cells = s->value("options/grid/color_health_cells",true).toBool();
     color_attribute_syns = s->value("options/grid/color_attribute_syns",true).toBool();
+    color_pref_matches = s->value("options/grid/color_pref_matches",false).toBool();
     m_fnt = s->value("options/grid/font", QFont(DefaultFonts::getRowFontName(), DefaultFonts::getRowFontSize())).value<QFont>();
     gradient_cell_bg = s->value("options/grid/shade_cells",true).toBool();
 }
@@ -228,7 +228,7 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
 
         int dirty_alpha = 255;
         int active_alpha = 255;
-        int min_alpha = 75;        
+        int min_alpha = 75;
 
         if(d){
             if(idx.data(DwarfModel::DR_LABORS).canConvert<QVariantList>()){
@@ -279,22 +279,34 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
         }
 
         if(type == CT_ROLE){
-            paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50.0f, 5.0f, 95.0f, 40.0f, 60.0f);
+            paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50.0f, 5.0f, 95.0f, 42.5f, 57.5f);
         }else if(rating >= 0){
             limit = 15.0f;
             paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 0, 0, limit, 0, 0);
         }
 
-        if(is_dirty){
+        if(is_dirty){ //dirty border always has priority
             QColor color_dirty_adjusted = color_dirty_border;
             color_dirty_adjusted.setAlpha(dirty_alpha);
             paint_border(adjusted,p,color_dirty_adjusted);
             paint_grid(adjusted,false,p,opt,idx,false);
-        }else if(cp_border){
+        }else if(cp_border){ //border for matching custom prof
             paint_border(adjusted,p,color_active_labor);
             paint_grid(adjusted, false, p, opt, idx,false);
-        }else{
-            paint_grid(adjusted, false, p, opt, idx);
+        }else{ //normal border, or role pref border
+            int pref_alpha = idx.data(DwarfModel::DR_SPECIAL_FLAG).toInt();
+            if(color_pref_matches && type == CT_ROLE && pref_alpha > 0){
+                if(pref_alpha < min_alpha)
+                    pref_alpha = min_alpha;
+                else if(pref_alpha > 255)
+                    pref_alpha = 255;
+                QColor color_prefs = Role::color_has_prefs();
+                color_prefs.setAlpha(pref_alpha);
+                paint_border(adjusted,p,color_prefs);
+                paint_grid(adjusted, false, p, opt, idx, false);
+            }else{
+                paint_grid(adjusted, false, p, opt, idx);
+            }
         }
 
     }
@@ -343,7 +355,7 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
     case CT_ATTRIBUTE:
     {
         QColor bg = paint_bg(adjusted, p, opt, idx);
-        paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50.0f, 2.0f, 98.0f);
+        paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50.0f, 2.0f, 98.0f,30.0f,70.0f);
 
         if(color_attribute_syns && idx.data(DwarfModel::DR_SPECIAL_FLAG).toInt() > 0){
             paint_border(adjusted,p,Attribute::color_affected_by_syns());
@@ -374,6 +386,13 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
         paint_grid(adjusted, false, p, opt, idx);
     }
         break;
+    case CT_KILLS:
+    {
+        QColor bg = paint_bg(adjusted, p, opt, idx, false, model_idx.data(Qt::BackgroundColorRole).value<QColor>());
+        paint_values(adjusted, rating, text_rating, bg, p, opt, idx, 50.0f, 1.0f, 95.0f, 49.9f, 50.1f, true);
+        paint_grid(adjusted, false, p, opt, idx);
+    }
+        break;
     case CT_HEALTH:
     {
         QColor bg = paint_bg(adjusted, p, opt, idx, false, model_idx.data(Qt::BackgroundColorRole).value<QColor>());
@@ -385,7 +404,7 @@ void UberDelegate::paint_cell(QPainter *p, const QStyleOptionViewItem &opt, cons
                 p->setPen(model_idx.data(Qt::TextColorRole).value<QColor>());
             }else{
                 if(auto_contrast){
-                    p->setPen(compliment(bg));
+                    p->setPen(complement(bg));
                 }else{
                     p->setPen(Qt::black);
                 }
@@ -476,10 +495,10 @@ QColor UberDelegate::paint_bg(const QRect &adjusted, QPainter *p, const QStyleOp
         bg = col_override;
 
     if(use_gradient && gradient_cell_bg){
-        QLinearGradient grad(adjusted.topLeft(),adjusted.bottomRight());        
+        QLinearGradient grad(adjusted.topLeft(),adjusted.bottomRight());
         grad.setColorAt(0,bg);
         bg.setAlpha(75);
-        grad.setColorAt(1,bg);        
+        grad.setColorAt(1,bg);
         p->fillRect(adjusted, grad);
     }else{
         p->fillRect(adjusted, QBrush(bg));
@@ -492,7 +511,7 @@ QColor UberDelegate::paint_bg(const QRect &adjusted, QPainter *p, const QStyleOp
 QColor UberDelegate::get_pen_color(const QColor bg) const{
     QColor c = Qt::black;
     if (auto_contrast){
-        c = compliment(bg);
+        c = complement(bg);
         if(c.toHsv().value() > 50){
             return QColor(Qt::gray);
         }else{
@@ -512,7 +531,7 @@ void UberDelegate::paint_values(const QRect &adjusted, float rating, QString tex
     pn.setWidth(0);
 
     if (auto_contrast)
-        color_fill = compliment(bg);
+        color_fill = complement(bg);
 
     QModelIndex model_idx = idx;
     if (m_proxy)
@@ -549,23 +568,21 @@ void UberDelegate::paint_values(const QRect &adjusted, float rating, QString tex
                 adj_rating = adj_rating / median * 50.0f;
             }else{
                 adj_rating = ((adj_rating - median) / (100.0f-median) * 50.0f) + 50.0f;
-                //adj_rating = (((adj_rating - min_limit) * (100.0f - 0)) / (max_limit - min_limit)) + 0;
             }
         }
-        //also invert the value if it was below the median, and rescale our drawing values from 0-50 and 50-100
-        if(adj_rating > 50.0f){
-            //adj_rating = (((adj_rating - 0) * (100.0f - 50.0f)) / (max_limit - min_limit)) + 50.0f;
-            adj_rating = (adj_rating - 50.0f) * 2.0f;
-        }else{
-            adj_rating = 100 - (adj_rating * 2.0f);
-        }
+//        //also invert the value if it was below the median, and rescale our drawing values from 0-50 and 50-100
+//        if(adj_rating > 50.0f){
+//            adj_rating = (adj_rating - 50.0f) * 2.0f;
+//        }else{
+//            adj_rating = 100 - (adj_rating * 2.0f);
+//        }
     }
 
     p->save();
     switch(m_skill_drawing_method) {
     default:
     case SDM_GROWING_CENTRAL_BOX:
-        if (rating != 0 && (rating >= max_limit || rating <= min_limit)) {
+        if (adj_rating >= max_limit || adj_rating <= min_limit) {
             // draw diamond
             p->setRenderHint(QPainter::Antialiasing);
             p->setPen(pn);
@@ -573,12 +590,19 @@ void UberDelegate::paint_values(const QRect &adjusted, float rating, QString tex
             p->translate(opt.rect.x() + 2, opt.rect.y() + 2);
             p->scale(opt.rect.width() - 4, opt.rect.height() - 4);
             p->drawPolygon(m_diamond_shape);
-        } else if (rating > -1 && rating < max_limit) {
+        } else if (adj_rating > -1) {
             //0.05625 is the smallest dot we can draw here, so scale to ensure the smallest exp value (1/500 or .002) can always be drawn
             //relative to our maximum limit for this range. this could still be improved to take into account the cell size, as having even
-            //smaller cells than the default (16) may not draw very low dabbling skill xp levels            
+            //smaller cells than the default (16) may not draw very low dabbling skill xp levels
             float perc_of_cell = 0.76f; //max amount of the cell to fill
-            double size = (((adj_rating-min_limit) * (perc_of_cell - 0.05625)) / (max_limit - min_limit)) + 0.05625;
+
+            double size = perc_of_cell;
+            if((median > 0 && adj_rating > 50.0f) || median == 0){
+                size = ((adj_rating-max_ignore) * (perc_of_cell - 0.05625)) / (max_limit - max_ignore) + 0.05625;
+            }else{
+                size = ((adj_rating-min_limit) * (perc_of_cell - 0.05625)) / (min_ignore - min_limit) + 0.05625;
+                size = perc_of_cell - size;
+            }
             //double size = (((adj_rating-0) * (perc_of_cell - 0.05625)) / (100.0f-0)) + 0.05625;
             //size = roundf(size * 100) / 100; //this is to aid in the problem of an odd number of pixel in an even size cell, or vice versa
             double inset = (1.0f - size) / 2.0f;
@@ -741,14 +765,7 @@ void UberDelegate::paint_wear_cell(const QRect &adjusted, QPainter *p, const QSt
         return;
     }
     if(wear_level > 0){
-        int alpha = 255;
-        if(wear_level == 2)
-            alpha = 190;
-        if(wear_level == 1)
-            alpha = 135;
-        QColor wear_color = Item::color_wear();
-        wear_color.setAlpha(alpha);
-        paint_border(adjusted,p,wear_color);
+        paint_border(adjusted,p,Item::color_wear(wear_level));
         paint_grid(adjusted, false, p, opt, proxy_idx, false); //draw dirty border and guides
     }else{
         paint_grid(adjusted, false, p, opt, proxy_idx);
@@ -836,7 +853,7 @@ void UberDelegate::paint_labor_aggregate(const QRect &adjusted, QPainter *p, con
         //        rating = (float)enabled_count / (float)m_proxy->rowCount(first_col) * 100.0f;
 
         if(auto_contrast){
-            p->setPen(compliment(color_partial_group));
+            p->setPen(complement(color_partial_group));
         }else{
             p->setPen(Qt::black);
         }

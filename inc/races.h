@@ -30,6 +30,7 @@ THE SOFTWARE.
 class DFInstance;
 class MemoryLayout;
 class Caste;
+class Material;
 
 class Race : public QObject {
     Q_OBJECT
@@ -43,7 +44,7 @@ public:
     VIRTADDR address() {return m_address;}
 
     int race_id() {return m_id;}
-    QString name() {return m_name;}
+    QString name(int count = 1) {return (count > 1 ? m_name_plural : m_name);}
     QString plural_name() {return m_name_plural;}
     QString adjective() {return m_adjective;}
     QString description() {return m_description;}
@@ -56,14 +57,12 @@ public:
     VIRTADDR castes_vector() {return m_castes_vector;}
     Material *get_creature_material(int index);
     QHash<int, Material *> get_creature_materials();
-    Caste *get_caste_by_id(int id) const {return m_castes.value(id, 0);}
+    Caste *get_caste_by_id(int idx);
 
     void load_data();
     FlagArray flags() {return m_flags;}
 
-    bool is_trainable();
-    bool is_milkable();
-    bool is_vermin_extractable();
+    bool caste_flag(CASTE_FLAGS cf);
 
     void load_caste_ratios();
 
@@ -79,9 +78,9 @@ private:
     QString m_baby_name;
     QString m_baby_name_plural;
     QString m_child_name;
-    QString m_child_name_plural;    
-    QMap<int, Caste*> m_castes;
-    QHash<int,Material*> m_creature_mats;
+    QString m_child_name_plural;
+    QList<Caste*> m_castes;
+    QHash<int, Material*> m_creature_mats;
 
     VIRTADDR m_pref_string_vector;
     VIRTADDR m_pop_ratio_vector;
@@ -91,7 +90,7 @@ private:
     QVector<VIRTADDR> m_tissues_addr;
 
     DFInstance * m_df;
-    MemoryLayout * m_mem;    
+    MemoryLayout * m_mem;
     FlagArray m_flags;
 
     bool loaded_stats;

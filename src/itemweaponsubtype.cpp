@@ -20,51 +20,37 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+
 #include "itemweaponsubtype.h"
 #include "dfinstance.h"
 #include "memorylayout.h"
-#include "truncatingfilelogger.h"
-#include <QtDebug>
 
 ItemWeaponSubtype::ItemWeaponSubtype(DFInstance *df, VIRTADDR address, QObject *parent)
-    : QObject(parent)
-    , m_address(address)
-    , m_name_plural(QString::null)    
+    : ItemSubtype(df,address,parent)
     , m_single_grasp_size(0)
-    , m_multi_grasp_size(0)    
-    , m_df(df)
-    , m_mem(df->memory_layout())
+    , m_multi_grasp_size(0)
 {
-    load_data();
+    read_data();
 }
 
 ItemWeaponSubtype::~ItemWeaponSubtype() {
 }
 
-ItemWeaponSubtype* ItemWeaponSubtype::get_weapon(DFInstance *df, const VIRTADDR & address, QObject *parent) {
-    return new ItemWeaponSubtype(df, address, parent);
-}
+void ItemWeaponSubtype::read_data() {
+    ItemSubtype::read_data();
+    //set the group name as the simple plural name (no adjective or preplural)
+    QString plural = capitalizeEach(m_df->read_string(m_address + m_mem->item_subtype_offset("name_plural")));
+    m_group_name = plural;
 
-void ItemWeaponSubtype::load_data() {
-    if (!m_df || !m_df->memory_layout() || !m_df->memory_layout()->is_valid()) {
-        LOGW << "load of weapons called but we're not connected";
-        return;
+    m_single_grasp_size = m_df->read_int(m_address + m_mem->weapon_subtype_offset("single_size")); //two_hand size
+    m_multi_grasp_size = m_df->read_int(m_address + m_mem->weapon_subtype_offset("multi_size")); //minimum size
+    m_melee_skill_id = m_df->read_short(m_address + m_mem->weapon_subtype_offset("melee_skill"));
+    m_ranged_skill_id = m_df->read_short(m_address + m_mem->weapon_subtype_offset("ranged_skill"));
+
+    m_ammo = m_df->read_string(m_address + m_mem->weapon_subtype_offset("ammo"));
+    if(m_ammo.isEmpty()){
+        m_flags.set_flag(ITEMS_WEAPON,true);
+    }else{
+        m_flags.set_flag(ITEMS_WEAPON_RANGED,true);
     }
-    // make sure our reference is up to date to the active memory layout
-    m_mem = m_df->memory_layout();
-    TRACE << "Starting refresh of weapon data at" << hexify(m_address);
-
-    read_weapon();
-}
-
-void ItemWeaponSubtype::read_weapon() {
-    m_subType = m_df->read_short(m_address + m_df->memory_layout()->item_subtype_offset("sub_type"));
-    m_name = capitalizeEach(m_df->read_string(m_address + m_df->memory_layout()->item_subtype_offset("name")));
-    m_name_plural = capitalizeEach(m_df->read_string(m_address + m_df->memory_layout()->item_subtype_offset("name_plural"))); //plural
-    group_name = m_name_plural; //set to plural for default
-    m_single_grasp_size = m_df->read_int(m_address + m_df->memory_layout()->weapon_subtype_offset("single_size")); //two_hand size
-    m_multi_grasp_size = m_df->read_int(m_address + m_df->memory_layout()->weapon_subtype_offset("multi_size")); //minimum size
-    m_ammo = m_df->read_string(m_address + m_df->memory_layout()->weapon_subtype_offset("ammo"));
-    m_melee_skill_id = m_df->read_short(m_address + m_df->memory_layout()->weapon_subtype_offset("melee_skill"));
-    m_ranged_skill_id = m_df->read_short(m_address + m_df->memory_layout()->weapon_subtype_offset("ranged_skill"));
 }

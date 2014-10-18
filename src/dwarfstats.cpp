@@ -29,6 +29,7 @@ THE SOFTWARE.
 
 float DwarfStats::m_att_pot_weight;
 float DwarfStats::m_skill_rate_weight;
+int DwarfStats::m_max_unit_kills;
 
 QSharedPointer<RoleStats> DwarfStats::m_skills;
 QSharedPointer<RoleStats> DwarfStats::m_attributes;
@@ -37,12 +38,12 @@ QSharedPointer<RoleStats> DwarfStats::m_traits;
 QSharedPointer<RoleStats> DwarfStats::m_preferences;
 QSharedPointer<RoleStats> DwarfStats::m_roles;
 
-float DwarfStats::calc_att_potential_value(int value, float max, float cti){
-    float potential_value = 0.0;
-    float diff = max - value;
-    if(cti < 0)
+double DwarfStats::calc_att_potential_value(int value, float max, float cti){
+    double potential_value = 0.0;
+    double diff = max - value;
+    if(cti <= 0)
         cti = 1.0;
-    float gap = diff * 500 / cti;
+    double gap = diff * 500 / cti;
 
     //uses the cost to improve and the attributes maximum to apply a bonus
     //based on the difference between the attribute's current value and the maximum possible
@@ -69,9 +70,9 @@ void DwarfStats::init_attributes(QVector<double> attribute_values, QVector<doubl
     else
         m_attributes_raw->set_list(attribute_raw_values);
 }
-double DwarfStats::get_attribute_rating(int val,bool raw){
+double DwarfStats::get_attribute_rating(double val,bool raw){
     if(raw)
-        return m_attributes_raw->get_rating((double)val);//m_attributes_raw->favg((double)val);
+        return m_attributes_raw->get_rating(val);
     else
         return m_attributes->get_rating(val);
 }
@@ -88,7 +89,7 @@ double DwarfStats::get_trait_rating(int val){
 
 void DwarfStats::init_prefs(QVector<double> pref_values){
     if(m_preferences == 0)
-        m_preferences = QSharedPointer<RoleStats>(new RoleStats(pref_values));
+        m_preferences = QSharedPointer<RoleStats>(new RoleStats(pref_values,0));
     else
         m_preferences->set_list(pref_values);
 }
@@ -98,7 +99,7 @@ double DwarfStats::get_preference_rating(double val){
 
 void DwarfStats::init_skills(QVector<double> skill_values){
     if(m_skills == 0)
-        m_skills = QSharedPointer<RoleStats>(new RoleStats(skill_values));
+        m_skills = QSharedPointer<RoleStats>(new RoleStats(skill_values,0));
     else
         m_skills->set_list(skill_values);
 }
@@ -108,7 +109,7 @@ double DwarfStats::get_skill_rating(double val){
 
 void DwarfStats::init_roles(QVector<double> role_ratings){
     if(m_roles == 0)
-        m_roles = QSharedPointer<RoleStats>(new RoleStats(role_ratings));
+        m_roles = QSharedPointer<RoleStats>(new RoleStats(role_ratings,-1,true));
     else
         m_roles->set_list(role_ratings);
 }

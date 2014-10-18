@@ -20,16 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#include <QDesktopServices>
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QtDebug>
-#include <QShortcut>
-
 #include "mainwindow.h"
-#include "ui_about.h"
 #include "ui_mainwindow.h"
-#include "ui_pendingchanges.h"
 #include "aboutdialog.h"
 #include "dwarf.h"
 #include "dwarfmodel.h"
@@ -37,40 +29,47 @@ THE SOFTWARE.
 #include "memorylayout.h"
 #include "viewmanager.h"
 #include "viewcolumnset.h"
-#include "uberdelegate.h"
 #include "customprofession.h"
 #include "superlabor.h"
-#include "labor.h"
 #include "defines.h"
 #include "version.h"
 #include "dwarftherapist.h"
 #include "importexportdialog.h"
-#include "gridviewdock.h"
-#include "skilllegenddock.h"
-#include "dwarfdetailsdock.h"
 #include "columntypes.h"
 #include "rotatedheader.h"
-#include "scanner.h"
 #include "scriptdialog.h"
 #include "truncatingfilelogger.h"
 #include "roledialog.h"
 #include "viewcolumn.h"
 #include "rolecolumn.h"
 #include "statetableview.h"
-#include "preferencesdock.h"
 #include "laboroptimizer.h"
 #include "laboroptimizerplan.h"
 #include "optimizereditor.h"
 #include "gamedatareader.h"
 #include "thoughtsdock.h"
-#include "fortressentity.h"
 #include "preference.h"
-#include "healthlegenddock.h"
 #include "dfinstance.h"
 #include "squad.h"
-
+#include "gridviewdock.h"
+#include "skilllegenddock.h"
+#include "dwarfdetailsdock.h"
+#include "informationdock.h"
+#include "preferencesdock.h"
+#include "thoughtsdock.h"
+#include "healthlegenddock.h"
+#include "equipmentoverviewdock.h"
 #include "eventfilterlineedit.h"
+#include "eventfilterlineedit.h"
+#include "gridview.h"
 
+#include <QDesktopServices>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QShortcut>
+#include <QTime>
+#include <QPainter>
+#include <QUrl>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -84,7 +83,6 @@ MainWindow::MainWindow(QWidget *parent)
     , m_model(new DwarfModel(this))
     , m_proxy(new DwarfModelProxy(this))
     , m_about_dialog(new AboutDialog(this))
-    , m_scanner(0)
     , m_script_dialog(new ScriptDialog(this))
     , m_role_editor(0)
     , m_optimize_plan_editor(0)
@@ -93,9 +91,9 @@ MainWindow::MainWindow(QWidget *parent)
     , m_dwarf_name_completer(0)
     , m_force_connect(false)
     , m_try_download(true)
-    , m_deleting_settings(false)    
+    , m_deleting_settings(false)
     , m_act_sep_optimize(0)
-    , m_btn_optimize(0)    
+    , m_btn_optimize(0)
 {
     ui->setupUi(this);
 
@@ -124,6 +122,11 @@ MainWindow::MainWindow(QWidget *parent)
     dwarf_details_dock->setFloating(false);
     addDockWidget(Qt::RightDockWidgetArea, dwarf_details_dock);
 
+    InformationDock *info_dock = new InformationDock(this);
+    info_dock->setHidden(true);
+    info_dock->setFloating(false);
+    addDockWidget(Qt::RightDockWidgetArea, info_dock);
+
     PreferencesDock *pref_dock = new PreferencesDock(this);
     pref_dock->setHidden(true);
     pref_dock->setFloating(false);
@@ -139,14 +142,21 @@ MainWindow::MainWindow(QWidget *parent)
     health_dock->setFloating(false);
     addDockWidget(Qt::RightDockWidgetArea, health_dock);
 
+    EquipmentOverviewDock *equipoverview_dock = new EquipmentOverviewDock(this);
+    equipoverview_dock->setHidden(true);
+    equipoverview_dock->setFloating(false);
+    addDockWidget(Qt::RightDockWidgetArea, equipoverview_dock);
+
     ui->menu_docks->addAction(ui->dock_pending_jobs_list->toggleViewAction());
     ui->menu_docks->addAction(ui->dock_custom_professions->toggleViewAction());
     ui->menu_docks->addAction(grid_view_dock->toggleViewAction());
     ui->menu_docks->addAction(skill_legend_dock->toggleViewAction());
+    ui->menu_docks->addAction(info_dock->toggleViewAction());
     ui->menu_docks->addAction(dwarf_details_dock->toggleViewAction());
     ui->menu_docks->addAction(pref_dock->toggleViewAction());
     ui->menu_docks->addAction(thought_dock->toggleViewAction());
     ui->menu_docks->addAction(health_dock->toggleViewAction());
+    ui->menu_docks->addAction(equipoverview_dock->toggleViewAction());
 
     ui->menuWindows->addAction(ui->main_toolbar->toggleViewAction());
 
@@ -159,7 +169,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->act_commit_pending_changes, SIGNAL(triggered()), m_model, SLOT(commit_pending()));
     connect(ui->act_expand_all, SIGNAL(triggered()), m_view_manager, SLOT(expand_all()));
     connect(ui->act_collapse_all, SIGNAL(triggered()), m_view_manager, SLOT(collapse_all()));
-    connect(ui->act_add_new_gridview, SIGNAL(triggered()), grid_view_dock, SLOT(add_new_view()));
 
     connect(ui->tree_pending, SIGNAL(currentItemChanged(QTreeWidgetItem *, QTreeWidgetItem *)),
             m_view_manager, SLOT(jump_to_dwarf(QTreeWidgetItem *, QTreeWidgetItem *)));
@@ -169,6 +178,9 @@ MainWindow::MainWindow(QWidget *parent)
             m_view_manager, SLOT(jump_to_profession(QTreeWidgetItem*,QTreeWidgetItem*)));
 
     connect(m_view_manager, SIGNAL(dwarf_focus_changed(Dwarf*)), dwarf_details_dock, SLOT(show_dwarf(Dwarf*)));
+
+    connect(m_proxy, SIGNAL(show_tooltip(QString)),info_dock,SLOT(show_info(QString)));
+
     connect(m_view_manager, SIGNAL(selection_changed()), this, SLOT(toggle_opts_menu()));
     connect(ui->cb_filter_script, SIGNAL(currentIndexChanged(const QString &)), SLOT(new_filter_script_chosen(const QString &)));
 
@@ -182,6 +194,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(pref_dock,SIGNAL(item_selected(QList<QPair<QString,QString> >)),this,SLOT(preference_selected(QList<QPair<QString,QString> >)));
     connect(thought_dock, SIGNAL(item_selected(QList<short>)), this, SLOT(thought_selected(QList<short>)));
     connect(health_dock, SIGNAL(item_selected(QList<QPair<int,int> >)), this, SLOT(health_legend_selected(QList<QPair<int,int> >)));
+    connect(equipoverview_dock, SIGNAL(item_selected(QList<QPair<QString,int> >)), this, SLOT(equipoverview_selected(QList<QPair<QString,int> >)));
+
+    connect(this,SIGNAL(lostConnection()),equipoverview_dock,SLOT(clear()));
+    connect(this,SIGNAL(lostConnection()),pref_dock,SLOT(clear()));
+    connect(this,SIGNAL(lostConnection()),thought_dock,SLOT(clear()));
 
     connect(ui->btn_clear_filters, SIGNAL(clicked()),this,SLOT(clear_all_filters()));
 
@@ -197,7 +214,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_settings = new QSettings(QSettings::IniFormat, QSettings::UserScope, COMPANY, PRODUCT, this);
 
     m_progress->setVisible(false);
-    statusBar()->addPermanentWidget(m_lbl_message, 0);    
+    statusBar()->addPermanentWidget(m_lbl_message, 0);
     statusBar()->addPermanentWidget(m_lbl_status, 0);
     set_interface_enabled(false);
 
@@ -205,6 +222,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->cb_group_by->addItem(tr("Age"), DwarfModel::GB_AGE);
     ui->cb_group_by->addItem(tr("Caste"), DwarfModel::GB_CASTE);
     ui->cb_group_by->addItem(tr("Current Job"), DwarfModel::GB_CURRENT_JOB);
+    ui->cb_group_by->addItem(tr("Gender & Orientation"), DwarfModel::GB_SEX);
     ui->cb_group_by->addItem(tr("Goals"), DwarfModel::GB_GOALS);
     ui->cb_group_by->addItem(tr("Happiness"), DwarfModel::GB_HAPPINESS);
     ui->cb_group_by->addItem(tr("Has Nickname"),DwarfModel::GB_HAS_NICKNAME);
@@ -216,7 +234,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->cb_group_by->addItem(tr("Military Status"),DwarfModel::GB_MILITARY_STATUS);
     ui->cb_group_by->addItem(tr("Profession"), DwarfModel::GB_PROFESSION);
     ui->cb_group_by->addItem(tr("Race"), DwarfModel::GB_RACE);
-    ui->cb_group_by->addItem(tr("Sex"), DwarfModel::GB_SEX);
     ui->cb_group_by->addItem(tr("Skill Rust"), DwarfModel::GB_SKILL_RUST);
     ui->cb_group_by->addItem(tr("Squad"), DwarfModel::GB_SQUAD);
     ui->cb_group_by->addItem(tr("Total Assigned Labors"),DwarfModel::GB_ASSIGNED_LABORS);
@@ -238,19 +255,18 @@ MainWindow::MainWindow(QWidget *parent)
     raise();
 }
 
-MainWindow::~MainWindow() {       
+MainWindow::~MainWindow() {
     delete m_lbl_status;
     delete m_lbl_message;
     delete m_progress;
 
     delete m_about_dialog;
-    delete m_scanner;
     delete m_script_dialog;
     delete m_role_editor;
-    delete m_optimize_plan_editor;    
+    delete m_optimize_plan_editor;
     delete m_dwarf_name_completer;
 
-    delete m_model;    
+    delete m_model;
     delete m_view_manager;
     delete m_proxy;
     delete m_df;
@@ -258,11 +274,10 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
-
 void MainWindow::read_settings() {
     m_reading_settings = true;
     m_settings->beginGroup("window");
-    { // WINDOW SETTINGS        
+    { // WINDOW SETTINGS
         try{
             //restore window size/position
             QByteArray geom = m_settings->value("geometry").toByteArray();
@@ -324,7 +339,7 @@ void MainWindow::connect_to_df() {
         LOGI << "already connected, disconnecting";
         delete m_df;
         set_interface_enabled(false);
-        m_df = 0;            
+        m_df = 0;
         reset();
     }
 
@@ -334,8 +349,6 @@ void MainWindow::connect_to_df() {
     // find_running_copy can fail for several reasons, and will take care of
     // logging and notifying the user.
     if (m_force_connect && m_df && m_df->find_running_copy(true)) {
-        m_scanner = new Scanner(m_df, this);
-
         if(m_df->memory_layout()){
             LOGI << "Connection to DF version" << m_df->memory_layout()->game_version() << "established.";
             set_status_message(tr("Connected to DF %1").arg(m_df->memory_layout()->game_version()),tr("Currently using layout file: %1").arg(m_df->memory_layout()->filename()));
@@ -345,7 +358,6 @@ void MainWindow::connect_to_df() {
         }
         m_force_connect = false;
     } else if (m_df && m_df->find_running_copy() && m_df->is_ok()) {
-        m_scanner = new Scanner(m_df, this);
         LOGI << "Connection to DF version" << m_df->memory_layout()->game_version() << "established.";
         set_status_message(tr("Connected to DF %1").arg(m_df->memory_layout()->game_version()),tr("Currently using layout file: %1").arg(m_df->memory_layout()->filename()));
         m_force_connect = false;
@@ -385,11 +397,12 @@ void MainWindow::set_status_message(QString msg, QString tooltip_msg){
 
 void MainWindow::lost_df_connection() {
     LOGW << "lost connection to DF";
+    emit lostConnection();
     if (m_df) {
         m_model->clear_all(true);
         m_df->disconnect();
         delete m_df;
-        m_df = 0;                    
+        m_df = 0;
         reset();
         set_interface_enabled(false);
         QString details = tr("Dwarf Fortress has either stopped running, or you unloaded your game. Please re-connect when a fort is loaded.");
@@ -428,14 +441,14 @@ void MainWindow::read_dwarves() {
             foreach(ViewColumn *col, set->columns()) {
                 col->clear_cells();
             }
-        }        
+        }
     }
     m_model->clear_all(false);
 
     m_model->set_instance(m_df);
     m_df->load_fortress();
     m_df->load_squads(false);
-    m_model->load_dwarves();    
+    m_model->load_dwarves();
 
     set_progress_message("Setting up interface...");
 
@@ -492,31 +505,23 @@ void MainWindow::read_dwarves() {
     //apply a filter when an item is clicked with the mouse in the popup list
     connect(m_dwarf_name_completer->popup(),SIGNAL(clicked(QModelIndex)),this,SLOT(apply_filter(QModelIndex)));
     //we need a custom event filter to intercept the enter key and emit our own signal to filter when enter is hit
-    EventFilterLineEdit *filter = new EventFilterLineEdit(ui->le_filter_text);
+    EventFilterLineEdit *filter = new EventFilterLineEdit(ui->le_filter_text, this);
     m_dwarf_name_completer->popup()->installEventFilter(filter);
     connect(filter,SIGNAL(enterPressed(QModelIndex)),this,SLOT(apply_filter(QModelIndex)));
 
-    //refresh preference dock    
-    PreferencesDock *d_prefs = qobject_cast<PreferencesDock*>(QObject::findChild<PreferencesDock*>("dock_preferences"));
-    if(d_prefs){
-        d_prefs->refresh();
-    }
-    //refresh thoughts dock
-    ThoughtsDock *d_thoughts = qobject_cast<ThoughtsDock*>(QObject::findChild<ThoughtsDock*>("dock_thoughts"));
-    if(d_thoughts){
-        d_thoughts->refresh();
-    }
-
     if(!m_role_editor){
-        m_role_editor = new roleDialog(m_df, this);        
+        m_role_editor = new roleDialog(m_df, this);
         connect(m_role_editor, SIGNAL(finished(int)), this, SLOT(done_editing_role(int)),Qt::UniqueConnection);
     }
     if(!m_optimize_plan_editor){
         m_optimize_plan_editor = new optimizereditor(this);
         connect(m_optimize_plan_editor, SIGNAL(finished(int)), this, SLOT(done_editing_opt_plan(int)), Qt::UniqueConnection);
+    }\
+    if(!m_script_dialog){
+        m_script_dialog = new ScriptDialog(this);
     }
 
-    if(DT->multiple_castes && ui->cb_group_by->findData(DwarfModel::GB_CASTE_TAG) < 0){        
+    if(DT->multiple_castes && ui->cb_group_by->findData(DwarfModel::GB_CASTE_TAG) < 0){
         //special grouping when using multiple castes, insert it after the caste group
         ui->cb_group_by->blockSignals(true);
         int grp_by = ui->cb_group_by->itemData(ui->cb_group_by->currentIndex()).toInt();
@@ -550,7 +555,6 @@ void MainWindow::apply_filter(QModelIndex idx){
 void MainWindow::set_interface_enabled(bool enabled) {
     ui->act_connect_to_DF->setEnabled(!enabled);
     ui->act_read_dwarves->setEnabled(enabled);
-    //ui->act_scan_memory->setEnabled(enabled);
     ui->act_expand_all->setEnabled(enabled);
     ui->act_collapse_all->setEnabled(enabled);
     ui->cb_group_by->setEnabled(enabled);
@@ -690,12 +694,6 @@ void MainWindow::layout_check_finished(bool error) {
     }
 }
 
-void MainWindow::scan_memory() {
-    if (m_scanner) {
-        m_scanner->show();
-    }
-}
-
 void MainWindow::set_group_by(int group_by) {
     //if disconnected, don't try to update the view grouping
     if(!m_df)
@@ -830,7 +828,7 @@ void MainWindow::load_customizations() {
 void MainWindow::draw_custom_profession_context_menu(const QPoint &p) {
     QModelIndex idx = ui->tree_custom_professions->indexAt(p);
     if (!idx.isValid() || ui->tree_custom_professions->itemAt(p)->parent() == 0)
-        return;        
+        return;
 
     QVariantList data;
     data << idx.data(Qt::UserRole) << idx.data(Qt::UserRole+1);
@@ -857,7 +855,7 @@ void MainWindow::go_to_forums() {
     QDesktopServices::openUrl(QUrl("http://www.bay12forums.com/smf/index.php?topic=122968.0"));
 }
 void MainWindow::go_to_donate() {
-    QDesktopServices::openUrl(QUrl("http://tinyurl.com/pphgqbz"));
+    QDesktopServices::openUrl(QUrl("https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=GM5Z6DYJEVW56&item_name=Donation"));
 }
 void MainWindow::go_to_project_home() {
     QDesktopServices::openUrl(QUrl("https://github.com/splintermind/Dwarf-Therapist"));
@@ -867,8 +865,25 @@ void MainWindow::go_to_new_issue() {
 }
 
 void MainWindow::open_help(){
-    QString manual_path = QString("file://%1/Therapist Manual.pdf").arg(QCoreApplication::applicationDirPath());
-    QDesktopServices::openUrl(QUrl::fromLocalFile(manual_path));
+    QString appdir = QCoreApplication::applicationDirPath();
+    QStringList doc_dirs;
+    // Dwarf Therapist xx.x/doc/Dwarf Therapist.pdf
+    doc_dirs << QString("%1/doc").arg(appdir);
+    // Dwarf-Therapist/release/../doc/Dwarf Therapist.pdf
+    doc_dirs << QString("%1/../doc").arg(appdir);
+    // /usr/bin/../share/doc/dwarftherapist/Dwarf Therapist.pdf
+    doc_dirs << QString("%1/../share/dwarftherapist").arg(appdir);
+
+    QUrl url("http://dffd.wimbli.com/file.php?id=7889");
+    foreach (const QString &dir, doc_dirs) {
+        QString file = dir + "/Dwarf Therapist.pdf";
+        if (QFile::exists(file)) {
+            url = QUrl::fromLocalFile(file);
+            break;
+        }
+    }
+
+    QDesktopServices::openUrl(url);
 }
 
 QToolBar *MainWindow::get_toolbar() {
@@ -926,7 +941,7 @@ void MainWindow::save_gridview_csv()
     out << row.join(",") << endl;
     row.clear();
 
-    QList<Dwarf*> dwarves = m_proxy->get_filtered_dwarves();    
+    QList<Dwarf*> dwarves = m_proxy->get_filtered_dwarves();
     foreach(Dwarf *d, dwarves){
         if(d->is_animal() || d->is_adult() || (!DT->hide_non_adults() && !d->is_adult())){
             row.append(d->nice_name());
@@ -999,7 +1014,7 @@ void MainWindow::show_dwarf_details_dock(Dwarf *d) {
     DwarfDetailsDock *dock = qobject_cast<DwarfDetailsDock*>(QObject::findChild<DwarfDetailsDock*>("dock_dwarf_details"));
     if (dock && d) {
         dock->show_dwarf(d);
-        dock->show();        
+        dock->show();
     }
 }
 
@@ -1042,8 +1057,9 @@ void MainWindow::reload_filter_scripts() {
     }
     s->endGroup();
 
-    QMap<QString, QString>::const_iterator i = m_scripts.constBegin();
-    while(i != m_scripts.constEnd()){
+    for (QMap<QString, QString>::const_iterator i = m_scripts.constBegin()
+         ; i != m_scripts.constEnd()
+         ; ++i){
         QStringList data;
         data.append(i.key());
         data.append(i.value());
@@ -1052,7 +1068,6 @@ void MainWindow::reload_filter_scripts() {
 
         QAction *r = ui->menu_remove_script->addAction(i.key(),this,SLOT(remove_filter_script()) );
         r->setData(i.key());
-        i++;
     }
     ui->cb_filter_script->addItems(m_scripts.uniqueKeys());
 }
@@ -1061,7 +1076,7 @@ void MainWindow::add_new_custom_role() {
     if(m_role_editor){
         connect(m_view_manager, SIGNAL(selection_changed()), m_role_editor, SLOT(selection_changed()),Qt::UniqueConnection);
         m_role_editor->load_role("");
-        m_role_editor->show();        
+        m_role_editor->show();
     }
 }
 
@@ -1100,7 +1115,7 @@ void MainWindow::remove_custom_role(){
                         foreach(ViewColumn *vc, vcs->columns()){
                             if(vc->type()==CT_ROLE){
                                 RoleColumn *rc = ((RoleColumn*)vc);
-                                if(rc->get_role() && rc->get_role()->name==name){
+                                if(rc->get_role() && rc->get_role()->name()==name){
                                     vcs->remove_column(vc);
                                 }
                             }
@@ -1142,7 +1157,7 @@ void MainWindow::refresh_role_menus() {
     QList<QPair<QString, Role*> > roles = GameDataReader::ptr()->get_ordered_roles();
     QPair<QString, Role*> role_pair;
     foreach(role_pair, roles){
-        if(role_pair.second->is_custom){
+        if(role_pair.second->is_custom()){
             QAction *edit = ui->menu_edit_roles->addAction(role_pair.first,this,SLOT(edit_custom_role()) );
             edit->setData(role_pair.first);
 
@@ -1166,7 +1181,7 @@ void MainWindow::write_custom_roles(){
     s->beginWriteArray("custom_roles");
     int count = 0;
     foreach(Role *r, GameDataReader::ptr()->get_roles()){
-        if(r->is_custom){
+        if(r->is_custom()){
             s->setArrayIndex(count);
             r->write_to_ini(*s, default_attributes_weight, default_traits_weight, default_skills_weight, default_prefs_weight);
             count++;
@@ -1233,7 +1248,7 @@ void MainWindow::print_gridview() {
     w += 2;
 
     //calculate the height
-    h = (s->get_model()->total_row_count * actual_cell_size) + s->get_header()->height();
+    h = (s->get_model()->total_row_count() * actual_cell_size) + s->get_header()->height();
     h += (this->height() - s->height());
     h += 2; //small buffer for the edge
 
@@ -1267,7 +1282,7 @@ void MainWindow::set_progress_message(const QString &msg) {
 void MainWindow::set_progress_range(int min, int max) {
     m_progress->setVisible(true);
     m_progress->setRange(min, max);
-    m_progress->setValue(min);    
+    m_progress->setValue(min);
     statusBar()->insertPermanentWidget(1, m_progress, 1);
 }
 
@@ -1288,7 +1303,7 @@ void MainWindow::display_group(const int group_by){
     int idx = ui->cb_group_by->findData(static_cast<DwarfModel::GROUP_BY>(group_by));
     if(idx < 0)
         idx = 0;
-    ui->cb_group_by->setCurrentIndex(idx);    
+    ui->cb_group_by->setCurrentIndex(idx);
     ui->cb_group_by->blockSignals(false);
 }
 
@@ -1343,11 +1358,26 @@ void MainWindow::thought_selected(QList<short> ids){
     m_proxy->refresh_script();
 }
 
+void MainWindow::equipoverview_selected(QList<QPair<QString,int> > item_wear){
+    QString filter = "";
+    if(item_wear.size() > 0){
+        QPair<QString,int> key;
+        foreach(key,item_wear){
+            filter.append(QString("d.has_wear(\"%1\",%2) && ").arg(key.first).arg(key.second));
+        }
+        filter.chop(4);
+        m_proxy->apply_script("item wear",filter);
+    }else{
+        m_proxy->clear_script("item wear");
+    }
+    m_proxy->refresh_script();
+}
+
 void MainWindow::health_legend_selected(QList<QPair<int, int> > vals){
-    QStringList filters;    
+    QStringList filters;
     if(!vals.isEmpty()){
         QPair<int,int> key_pair;
-        foreach(key_pair, vals){            
+        foreach(key_pair, vals){
             filters.append(QString("d.has_health_issue(%1,%2)").arg(QString::number(key_pair.first)).arg(QString::number(key_pair.second)));
         }
         m_proxy->apply_script("health",filters.join(" && "));
@@ -1428,7 +1458,7 @@ void MainWindow::toggle_opts_menu(){
 
 void MainWindow::refresh_opts_menus() {
     //setup the optimize button
-    if(!m_btn_optimize && ! m_act_sep_optimize){       
+    if(!m_btn_optimize && ! m_act_sep_optimize){
         m_btn_optimize = new QToolButton(ui->main_toolbar);
         if (DT->user_settings()->value("options/show_toolbutton_text", true).toBool()) {
             m_btn_optimize->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -1447,7 +1477,7 @@ void MainWindow::refresh_opts_menus() {
         connect(m_btn_optimize, SIGNAL(clicked()), this, SLOT(init_optimize()));
 
         m_act_btn_optimize = ui->main_toolbar->insertWidget(ui->act_options, m_btn_optimize);
-        m_act_sep_optimize = ui->main_toolbar->insertSeparator(ui->act_options);        
+        m_act_sep_optimize = ui->main_toolbar->insertSeparator(ui->act_options);
     }
     QMenu *opt_menu = new QMenu(m_btn_optimize);
 
@@ -1539,7 +1569,7 @@ void MainWindow::optimize(QString plan_name){
     if(dwarfs.count() <= 0)
         dwarfs = m_proxy->get_filtered_dwarves();
 
-    o->optimize_labors(dwarfs);    
+    o->optimize_labors(dwarfs);
 }
 
 void MainWindow::main_toolbar_style_changed(Qt::ToolButtonStyle button_style){
@@ -1568,16 +1598,6 @@ void MainWindow::reset(){
     //clear selected dwarfs
     if(m_view_manager)
         m_view_manager->clear_selected();
-
-    //clear dock lists
-    PreferencesDock *d_prefs = qobject_cast<PreferencesDock*>(QObject::findChild<PreferencesDock*>("dock_preferences"));
-    if(d_prefs){
-        d_prefs->clear();
-    }
-    ThoughtsDock *d_thoughts = qobject_cast<ThoughtsDock*>(QObject::findChild<ThoughtsDock*>("dock_thoughts"));
-    if(d_thoughts){
-        d_thoughts->clear();
-    }
 
     new_creatures_count(0,0,0,tr("Dwarfs"));
 }

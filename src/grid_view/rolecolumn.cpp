@@ -29,8 +29,8 @@ THE SOFTWARE.
 #include "trait.h"
 #include "dwarftherapist.h"
 #include "truncatingfilelogger.h"
-
 #include "labor.h"
+#include "defines.h"
 
 RoleColumn::RoleColumn(const QString &title, Role *r, ViewColumnSet *set, QObject *parent)
     : ViewColumn(title,CT_ROLE,set,parent)
@@ -38,7 +38,7 @@ RoleColumn::RoleColumn(const QString &title, Role *r, ViewColumnSet *set, QObjec
     , m_role_name("")
 {
     if(m_role)
-        m_role_name = r->name;
+        m_role_name = r->name();
     else
         m_role_name = m_title;
     connect(DT, SIGNAL(roles_changed()), this, SLOT(roles_changed()), Qt::UniqueConnection);
@@ -48,18 +48,18 @@ RoleColumn::RoleColumn(const RoleColumn &to_copy)
     : ViewColumn(to_copy)
     , m_role(to_copy.m_role)
     , m_role_name(to_copy.m_role_name)
-{    
+{
     connect(DT, SIGNAL(roles_changed()), this, SLOT(roles_changed()), Qt::UniqueConnection);
 }
 
 RoleColumn::RoleColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
     : ViewColumn(s, set, parent)
     , m_role_name("")
-{    
+{
     //older versions required the column title to match the role name, so fall back to that if 'role_id' doesn't exist
     m_role = GameDataReader::ptr()->get_role(s.value("role_id",s.value("name").toString()).toString());
     if(m_role)
-        m_role_name = m_role->name;
+        m_role_name = m_role->name();
     else
         m_role_name = m_title;
     connect(DT, SIGNAL(roles_changed()), this, SLOT(roles_changed()), Qt::UniqueConnection);
@@ -76,25 +76,27 @@ QStandardItem *RoleColumn::build_cell(Dwarf *d) {
     item->setData(-1, DwarfModel::DR_DISPLAY_RATING);
     item->setData(CT_ROLE, DwarfModel::DR_COL_TYPE);
     item->setData(-1,DwarfModel::DR_LABORS);
+    item->setData(0, DwarfModel::DR_SPECIAL_FLAG);
+    item->setData(-1, DwarfModel::DR_SORT_VALUE);
 
     if(d->is_baby()){
         item->setData(-2, DwarfModel::DR_SORT_VALUE);
         item->setToolTip(("<b>Babies aren't included in role calculations.</b>"));
         return item;
     }else if(d->is_child() && !DT->labor_cheats_allowed()){
-        item->setData(-1, DwarfModel::DR_SORT_VALUE);        
         item->setToolTip(("<b>Children are only included in role calculations if labor cheats are enabled.</b>"));
         return item;
     }
 
     if(m_role){
-        float raw_rating = d->get_role_rating(m_role->name);
-        float drawn_rating = DwarfStats::get_role_rating((float)raw_rating) * 100.0f;
+        float raw_rating = d->get_raw_role_rating(m_role->name());
+        float drawn_rating = d->get_role_rating(m_role->name());
+        if(drawn_rating < 0.0001)
+            drawn_rating = 0.0001; //just to ensure very low ratings are drawn
         item->setData(drawn_rating, DwarfModel::DR_RATING);
-        item->setData(roundf(raw_rating), DwarfModel::DR_DISPLAY_RATING);
+        item->setData(roundf(drawn_rating), DwarfModel::DR_DISPLAY_RATING);
         item->setData(raw_rating, DwarfModel::DR_SORT_VALUE);
-        item->setData(CT_ROLE, DwarfModel::DR_COL_TYPE);
-        set_export_role(DwarfModel::DR_DISPLAY_RATING);
+        set_export_role(DwarfModel::DR_SORT_VALUE);
 
         QList<QVariant> related_labors;
         QStringList labor_names;
@@ -109,20 +111,26 @@ QStandardItem *RoleColumn::build_cell(Dwarf *d) {
         labors_desc = QString("<br/><br/><b>Associated Labors:</b> %1").arg(labor_names.count() <= 0 ? "None" : labor_names.join(", "));
         item->setData(related_labors,DwarfModel::DR_LABORS);
 
+        float alpha = 0;
+        if(m_role->prefs.count() > 0){
+            alpha = d->get_role_pref_matches(m_role->name()).count() / static_cast<float>(m_role->prefs.count()) * 150;
+        }
+        item->setData(alpha,DwarfModel::DR_SPECIAL_FLAG);
+
         QString match_str;
         QString aspects_str;
         QString tooltip;
-        if (m_role->script == "") {
+        if (m_role->script() == "") {
             if(raw_rating >= 0){
-                aspects_str = m_role->get_role_details();
+                aspects_str = m_role->get_role_details(d);
                 aspects_str += tr("<br/><b>Note:</b> A higher weight (w) puts greater value on the aspect. Default weights are not shown.");
                 match_str += aspects_str;
 
-                tooltip = QString("<center><h3>%1 - %3%</h3></center>%2%5<center><h4>%4 is a %3% fit for this role.</h4></center>")
-                        .arg(m_role->name)
+                tooltip = QString("<center><h3>%1 - %3%</h3></center>%2%5<center><h4 font-weight:normal>%4 is a %3% fit for this role.</h4></center>")
+                        .arg(m_role->name())
                         .arg(match_str)
-                        .arg(QString::number(raw_rating,'f',2))
-                        .arg(d->nice_name())                        
+                        .arg(QString::number(drawn_rating,'f',2))
+                        .arg(d->nice_name())
                         .arg(labors_desc);
 
                 item->setToolTip(tooltip);
@@ -136,7 +144,7 @@ QStandardItem *RoleColumn::build_cell(Dwarf *d) {
                     .arg(m_role->get_role_details())
                     .arg(raw_rating, 0, 'f', 2);
             tooltip = QString("<center><h3>%1 - %3</h3></center>%2%4")
-                             .arg(m_role->name)
+                             .arg(m_role->name())
                              .arg(match_str)
                              .arg(roundf(raw_rating), 0, 'f', 0)
                              .arg(tooltip_name_footer(d));
@@ -144,17 +152,14 @@ QStandardItem *RoleColumn::build_cell(Dwarf *d) {
             item->setToolTip(tooltip);
         }
     }else{
-        item->setData(-1, DwarfModel::DR_RATING); //drawing value
-        item->setData(-1, DwarfModel::DR_SORT_VALUE);
-        item->setData(CT_ROLE, DwarfModel::DR_COL_TYPE);
-        //role wasn't initialized, give the user a useful error message in the tooltip
+        item->setData(-1, DwarfModel::DR_RATING);
         item->setToolTip("Role could not be found.");
     }
 
     return item;
 }
 
-QStandardItem *RoleColumn::build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves) {    
+QStandardItem *RoleColumn::build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves) {
     Q_UNUSED(dwarves);
     QStandardItem *item = init_aggregate(group_name);
     return item;
@@ -174,7 +179,7 @@ void RoleColumn::read_settings() {
             m_role->prefs_weight.weight = s->value(QString("options/default_prefs_weight")).toFloat();
 
         m_role->create_role_details(*s); //rebuild the description
-        m_role_name = m_role->name;
+        m_role_name = m_role->name();
         delete(s);
         s = 0;
     }
@@ -190,5 +195,5 @@ void RoleColumn::roles_changed(){
 void RoleColumn::write_to_ini(QSettings &s) {
     ViewColumn::write_to_ini(s);
     if(m_role)
-        s.setValue("role_id", m_role->name);
+        s.setValue("role_id", m_role->name());
 }

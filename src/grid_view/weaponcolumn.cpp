@@ -29,23 +29,44 @@ THE SOFTWARE.
 #include "dwarftherapist.h"
 #include "itemweaponsubtype.h"
 #include "gamedatareader.h"
+#include "dfinstance.h"
 
-WeaponColumn::WeaponColumn(QSettings &s, ItemWeaponSubtype *w, ViewColumnSet *set, QObject *parent)
+WeaponColumn::WeaponColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
     : ViewColumn(s, set, parent)
-    , m_weapon(w)
+    , m_weapon(0x0)
+    , m_sub_type_id(s.value("sub_type_id",-1).toInt())
+    , m_weapon_name(s.value("weapon_name","").toString())
 {
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
 }
 
-WeaponColumn::WeaponColumn(const QString &title, ItemWeaponSubtype *w, ViewColumnSet *set, QObject *parent)
+WeaponColumn::WeaponColumn(const QString &title, const int sub_type, ViewColumnSet *set, QObject *parent)
     : ViewColumn(title, CT_WEAPON, set, parent)
-    , m_weapon(w)    
-{    
+    , m_weapon(0x0)
+    , m_sub_type_id(sub_type)
+    , m_weapon_name(title)
+{
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
+}
+
+void WeaponColumn::init(){
+    if(m_weapon_name.trimmed().isEmpty())
+        m_weapon_name = m_title;
+
+    if(m_sub_type_id >= 0){
+        m_weapon = qobject_cast<ItemWeaponSubtype*>(DT->get_DFInstance()->get_item_subtype(WEAPON,m_sub_type_id));
+    }
+    if(m_weapon == 0 || QString::compare(m_weapon_name, m_weapon->name_plural(),Qt::CaseInsensitive) != 0){
+        m_weapon = DT->get_DFInstance()->find_weapon_subtype(m_weapon_name);
+        if(m_weapon)
+            m_sub_type_id = m_weapon->subType();
+    }
 }
 
 QStandardItem *WeaponColumn::build_cell(Dwarf *d) {
     QStandardItem *item = init_cell(d);
+
+    init();
 
     item->setData(CT_WEAPON, DwarfModel::DR_COL_TYPE);
     item->setData(0, DwarfModel::DR_RATING);
@@ -56,16 +77,16 @@ QStandardItem *WeaponColumn::build_cell(Dwarf *d) {
         return item;
     }
     if(d->body_size() < 0){
-        item->setToolTip("Missing body_size offset!");
+        item->setToolTip(tr("Missing body_size offset!"));
         return item;
     }
 
-    QString wep = m_weapon->group_name.toLower();
+    QString wep = m_weapon->name_plural().toLower();
     if(wep.indexOf(",")>0)
         wep = tr("these weapons");
     else
         wep = capitalizeEach(wep);
-    float rating = 40; //values for 49-51 aren't shown for this column, this is the smallest red square we can get
+    float rating = 40; //small red square by default
     QString numeric_rating = "/";
     short sort_val = 1;
 
@@ -85,13 +106,13 @@ QStandardItem *WeaponColumn::build_cell(Dwarf *d) {
     //setup drawing ratings
     if(!onehand && !twohand){
         desc = tr("<b>Cannot wield</b> %1.").arg(wep);
-        rating = 25; //this will give us a medium red square as the further from the median the larger the square gets
+        rating = 15; //this will give us a medium-large red square as the further from the median the larger the square gets
         numeric_rating = "X";
         sort_val = 0;
     }
     else if (twohand && onehand){
         desc = tr("<b>Can wield</b> %1 with one or two hands.").arg(wep);
-        rating = 50; //again 49-51 are not drawn, so any value in there to draw nothing
+        rating = 50; //49-51 are not drawn, so any value in there to draw nothing
         numeric_rating = "";
         sort_val = 2;
     }
@@ -146,4 +167,12 @@ QStandardItem *WeaponColumn::build_aggregate(const QString &group_name, const QV
     Q_UNUSED(dwarves);
     QStandardItem *item = init_aggregate(group_name);
     return item;
+}
+
+void WeaponColumn::write_to_ini(QSettings &s){
+    ViewColumn::write_to_ini(s);
+    s.setValue("sub_type_id", m_sub_type_id);
+    if(m_weapon){
+            s.setValue("weapon_name", m_weapon->name_plural());
+    }
 }

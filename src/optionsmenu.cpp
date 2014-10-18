@@ -21,22 +21,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include <QFontDialog>
-#include <QMessageBox>
 #include "optionsmenu.h"
 #include "customcolor.h"
-#include "dwarf.h"
 #include "dwarftherapist.h"
-#include "utils.h"
 #include "defines.h"
 #include "truncatingfilelogger.h"
 #include "uberdelegate.h"
 #include "mainwindow.h"
 #include "fortressentity.h"
-#include "dfinstance.h"
-#include "gamedatareader.h"
 #include "defaultfonts.h"
-#include "global_enums.h"
+#include "ui_optionsmenu.h"
+#include "gamedatareader.h"
+#include <QMessageBox>
+#include <QSettings>
+#include <QFontDialog>
 
 OptionsMenu::OptionsMenu(QWidget *parent)
     : QDialog(parent)
@@ -47,19 +45,19 @@ OptionsMenu::OptionsMenu(QWidget *parent)
 
     m_general_colors
             << new CustomColor(tr("Skill"), tr("The color of the growing skill indicator box "
-                                               "inside a cell. Is not used when auto-contrast is enabled."), "skill", from_hex("0xAAAAAAFF"), this)
+                                               "inside a cell. Is not used when auto-contrast is enabled."), "skill", QColor(170,170,170,170), this)
             << new CustomColor(tr("Active Labor Cell"),
                                tr("Color shown for a cell when the labor is active for a dwarf."),
-                               "active_labor", from_hex("0x7878B3FF"), this)
+                               "active_labor", QColor(0x7878B3), this)
             << new CustomColor(tr("Active Group Cell"),
                                tr("Color shown on an aggregate cell if <b>all</b> dwarves have this labor enabled."),
-                               "active_group", from_hex("0x33FF33FF"), this)
+                               "active_group", QColor(0x33FF33), this)
             << new CustomColor(tr("Inactive Group Cell"),
                                tr("Color shown on an aggregate cell if <b>none</b> of the dwarves have this labor enabled."),
-                               "inactive_group", from_hex("0x00000020"), this)
+                               "inactive_group", QColor(0,0,0,32), this)
             << new CustomColor(tr("Partial Group Cell"),
                                tr("Color shown on an aggregate cell if <b>some</b> of the dwarves have this labor enabled."),
-                               "partial_group", from_hex("0x00000060"), this)
+                               "partial_group", QColor(0,0,0,96), this)
             << new CustomColor(tr("Selection Guides"),
                                tr("Color of the lines around cells when a row and/or column are selected."),
                                "guides", QColor(0x0099FF), this)
@@ -115,20 +113,24 @@ OptionsMenu::OptionsMenu(QWidget *parent)
     m_curse_color = new CustomColor(tr("Cursed"),tr("Cursed creatures will be highlighted with this color."),
                                     "cursed",FortressEntity::get_default_color(FortressEntity::CURSED),this);
 
-    QVBoxLayout *grid_layout = new QVBoxLayout;
-    grid_layout->addWidget(ui->cb_grid_health_colors);
+    int spacing = 4;
+
+    QVBoxLayout *health_layout = new QVBoxLayout;
+    health_layout->addWidget(ui->cb_grid_health_colors);
     foreach(CustomColor *cc, m_general_colors) {
-        grid_layout->addWidget(cc);
+        health_layout->addWidget(cc);
     }
-    grid_layout->setSpacing(0);
-    ui->tab_grid_colors->setLayout(grid_layout);
+    health_layout->setSpacing(spacing);
+    health_layout->addSpacerItem(new QSpacerItem(20,40,QSizePolicy::Minimum,QSizePolicy::Expanding));
+    ui->tab_grid_colors->setLayout(health_layout);
 
     QVBoxLayout *happiness_layout = new QVBoxLayout;
     happiness_layout->addWidget(ui->cb_happiness_icons);
     foreach(CustomColor *cc, m_happiness_colors) {
         happiness_layout->addWidget(cc);
     }
-    happiness_layout->setSpacing(0);
+    happiness_layout->setSpacing(spacing);
+    happiness_layout->addSpacerItem(new QSpacerItem(20,40,QSizePolicy::Minimum,QSizePolicy::Expanding));
     ui->tab_happiness_colors->setLayout(happiness_layout);
 
     QVBoxLayout *nobles_layout = new QVBoxLayout;
@@ -136,7 +138,8 @@ OptionsMenu::OptionsMenu(QWidget *parent)
     foreach(CustomColor *cc, m_noble_colors) {
         nobles_layout->addWidget(cc);
     }
-    nobles_layout->setSpacing(2);
+    nobles_layout->setSpacing(spacing);
+    nobles_layout->addSpacerItem(new QSpacerItem(20,40,QSizePolicy::Minimum,QSizePolicy::Expanding));
     ui->tab_noble_colors->setLayout(nobles_layout);
 
     ui->horizontal_curse_layout->addWidget(m_curse_color);
@@ -158,6 +161,18 @@ OptionsMenu::OptionsMenu(QWidget *parent)
     connect(ui->cb_moodable, SIGNAL(toggled(bool)), m_general_colors.at(9), SLOT(setEnabled(bool)));
 
     connect(ui->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tab_index_changed(int)));
+
+    QStringList social_skills;
+    foreach(int skill_id, GameDataReader::ptr()->social_skills()){
+        social_skills.append(GameDataReader::ptr()->get_skill_name(skill_id));
+    }
+    social_skills.sort();
+    ui->chk_show_social_skills->setStatusTip(ui->chk_show_social_skills->statusTip().replace(" ?? ",social_skills.join(", ")));
+
+    connect(ui->chk_show_health,SIGNAL(toggled(bool)),this,SLOT(tooltip_health_toggled(bool)));
+    connect(ui->chk_show_skills,SIGNAL(toggled(bool)),this,SLOT(tooltip_skills_toggled(bool)));
+    connect(ui->chk_show_roles,SIGNAL(toggled(bool)),this,SLOT(tooltip_roles_toggled(bool)));
+    connect(ui->chk_show_buffs,SIGNAL(toggled(bool)),this,SLOT(tooltip_syndromes_toggled(bool)));
 
     read_settings();
 }
@@ -188,6 +203,31 @@ void OptionsMenu::showEvent(QShowEvent *evt){
         ui->lbl_def_skill_rate_weight->setVisible(false);
     }
     QDialog::showEvent(evt);
+}
+
+void OptionsMenu::tooltip_skills_toggled(bool checked){
+    ui->lbl_max_tooltip_skills->setEnabled(checked);
+    ui->lbl_max_tooltip_skills2->setEnabled(checked);
+    ui->sb_min_skill_level->setEnabled(checked);
+    ui->chk_show_social_skills->setEnabled(checked);
+}
+
+void OptionsMenu::tooltip_roles_toggled(bool checked){
+    ui->lbl_tooltip_top_roles->setEnabled(checked);
+    ui->lbl_tooltip_roles->setEnabled(checked);
+    ui->sb_roles_tooltip->setEnabled(checked);
+}
+
+void OptionsMenu::tooltip_health_toggled(bool checked){
+    ui->chk_health_colors->setEnabled(checked);
+    ui->chk_health_symbols->setEnabled(checked);
+}
+
+void OptionsMenu::tooltip_syndromes_toggled(bool checked){
+    ui->rad_syn_names->setEnabled(checked);
+    ui->rad_syn_classes->setEnabled(checked);
+    ui->rad_syn_both->setEnabled(checked);
+
 }
 
 void OptionsMenu::read_settings() {
@@ -243,7 +283,9 @@ void OptionsMenu::read_settings() {
 
     ui->cb_moodable->setChecked(s->value("color_mood_cells",false).toBool());
     ui->cb_attribute_syns->setChecked(s->value("color_attribute_syns",true).toBool());
+    ui->cb_pref_matches->setChecked(s->value("color_pref_matches",false).toBool());
     ui->cb_gender_icons->setChecked(s->value("show_gender_icons",true).toBool());
+    ui->cb_show_tooltips->setChecked(s->value("show_tooltips",true).toBool());
     ui->cb_grid_health_colors->setChecked(s->value("color_health_cells",true).toBool());
     ui->cb_decorate_nobles->setChecked(s->value("decorate_noble_names",false).toBool());
     //the signal to disable the color pickers doesn't fire on the initial read. this is a work around for the inital setting
@@ -251,7 +293,7 @@ void OptionsMenu::read_settings() {
         m_general_colors.at(8)->setDisabled(true);
         m_general_colors.at(9)->setDisabled(true);
     }
-    s->endGroup();        
+    s->endGroup();
 
     temp = s->value("tooltip_font", QFont(DefaultFonts::getTooltipFontName(), DefaultFonts::getTooltipFontSize())).value<QFont>();
     m_tooltip_font = qMakePair(temp,temp);
@@ -268,7 +310,7 @@ void OptionsMenu::read_settings() {
     ui->cb_single_click_labor_changes->setChecked(s->value("single_click_labor_changes", true).toBool());
     ui->cb_show_toolbar_text->setChecked(s->value("show_toolbutton_text", true).toBool());
     ui->cb_auto_expand->setChecked(s->value("auto_expand_groups", true).toBool());
-    ui->cb_show_full_dwarf_names->setChecked(s->value("show_full_dwarf_names", false).toBool());        
+    ui->cb_show_full_dwarf_names->setChecked(s->value("show_full_dwarf_names", false).toBool());
     ui->cb_check_for_updates_on_startup->setChecked(s->value("check_for_updates_on_startup", true).toBool());
     ui->cb_alert_on_lost_connection->setChecked(s->value("alert_on_lost_connection", true).toBool());
     ui->cb_labor_cheats->setChecked(s->value("allow_labor_cheats", false).toBool());
@@ -276,7 +318,7 @@ void OptionsMenu::read_settings() {
     ui->cb_generic_names->setChecked(s->value("use_generic_names", false).toBool());
     ui->cb_curse_highlight->setChecked(s->value("highlight_cursed", false).toBool());
     ui->cb_noble_highlight->setChecked(s->value("highlight_nobles", true).toBool());
-    ui->cb_labor_exclusions->setChecked(s->value("labor_exclusions", true).toBool());    
+    ui->cb_labor_exclusions->setChecked(s->value("labor_exclusions", true).toBool());
     ui->cb_no_diagnosis->setChecked(s->value("diagnosis_not_required",false).toBool());
     ui->cb_animal_health->setChecked(s->value("animal_health",false).toBool());
 
@@ -294,6 +336,8 @@ void OptionsMenu::read_settings() {
     ui->chk_show_squad->setChecked(s->value("tooltip_show_squad", true).toBool());
     ui->chk_show_age->setChecked(s->value("tooltip_show_age", true).toBool());
     ui->chk_show_unit_size->setChecked(s->value("tooltip_show_size",true).toBool());
+    ui->chk_show_kills->setChecked(s->value("tooltip_show_kills",false).toBool());
+
     ui->chk_show_buffs->setChecked(s->value("tooltip_show_buffs",false).toBool());
     short syn_option = s->value("syndrome_display_type",0).toInt();
     if(syn_option == 0)
@@ -302,16 +346,21 @@ void OptionsMenu::read_settings() {
         ui->rad_syn_classes->setChecked(true);
     else
         ui->rad_syn_both->setChecked(true);
+    tooltip_syndromes_toggled(ui->chk_show_buffs->isChecked());
+
     ui->chk_show_health->setChecked(s->value("tooltip_show_health",false).toBool());
     ui->chk_health_colors->setChecked(s->value("tooltip_health_colors",true).toBool());
     ui->chk_health_symbols->setChecked(s->value("tooltip_health_symbols",false).toBool());
+    tooltip_health_toggled(ui->chk_show_health->isChecked());
 
     ui->chk_show_roles->setChecked(s->value("tooltip_show_roles", true).toBool());
     ui->sb_roles_tooltip->setValue(s->value("role_count_tooltip",3).toInt());
+    tooltip_roles_toggled(ui->chk_show_roles->isChecked());
 
     ui->chk_show_skills->setChecked(s->value("tooltip_show_skills", true).toBool());
     ui->sb_min_skill_level->setValue(s->value("min_tooltip_skill_level",1).toInt());
-
+    ui->chk_show_social_skills->setChecked(s->value("tooltip_show_social_skills",true).toBool());
+    tooltip_skills_toggled(ui->chk_show_skills->isChecked());
 
     ui->dsb_attribute_weight->setValue(s->value("default_attributes_weight",0.25).toDouble());
     ui->dsb_skill_weight->setValue(s->value("default_skills_weight",1.0).toDouble());
@@ -360,7 +409,9 @@ void OptionsMenu::write_settings() {
         s->setValue("happiness_icons",ui->cb_happiness_icons->isChecked());
         s->setValue("color_mood_cells", ui->cb_moodable->isChecked());
         s->setValue("color_attribute_syns", ui->cb_attribute_syns->isChecked());
+        s->setValue("color_pref_matches", ui->cb_pref_matches->isChecked());
         s->setValue("show_gender_icons", ui->cb_gender_icons->isChecked());
+        s->setValue("show_tooltips",ui->cb_show_tooltips->isChecked());
         s->setValue("color_health_cells", ui->cb_grid_health_colors->isChecked());
         s->setValue("show_labor_counts",ui->cb_labor_counts->isChecked());
         s->setValue("group_all_views",ui->cb_sync_grouping->isChecked());
@@ -413,6 +464,7 @@ void OptionsMenu::write_settings() {
         s->setValue("tooltip_show_profession", ui->chk_show_prof->isChecked());
         s->setValue("tooltip_show_roles", ui->chk_show_roles->isChecked());
         s->setValue("tooltip_show_skills", ui->chk_show_skills->isChecked());
+        s->setValue("tooltip_show_social_skills", ui->chk_show_social_skills->isChecked());
         s->setValue("tooltip_show_artifact", ui->chk_show_artifact->isChecked());
         s->setValue("tooltip_show_mood", ui->chk_show_highest_mood->isChecked());
         s->setValue("tooltip_show_thoughts", ui->chk_show_thoughts->isChecked());
@@ -423,6 +475,7 @@ void OptionsMenu::write_settings() {
         s->setValue("tooltip_health_colors", ui->chk_health_colors->isChecked());
         s->setValue("tooltip_health_symbols", ui->chk_health_symbols->isChecked());
         s->setValue("tooltip_show_buffs", ui->chk_show_buffs->isChecked());
+        s->setValue("tooltip_show_kills", ui->chk_show_kills->isChecked());
         short val = 0;
         if(ui->rad_syn_classes->isChecked())
             val = 1;
@@ -431,7 +484,7 @@ void OptionsMenu::write_settings() {
         s->setValue("syndrome_display_type", val);
 
 
-        s->endGroup();       
+        s->endGroup();
     }
 }
 
@@ -448,7 +501,7 @@ void OptionsMenu::accept() {
             tr("Would you like to apply the new options now (Read Data)?"),
             QMessageBox::Yes | QMessageBox::No);
     if (answer == QMessageBox::Yes)
-        DT->get_main_window()->read_dwarves();    
+        DT->get_main_window()->read_dwarves();
 }
 
 void OptionsMenu::reject() {
@@ -477,7 +530,7 @@ void OptionsMenu::restore_defaults() {
     ui->cb_single_click_labor_changes->setChecked(false);
     ui->cb_show_toolbar_text->setChecked(true);
     ui->cb_auto_expand->setChecked(false);
-    ui->cb_show_full_dwarf_names->setChecked(false);    
+    ui->cb_show_full_dwarf_names->setChecked(false);
     ui->sb_min_skill_level->setValue(1);
     ui->cb_check_for_updates_on_startup->setChecked(true);
     ui->cb_alert_on_lost_connection->setChecked(true);
@@ -495,10 +548,12 @@ void OptionsMenu::restore_defaults() {
     ui->cb_sync_scrolling->setChecked(true);
     ui->cb_moodable->setChecked(false);
     ui->cb_gender_icons->setChecked(true);
+    ui->cb_show_tooltips->setChecked(true);
     ui->cb_grid_health_colors->setChecked(true);
     ui->cb_no_diagnosis->setChecked(false);
     ui->cb_animal_health->setChecked(false);
     ui->cb_attribute_syns->setChecked(true);
+    ui->cb_pref_matches->setChecked(false);
     ui->cb_decorate_nobles->setChecked(false);
 
     ui->chk_show_caste->setChecked(true);
@@ -516,6 +571,7 @@ void OptionsMenu::restore_defaults() {
     ui->chk_show_unit_size->setChecked(true);
     ui->chk_show_age->setChecked(true);
     ui->chk_show_buffs->setChecked(false);
+    ui->chk_show_kills->setChecked(false);
     ui->rad_syn_names->setChecked(true);
 
     ui->dsb_attribute_weight->setValue(0.25);
@@ -526,7 +582,8 @@ void OptionsMenu::restore_defaults() {
     ui->dsb_att_potential_weight->setValue(0.50);
 
     ui->chk_show_roles->setChecked(true);
-    ui->chk_show_skills->setChecked(true);    
+    ui->chk_show_skills->setChecked(true);
+    ui->chk_show_social_skills->setChecked(true);
     ui->chk_show_health->setChecked(false);
     ui->chk_health_colors->setChecked(true);
     ui->chk_health_symbols->setChecked(false);

@@ -20,13 +20,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+#include "preferencesdock.h"
+#include "dwarftherapist.h"
+#include "dfinstance.h"
 #include <QVBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QCloseEvent>
-#include "preferencesdock.h"
-#include "dwarftherapist.h"
 
 #if QT_VERSION < 0x050000
 # define setSectionResizeMode setResizeMode
@@ -85,9 +86,9 @@ PreferencesDock::PreferencesDock(QWidget *parent, Qt::WindowFlags flags)
     connect(tw_prefs,SIGNAL(itemSelectionChanged()),this,SLOT(selection_changed()));
     connect(btn, SIGNAL(clicked()),this,SLOT(clear_filter()));
     connect(le_search, SIGNAL(textChanged(QString)),this, SLOT(search_changed(QString)));
-    connect(btn_clear_search, SIGNAL(clicked()),this,SLOT(clear_search()));    
+    connect(btn_clear_search, SIGNAL(clicked()),this,SLOT(clear_search()));
 
-//    this->installEventFilter(this);
+    connect(DT,SIGNAL(units_refreshed()),this,SLOT(refresh()));
 }
 
 void PreferencesDock::clear(){
@@ -141,7 +142,7 @@ void PreferencesDock::refresh(){
     }
 }
 
-void PreferencesDock::selection_changed(){    
+void PreferencesDock::selection_changed(){
     //pairs of category and preference
     QList<QPair<QString,QString> > values;
     QModelIndexList indexList = tw_prefs->selectionModel()->selectedIndexes();
@@ -168,7 +169,7 @@ void PreferencesDock::search_changed(QString val){
 
 void PreferencesDock::filter(){
     for(int i = 0; i < tw_prefs->rowCount(); i++){
-        if(m_filter.isEmpty() || tw_prefs->item(i,0)->text().contains(m_filter)){
+        if(m_filter.isEmpty() || tw_prefs->item(i,0)->text().contains(m_filter) || tw_prefs->item(i,3)->text().contains(m_filter)){
             tw_prefs->setRowHidden(i,false);
         }else{
             tw_prefs->setRowHidden(i,true);
@@ -177,7 +178,7 @@ void PreferencesDock::filter(){
 }
 
 void PreferencesDock::clear_filter(){
-    tw_prefs->clearSelection();    
+    tw_prefs->clearSelection();
 }
 
 void PreferencesDock::clear_search(){

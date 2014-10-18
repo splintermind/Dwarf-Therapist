@@ -23,9 +23,9 @@ THE SOFTWARE.
 #ifndef DWARF_JOB_H
 #define DWARF_JOB_H
 
-#include <QtCore>
-#include <QObject>
 #include "truncatingfilelogger.h"
+#include <QString>
+#include <QObject>
 
 class DwarfJob : public QObject {
     Q_OBJECT
@@ -225,11 +225,11 @@ public:
         case 256:
             return tr("tooth");
         case 512:
-            return tr("horn");
+            return tr("horn/hoof");
         case 1024:
             return tr("pearl");
         case 2048:
-            return tr("yarn");
+            return tr("yarn/wool/fur");
         }
 
         return "unknown";

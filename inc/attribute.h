@@ -24,15 +24,17 @@ THE SOFTWARE.
 #ifndef ATTRIBUTE_H
 #define ATTRIBUTE_H
 
-#include <QtCore>
 #include "global_enums.h"
-#include "qcolor.h"
+#include <QColor>
+
+class QString;
+class QStringList;
+class QSettings;
 
 class Attribute {
-
-public:    
+public:
     Attribute();
-    Attribute(int id, int value, int display_value, int max, int cost_to_improve = 500, int desc_index = 0, QString desc = "");
+    Attribute(ATTRIBUTES_TYPE id, int value, int display_value, int max, int cost_to_improve = 500, int desc_index = 0, QString desc = "");
 
     int id(){return m_id;}
     ATTRIBUTES_TYPE att_type(){return static_cast<ATTRIBUTES_TYPE>(m_id);}
@@ -42,16 +44,16 @@ public:
     QString get_descriptor(){return m_descriptor;}
     int get_descriptor_rank(){return m_descriptor_index;}
     int get_value() {return m_value;}
-    float get_potential_value();
-    float get_balanced_value();
+    double get_potential_value();
+    double get_balanced_value();
     void calculate_balanced_value();
     int display_value(){return m_display_value;}
-    float rating(bool potential = false);
+    double rating(bool potential = false);
     QStringList syndrome_names(){return m_syn_names;}
     float max() {return m_max;}
     float cti() {return m_cti;}
 
-    void set_rating(float rating, bool potential=false);
+    void set_rating(double rating, bool potential=false);
     void set_syn_names(QStringList names);
 
     static void load_attribute_descriptors(QSettings &s);
@@ -61,18 +63,18 @@ public:
     static const QColor color_affected_by_syns() {return QColor(0, 60, 128, 135);}
 
 private:
-    int m_id;
+    ATTRIBUTES_TYPE m_id;
     int m_value; //raw value including permanent syndrome effects
-    float m_value_potential;
-    float m_value_balanced;
+    double m_value_potential;
+    double m_value_balanced;
     int m_display_value; //raw value including permanent and temporary syndrome effects
     int m_max;
-    float m_rating_potential;
+    double m_rating_potential;
     float m_rating;
     int m_cti; //cost to improve (caste specific)
     QString m_descriptor; //caste specific depending on the bins
     int m_descriptor_index;
-    QStringList m_syn_names;    
+    QStringList m_syn_names;
 
     static QHash<int, QVector<QString> > m_display_descriptions;
 

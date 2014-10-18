@@ -9,10 +9,9 @@ QImage scale(const QString &imageFileName)
     return image.scaled(QSize(imageSize, imageSize), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 }
 
-IconChooser::IconChooser(QWidget *parent)//QStringList imageNamesList, QWidget *parent) :
+IconChooser::IconChooser(QWidget *parent)
     : QDialog(parent)
     , selected_id(-1)
-  //, m_imageNamesList(imageNamesList)
 {
 
     QGridLayout* m_gridLayout = new QGridLayout(this);
@@ -32,12 +31,6 @@ IconChooser::IconChooser(QWidget *parent)//QStringList imageNamesList, QWidget *
     m_standardModel = new QStandardItemModel(this);
     m_imageListView->setModel(m_standardModel);
 
-//    m_imageScaler = new QFutureWatcher<QImage>(this);
-//    connect(m_imageScaler, SIGNAL(resultReadyAt(int)), SLOT(showImage(int)));
-//    connect(m_imageScaler, SIGNAL(finished()), SLOT(finished()));
-
-//    m_imageScaler->setFuture(QtConcurrent::mapped(m_imageNamesList, scale));
-
 
     for(int i = 1; i < 107; i++){
         showImage(i);
@@ -49,15 +42,12 @@ IconChooser::IconChooser(QWidget *parent)//QStringList imageNamesList, QWidget *
 
 IconChooser::~IconChooser()
 {
-    m_imageScaler->cancel();
-    m_imageScaler->waitForFinished();
 }
 
 void IconChooser::showImage(int num)
 {
     QStandardItem* imageitem = new QStandardItem();
-    //imageitem->setIcon(QIcon(QPixmap::fromImage(m_imageScaler->resultAt(num))));
-    QString icn_path = ":/profession/img/profession icons/prof_" + QString::number(num) + ".png";
+    QString icn_path = ":/profession/prof_" + QString::number(num) + ".png";
     imageitem->setIcon(QIcon(icn_path));
     imageitem->setData(num,Qt::UserRole);
     m_standardModel->appendRow(imageitem);
@@ -69,11 +59,6 @@ void IconChooser::finished()
 
 void IconChooser::imageClicked(QModelIndex index)
 {
-//    if(index.row() < m_imageNamesList.count()) {
-//        qDebug() << "image selected " << m_imageNamesList.at(index.row());
-
-//        close();
-//    }
     if(index.row() < m_standardModel->rowCount()){
         QStandardItem *i = m_standardModel->itemFromIndex(index);
         selected_id = i->data(Qt::UserRole).toInt();

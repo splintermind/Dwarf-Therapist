@@ -24,15 +24,9 @@ THE SOFTWARE.
 #ifndef DFINSTANCE_LINUX_H
 #define DFINSTANCE_LINUX_H
 #include "dfinstance.h"
-#include "dwarf.h"
+#include "dfinstancenix.h"
 
-#include <QHash>
-
-#define STRING_SIZE 256
-
-class MemoryLayout;
-
-class DFInstanceLinux : public DFInstance {
+class DFInstanceLinux : public DFInstanceNix {
     Q_OBJECT
 public:
     DFInstanceLinux(QObject *parent=0);
@@ -40,26 +34,23 @@ public:
 
     // factory ctor
     bool find_running_copy(bool connect_anyway = false);
+
     USIZE read_raw_ptrace(const VIRTADDR &addr, const USIZE &bytes, void *buffer);
     USIZE read_raw(const VIRTADDR &addr, const USIZE &bytes, void *buffer);
-    using DFInstance::read_raw;
-    QString read_string(const VIRTADDR &addr);
 
     // Writing
     USIZE write_raw_ptrace(const VIRTADDR &addr, const USIZE &bytes, const void *buffer);
     USIZE write_raw(const VIRTADDR &addr, const USIZE &bytes, const void *buffer);
-    USIZE write_string(const VIRTADDR &addr, const QString &str);
-
-    void map_virtual_memory();
 
     bool attach();
     bool detach();
 
 protected:
     pid_t m_pid;
-    QString calculate_checksum();
 
 private:
+    SSIZE process_vm(long number, const VIRTADDR &addr
+                     , const USIZE &bytes, void *buffer);
     int wait_for_stopped();
     VIRTADDR find_injection_address();
     qint32 remote_syscall(int syscall_id,
@@ -68,14 +59,11 @@ private:
 
     VIRTADDR mmap_area(VIRTADDR start, int size);
     VIRTADDR alloc_chunk(USIZE size);
-    VIRTADDR get_string(const QString &str);
 
     QFile m_memory_file;
-    MemorySegment *m_executable;
     VIRTADDR m_inject_addr;
     VIRTADDR m_alloc_start, m_alloc_end;
-    QHash<QString, VIRTADDR> m_string_cache;
-    bool m_warned_glibc;
+    bool m_warned_pvm;
 };
 
 #endif // DFINSTANCE_H

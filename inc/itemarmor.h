@@ -41,11 +41,6 @@ public:
         read_def();
     }
 
-    virtual ~ItemArmor(){
-        m_df = 0;
-        m_armor_def = 0;
-    }
-
     ItemArmorSubtype * get_details(){return m_armor_def;}
     short item_subtype(){return m_armor_def->subType();}
 
@@ -53,9 +48,8 @@ private:
     ItemArmorSubtype *m_armor_def;
 
     void read_def(){
-        if(m_addr > 0){            
-            m_armor_def =  ItemArmorSubtype::get_armor(m_df,m_df->read_addr(m_addr+m_df->memory_layout()->item_offset("item_def")),this);
-            m_armor_def->set_item_type(m_iType);
+        if(m_addr > 0){
+            m_armor_def = new ItemArmorSubtype(m_iType,m_df,m_df->read_addr(m_addr+m_df->memory_layout()->item_offset("item_def")),this);
             m_item_name = m_armor_def->name();
             QString layer_name = m_armor_def->get_layer_name();
             if(layer_name != "")

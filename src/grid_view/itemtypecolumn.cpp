@@ -25,26 +25,29 @@ THE SOFTWARE.
 #include "dwarf.h"
 #include "dwarfmodel.h"
 #include "viewcolumnset.h"
-
-class Item;
+#include "item.h"
+#include "dtstandarditem.h"
 
 ItemTypeColumn::ItemTypeColumn(const QString &title, const ITEM_TYPE &itype, ViewColumnSet *set, QObject *parent, COLUMN_TYPE cType)
     : ViewColumn(title, cType, set, parent)
     , m_iType(itype)
+    , m_sort_val(CST_DEFAULT)
 {
     if(title.isEmpty())
         m_title = Item::get_item_name_plural(m_iType);
 }
 
 ItemTypeColumn::ItemTypeColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
-    : ViewColumn(s, set, parent)    
+    : ViewColumn(s, set, parent)
+    , m_iType(static_cast<ITEM_TYPE>(s.value("item_type",NONE).toInt()))
+    , m_sort_val(CST_DEFAULT)
 {
-    m_iType = static_cast<ITEM_TYPE>(s.value("item_type",NONE).toInt());
 }
 
 ItemTypeColumn::ItemTypeColumn(const ItemTypeColumn &to_copy)
     : ViewColumn(to_copy)
     , m_iType(to_copy.m_iType)
+    , m_sort_val(to_copy.m_sort_val)
 {
 }
 
@@ -54,7 +57,7 @@ QStandardItem *ItemTypeColumn::build_cell(Dwarf *d) {
     float rating = 0;
     float coverage = d->get_coverage_rating(m_iType);
     float uniform = d->get_uniform_rating(m_iType);
-    float wear = d->get_inventory_wear(m_iType);
+    float wear = d->get_max_wear_level(m_iType);
     int missing_count = d->get_missing_equip_count(m_iType);
 
     rating = uniform;
@@ -133,7 +136,7 @@ QString ItemTypeColumn::build_tooltip_desc(Dwarf *d){
 }
 
 QString ItemTypeColumn::split_list(QList<Item*> list, QString title, QString list_header, QString list_footer, QColor title_color){
-    QString desc;    
+    QString desc;
     if(list.count() > 0){
         int count = 0;
         QStringList items;

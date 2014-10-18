@@ -28,7 +28,6 @@ THE SOFTWARE.
 #include "attribute.h"
 
 #include "truncatingfilelogger.h"
-#include "ecdf.h"
 #include "rolestats.h"
 
 class Dwarf;
@@ -40,13 +39,15 @@ public:
 
     static void set_att_potential_weight(float val){m_att_pot_weight = val;}
     static void set_skill_rate_weight(float val){m_skill_rate_weight = val;}
+    static void set_max_unit_kills(int val){m_max_unit_kills = val;}
 
     static float get_att_potential_weight(){return m_att_pot_weight;}
     static float get_skill_rate_weight(){return m_skill_rate_weight;}
-    static float calc_att_potential_value(int value, float max, float cti);
+    static int get_max_unit_kills(){return m_max_unit_kills;}
+    static double calc_att_potential_value(int value, float max, float cti);
 
     static void init_attributes(QVector<double> attribute_values, QVector<double> attribute_raw_values);
-    static double get_attribute_rating(int val,bool raw = false);
+    static double get_attribute_rating(double val, bool raw = false);
 
     static void init_traits(QVector<double> trait_values);
     static double get_trait_rating(int val);
@@ -63,6 +64,7 @@ public:
 private:
     static float m_att_pot_weight;
     static float m_skill_rate_weight;
+    static int m_max_unit_kills;
 
     static QSharedPointer<RoleStats> m_attributes;
     static QSharedPointer<RoleStats> m_attributes_raw;

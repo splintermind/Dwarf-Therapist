@@ -20,27 +20,25 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#include <QMenu>
-#include <QMessageBox>
-#include <QInputDialog>
-#include <QHeaderView>
 #include "viewmanager.h"
 #include "statetableview.h"
 #include "dwarfmodel.h"
 #include "dwarfmodelproxy.h"
 #include "gridview.h"
-#include "defines.h"
 #include "truncatingfilelogger.h"
 #include "dwarftherapist.h"
 #include "viewcolumnset.h"
 #include "viewcolumn.h"
-#include "utils.h"
-#include "gamedatareader.h"
 #include "weaponcolumn.h"
-#include "spacercolumn.h"
 #include "dfinstance.h"
 #include "itemweaponsubtype.h"
 #include "dwarf.h"
+#include <QMenu>
+#include <QMessageBox>
+#include <QInputDialog>
+#include <QHeaderView>
+#include <QTime>
+#include <QErrorMessage>
 
 #if QT_VERSION < 0x050000
 # define setSectionResizeMode setResizeMode
@@ -68,7 +66,7 @@ ViewManager::ViewManager(DwarfModel *dm, DwarfModelProxy *proxy,
     m_add_tab_button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     m_add_tab_button->setToolTip(tr("Add an existing view. New views can be copied or created from the [Windows->Docks->Grid Views] dock."));
     draw_add_tab_button();
-    setCornerWidget(m_add_tab_button, Qt::TopLeftCorner);    
+    setCornerWidget(m_add_tab_button, Qt::TopLeftCorner);
 
     connect(tabBar(), SIGNAL(tabMoved(int, int)), SLOT(write_views()));
     connect(tabBar(), SIGNAL(currentChanged(int)), SLOT(setCurrentIndex(int)), Qt::UniqueConnection);
@@ -76,7 +74,7 @@ ViewManager::ViewManager(DwarfModel *dm, DwarfModelProxy *proxy,
     connect(m_model, SIGNAL(need_redraw()), SLOT(redraw_current_tab()));
     //draw_views();
 
-    m_squad_warning = new QErrorMessage(this);    
+    m_squad_warning = new QErrorMessage(this);
 }
 
 ViewManager::~ViewManager(){
@@ -92,7 +90,7 @@ ViewManager::~ViewManager(){
 }
 
 void ViewManager::draw_add_tab_button() {
-    std::sort(m_views.begin(), m_views.end(), GridView::name_custom_sort());
+    qSort(m_views.begin(), m_views.end(), GridView::name_custom_sort);
 
     QIcon icn(":img/ui-tab--plus.png");
     QMenu *m = new QMenu(this);
@@ -117,55 +115,28 @@ void ViewManager::reload_views() {
         }
     }
 
-    int total_views = 0;
-    QSettings *s = 0x0;
-
-    foreach(QString path, find_files_list("default_gridviews.dtg")) {
-        if (QFile::exists(path)) {
-            LOGI << "Found default_gridviews.dtg:" << path;
-            s = new QSettings(path, QSettings::IniFormat);
-            break;
-        }
-    }
-
     QStringList view_names;
-
-    if(s){
-        total_views = s->beginReadArray("gridviews");
-        QList<GridView*> built_in_views;
-        for (int i = 0; i < total_views; ++i) {
-            s->setArrayIndex(i);
-            GridView *gv = GridView::read_from_ini(*s, this);
-            gv->set_is_custom(false); // this is a default view
-            m_views << gv;
-            built_in_views << gv;
-            view_names.append(gv->name());
-        }
-        s->endArray();
-    }
-
-    //packaged default views, if we've already loaded an override for a view, don't include these views
-    s = new QSettings(":config/default_gridviews", QSettings::IniFormat);
-    total_views = s->beginReadArray("gridviews");
     QList<GridView*> built_in_views;
-    for (int i = 0; i < total_views; ++i) {
-        s->setArrayIndex(i);
-        GridView *gv = GridView::read_from_ini(*s, this);
-        gv->set_is_custom(false); // this is a default view
-        if(!view_names.contains(gv->name())){
-            m_views << gv;
-            built_in_views << gv;
-        }
+
+    //custom views
+    QDir d("share:gridviews");
+    d.setNameFilters(QStringList() << "*.dtg");
+    d.setFilter(QDir::NoDotAndDotDot | QDir::Readable | QDir::Files);
+    d.setSorting(QDir::Name);
+    QFileInfoList files = d.entryInfoList();
+    foreach(QFileInfo info, files) {
+        QSettings s(info.absoluteFilePath());
+        load_views(s,view_names,built_in_views);
     }
-    s->endArray();
-    delete(s);
-    s = 0;
+    //packaged default views, if we've already loaded an override for a view, don't include these views
+    QSettings s(":config/default_gridviews", QSettings::IniFormat);
+    load_views(s,view_names,built_in_views);
 
     //special default weapon view
     add_weapons_view(built_in_views);
 
-    // now read any gridviews out of the user's settings    
-    total_views = u->beginReadArray("gridviews");
+    // now read any gridviews out of the user's settings
+    int total_views = u->beginReadArray("gridviews");
     for (int i = 0; i < total_views; ++i) {
         u->setArrayIndex(i);
         GridView *gv = GridView::read_from_ini(*u, this);
@@ -196,10 +167,26 @@ void ViewManager::reload_views() {
         m_views << gv;
     }
     u->endArray();
-    u=0;
 
     LOGI << "Loaded" << m_views.size() << "views from disk";
     draw_add_tab_button();
+}
+
+void ViewManager::load_views(QSettings &s, QStringList &view_names, QList<GridView*> &built_in_views){
+    int total_views = s.beginReadArray("gridviews");
+    for (int i = 0; i < total_views; ++i) {
+        s.setArrayIndex(i);
+        GridView *gv = GridView::read_from_ini(s, this);
+        gv->set_is_custom(false); // this is a default view
+        if (!view_names.contains(gv->name())) {
+            m_views << gv;
+            built_in_views << gv;
+            view_names.append(gv->name());
+        }else{
+            LOGW << "gridview" << gv->name() << "was not loaded because a view with this name already exists";
+        }
+    }
+    s.endArray();
 }
 
 void ViewManager::add_weapons_view(QList<GridView*> &built_in_views){
@@ -207,7 +194,7 @@ void ViewManager::add_weapons_view(QList<GridView*> &built_in_views){
         return;
 
     DFInstance *m_df = DT->get_DFInstance();
-    if(m_df->get_ordered_weapon_defs().length() > 0){
+    if(m_df->get_ordered_weapon_defs().size() > 0){
         //add a special weapons view, this will dynamically change depending on the raws read
 
         //    //group by skill type for display
@@ -255,24 +242,20 @@ void ViewManager::add_weapons_view(QList<GridView*> &built_in_views){
         else
             gv->clear();
 
-//        ViewColumnSet *vcs = new ViewColumnSet("All Weapons", this);
-//        int count = grouped_by_size.count();
-//        QPair<long,long> wkeys;
-//        foreach(wkeys, grouped_by_size.uniqueKeys()){
-//            new WeaponColumn(grouped_by_size.value(wkeys)->group_name, grouped_by_size.value(wkeys),vcs,this);
-//        }
-
+        //by default add as few types as possible (ie. wavy pikes are the same as pikes) to keep the count down
+        QStringList added;
         ViewColumnSet *vcs = new ViewColumnSet("All Weapons", this);
-        int count = m_df->get_ordered_weapon_defs().length();
-        QPair<QString,ItemWeaponSubtype*> wp;
-        foreach(wp, m_df->get_ordered_weapon_defs()){
-            new WeaponColumn(wp.first,wp.second,vcs,this);
+        foreach(ItemWeaponSubtype *w, m_df->get_ordered_weapon_defs().values()){
+            if(!added.contains(w->group_name())){
+                new WeaponColumn(w->group_name(),w->subType(),vcs,this);
+                added.append(w->group_name());
+            }
         }
 
         gv->add_set(vcs);
         gv->set_is_custom(false);
         //if the weapon columns count <= the vanilla df weapon count, append the columns onto the military tab as well
-        if(count<=24){
+        if(vcs->columns().size()<=24){
             GridView *mv = this->get_view("Military");
             if(mv){
                 mv->remove_set("All Weapons");
@@ -287,7 +270,7 @@ void ViewManager::add_weapons_view(QList<GridView*> &built_in_views){
             }
         }
         m_views << gv;
-        built_in_views << gv;        
+        built_in_views << gv;
         //        if (m_add_weapons_tab)
         //        {
         //            add_tab_for_gridview(gv);
@@ -298,7 +281,7 @@ void ViewManager::add_weapons_view(QList<GridView*> &built_in_views){
 
 void ViewManager::draw_views() {
     // see if we have a saved tab order...
-    QTime start = QTime::currentTime();    
+    QTime start = QTime::currentTime();
     disconnect(tabBar(), SIGNAL(currentChanged(int)), this, SLOT(setCurrentIndex(int)));
     while (count()) {
         QWidget *w = widget(0);
@@ -349,7 +332,6 @@ void ViewManager::write_tab_settings() {
 
 void ViewManager::write_views() {
     QSettings *s = DT->user_settings();
-    s->remove("gridviews"); // look at us, taking chances like this!
 
     // find all custom gridviews...
     QList<GridView*> custom_views;
@@ -358,13 +340,16 @@ void ViewManager::write_views() {
             custom_views << gv;
     }
 
-    s->beginWriteArray("gridviews", custom_views.size());
-    int i = 0;
-    foreach(GridView *gv, custom_views) {
-        s->setArrayIndex(i++);
-        gv->write_to_ini(*s);
+    if(custom_views.count() > 0){
+        s->remove("gridviews"); //only wipe the custom views if we've loaded some
+        s->beginWriteArray("gridviews", custom_views.size());
+        int i = 0;
+        foreach(GridView *gv, custom_views) {
+            s->setArrayIndex(i++);
+            gv->write_to_ini(*s);
+        }
+        s->endArray();
     }
-    s->endArray();
     write_tab_settings();
 
     //write the default sorting
@@ -454,7 +439,7 @@ void ViewManager::setCurrentIndex(int idx) {
         LOGW << "tab switch to index" << idx << "requested but there are " <<
             "only" << count() << "tabs";
         return;
-    }    
+    }
 
     StateTableView *stv = get_stv(idx);
     StateTableView *prev_view = get_stv(m_last_index);
@@ -466,7 +451,7 @@ void ViewManager::setCurrentIndex(int idx) {
     if(default_group < 0)
         default_group = 0;
 
-    int sel_group = 0;    
+    int sel_group = 0;
     foreach(GridView *v, m_views) {
         if (v->name() == tabText(idx)) {
             stv->is_loading_rows = true;
@@ -582,7 +567,7 @@ void ViewManager::dwarf_selection_changed(const QItemSelection &selected,
     Q_UNUSED(selected);
     Q_UNUSED(deselected);
     QItemSelectionModel *selection = qobject_cast<QItemSelectionModel*>
-                                     (QObject::sender());    
+                                     (QObject::sender());
     m_selected_dwarfs.clear();
 
     foreach(QModelIndex idx, selection->selectedRows(0)) {
@@ -617,7 +602,7 @@ int ViewManager::add_tab_for_gridview(GridView *v) {
     stv->sortByColumn(0,Qt::AscendingOrder);
     stv->set_model(m_model, m_proxy);
     stv->setSortingEnabled(true);
-    stv->set_default_group(v->name());    
+    stv->set_default_group(v->name());
     connect(stv, SIGNAL(dwarf_focus_changed(Dwarf*)),
             SIGNAL(dwarf_focus_changed(Dwarf*))); // pass-thru
     connect(stv->selectionModel(),
@@ -697,7 +682,7 @@ void ViewManager::redraw_current_tab() {
     setCurrentIndex(currentIndex());
 }
 
-void ViewManager::redraw_current_tab_headers(){    
+void ViewManager::redraw_current_tab_headers(){
     get_stv(currentIndex())->is_loading_rows = true;
     m_model->draw_headers();
     get_stv(currentIndex())->is_loading_rows = false;

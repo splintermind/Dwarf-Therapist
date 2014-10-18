@@ -23,25 +23,21 @@ THE SOFTWARE.
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QtCore>
 #include <QMainWindow>
 #include <QLabel>
 #include <QProgressBar>
 #include <QCompleter>
 #include <QToolButton>
 
-#include "thoughtsdock.h"
 #include "global_enums.h"
 
-class StateTableView;
+class QSettings;
 class DFInstance;
 class DwarfModel;
 class DwarfModelProxy;
 class Dwarf;
 class AboutDialog;
-class CustomProfession;
 class ViewManager;
-class Scanner;
 class ScriptDialog;
 class roleDialog;
 class optimizereditor;
@@ -80,7 +76,6 @@ public:
         // DF related
         void connect_to_df();
         void read_dwarves();
-        void scan_memory();
         void new_pending_changes(int);
         void new_creatures_count(int, int, int, QString);
         void lost_df_connection();
@@ -168,7 +163,6 @@ private:
     DwarfModel *m_model;
     DwarfModelProxy *m_proxy;
     AboutDialog *m_about_dialog;
-    Scanner *m_scanner;
     ScriptDialog *m_script_dialog;
     roleDialog *m_role_editor;
     optimizereditor *m_optimize_plan_editor;
@@ -195,7 +189,7 @@ private:
     void refresh_role_menus();
 
     void refresh_opts_menus();
-    void reset();       
+    void reset();
 
     void refresh_pop_counts();
 
@@ -209,6 +203,7 @@ private:
         void apply_filter(QModelIndex);
         void preference_selected(QList<QPair<QString,QString> > vals, QString filter_name = "", FILTER_SCRIPT_TYPE pType = SCR_PREF);
         void thought_selected(QList<short> ids);
+        void equipoverview_selected(QList<QPair<QString, int> >);
         void health_legend_selected(QList<QPair<int,int> > vals);
         //optimization stuff
         void toggle_opts_menu();
@@ -218,6 +213,10 @@ private:
         void done_editing_role(int result);
         void main_toolbar_style_changed(Qt::ToolButtonStyle button_style);
         void clear_all_filters();
+
+signals:
+        void lostConnection();
+
 };
 
 #endif // MAINWINDOW_H

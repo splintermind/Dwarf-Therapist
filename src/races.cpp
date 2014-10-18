@@ -21,12 +21,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 #include "races.h"
+
+#include "dfinstance.h"
 #include "caste.h"
 #include "memorylayout.h"
 #include "truncatingfilelogger.h"
 #include "material.h"
 #include "dwarfstats.h"
-#include <QtDebug>
 
 Race::Race(DFInstance *df, VIRTADDR address, int id, QObject *parent)
     : QObject(parent)
@@ -123,16 +124,8 @@ void Race::read_race() {
     //LOGD << "RACE " << m_name << " (index:" << m_id << ") with " << castes.size() << "castes";
 
     if (!castes.empty()) {
-        Caste *c = 0;
-        int i = 0;
-        foreach(VIRTADDR caste_addr, castes) {
-            c = Caste::get_caste(m_df, caste_addr, this);
-            if (c != 0) {
-                m_castes[i] = c;
-//                if(m_id == m_df->dwarf_race_id())
-//                    LOGD << "FOUND CASTE " << hexify(caste_addr) << " IDX " << i << " NAME " << c->name();
-            }
-            i++;
+        foreach (VIRTADDR caste_addr, castes) {
+            m_castes.append(new Caste(m_df, caste_addr, this));
         }
     }
 
@@ -143,6 +136,14 @@ void Race::read_race() {
 
     m_flags = FlagArray(m_df, m_address + m_mem->race_offset("flags"));
     m_df->detach();
+}
+
+Caste * Race::get_caste_by_id(int idx){
+    if(idx >= 0 && m_castes.size() > idx){
+        return m_castes.at(idx);
+    }else{
+        return 0;
+    }
 }
 
 void Race::load_caste_ratios(){
@@ -160,6 +161,8 @@ void Race::load_caste_ratios(){
             for(int i=0; i < ratios.count(); i++){
                 sum += ratios.at(i);
             }
+            if(sum<=0)
+                sum = 1;
 
             float commonality = 0.0;
             for(int idx=0; idx < m_castes.count();idx++){
@@ -210,31 +213,17 @@ Material * Race::get_creature_material(int index){
     }
 }
 
-bool Race::is_trainable(){
-    bool result = false;
-    if(m_castes.count() > 0)
-        if(m_castes.value(0,0)->is_trainable())
-            result = true;
-
-    return result;
-}
-
-bool Race::is_milkable(){
-    bool result = false;
-    if(m_castes.count() > 0)
-        if(m_castes.value(0)->is_milkable())
-            result = true;
-
-    return result;
-}
-
-bool Race::is_vermin_extractable(){
-    bool result = false;
-    if(m_castes.count() > 0)
-        if(m_castes.value(0)->has_extracts())
-            result = true;
-
-    return result;
+bool Race::caste_flag(CASTE_FLAGS cf){
+    if(m_castes.empty()){
+        return false;
+    }else{
+        Caste *c = m_castes.at(0);
+        if(c){
+            return c->flags().has_flag(cf);
+        }else{
+            return false;
+        }
+    }
 }
 
 VIRTADDR Race::get_tissue_address(int index){

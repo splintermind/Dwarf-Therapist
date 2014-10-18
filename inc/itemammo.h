@@ -24,38 +24,38 @@ THE SOFTWARE.
 #define ITEMAMMO_H
 
 #include "item.h"
-#include "itemammosubtype.h"
+#include "itemgenericsubtype.h"
 
 class ItemAmmo : public Item {
 public:
 
     ItemAmmo(const Item &baseItem)
-        :Item(baseItem)
+        : Item(baseItem)
+        , m_ammo_def(0)
     {
         read_def();
     }
 
     ItemAmmo(DFInstance *df, VIRTADDR item_addr)
-        :Item(df,item_addr)
+        : Item(df,item_addr)
+        , m_ammo_def(0)
     {
         read_def();
     }
 
-    virtual ~ItemAmmo(){
-        m_df = 0;
-        m_ammo_def = 0;
+    ~ItemAmmo()
+    {
+        delete m_ammo_def;
     }
 
-    ItemAmmoSubtype * get_details(){return m_ammo_def;}
     short item_subtype(){return m_ammo_def->subType();}
 
 private:
-    ItemAmmoSubtype *m_ammo_def;
+    ItemGenericSubtype *m_ammo_def;
 
     void read_def(){
-        if(m_addr > 0){
-            m_ammo_def =  ItemAmmoSubtype::get_ammo(m_df,m_df->read_addr(m_addr+m_df->memory_layout()->item_offset("item_def")),this);
-            m_ammo_def->set_item_type(m_iType);
+        if(m_addr){
+            m_ammo_def = new ItemGenericSubtype(m_iType,m_df, m_df->read_addr(m_addr + m_df->memory_layout()->item_offset("item_def")), this);
             if(m_stack_size <= 1)
                 m_item_name = m_ammo_def->name();
             else

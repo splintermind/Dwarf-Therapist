@@ -20,60 +20,55 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#include <QVector>
-
-#if QT_VERSION < 0x050000
-# include <QScriptEngine>
-# define QJSEngine QScriptEngine
-# define QJSValue QScriptValue
-#else
-# include <QJSEngine>
-#endif
-
-#include <QDebug>
-#include <QAction>
-#include <QDialog>
-#include <QTextEdit>
-#include <QMessageBox>
-#include <QClipboard>
 #include "dwarf.h"
 #include "dfinstance.h"
-#include "skill.h"
 #include "trait.h"
 #include "belief.h"
 #include "dwarfjob.h"
-#include "defines.h"
 #include "gamedatareader.h"
 #include "customprofession.h"
 #include "memorylayout.h"
 #include "dwarftherapist.h"
-#include "dwarfdetailswidget.h"
 #include "mainwindow.h"
 #include "profession.h"
 #include "dwarfstats.h"
 #include "races.h"
 #include "reaction.h"
+#include "histfigure.h"
 #include "fortressentity.h"
 #include "columntypes.h"
 #include "plant.h"
-#include "syndrome.h"
+#include "bodypart.h"
 
-#include "utils.h"
 #include "labor.h"
 #include "preference.h"
 #include "material.h"
 #include "caste.h"
-#include "attribute.h"
-#include "itemweaponsubtype.h"
 #include "roleaspect.h"
 #include "thought.h"
 
+#include "squad.h"
+#include "uniform.h"
 #include "itemweapon.h"
 #include "itemarmor.h"
 #include "itemammo.h"
-#include "uniform.h"
 
-#include "squad.h"
+#include <QVector>
+#include <QAction>
+#include <QDialog>
+#include <QTextEdit>
+#include <QMessageBox>
+#include <QClipboard>
+#include <QDateTime>
+#include <QTreeWidgetItem>
+#include <QVBoxLayout>
+#ifdef QT_QML_LIB
+# include <QJSEngine>
+#else
+# include <QScriptEngine>
+# define QJSEngine QScriptEngine
+# define QJSValue QScriptValue
+#endif
 
 quint32 Dwarf::ticks_per_day = 1200;
 quint32 Dwarf::ticks_per_month = 28 * Dwarf::ticks_per_day;
@@ -90,7 +85,6 @@ Dwarf::Dwarf(DFInstance *df, const uint &addr, QObject *parent)
     , m_race_id(-1)
     , m_happiness(DH_MISERABLE)
     , m_raw_happiness(0)
-    , m_gender(SEX_UNK)
     , m_mood_id(-1)
     , m_had_mood(false)
     , m_artifact_name("")
@@ -104,13 +98,11 @@ Dwarf::Dwarf(DFInstance *df, const uint &addr, QObject *parent)
     , m_raw_profession(-1)
     , m_can_set_labors(false)
     , m_current_job_id(-1)
-    , m_hist_id(-1)
+    , m_hist_figure(0x0)
     , m_squad_id(-1)
-    , m_squad_position(-1)    
+    , m_squad_position(-1)
     , m_pending_squad_name(QString::null)
     , m_age(0)
-    , m_hist_nickname(0)
-    , m_fake_nickname(0)
     , m_noble_position("")
     , m_is_pet(false)
     , m_highest_moodable_skill(-1)
@@ -164,7 +156,8 @@ Dwarf::~Dwarf() {
 
     m_labors.clear();
     m_pending_labors.clear();
-    m_role_ratings.clear();    
+    m_role_ratings.clear();
+    m_raw_role_ratings.clear();
     m_sorted_role_ratings.clear();
     m_sorted_custom_role_ratings.clear();
     m_states.clear();
@@ -178,6 +171,7 @@ Dwarf::~Dwarf() {
     m_syndromes.clear();
     m_inventory_grouped.clear();
 
+    m_hist_figure = 0;
     m_uniform = 0;
     m_race = 0;
     m_caste = 0;
@@ -210,8 +204,8 @@ Dwarf *Dwarf::get_dwarf(DFInstance *df, const VIRTADDR &addr) {
     TRACE << "FLAGS3 :" << hexify(flags3);
     TRACE << "RACE   :" << hexify(race_id);
 
-    bool is_caged = has_flag(0x2000000,flags1);
-    bool is_tame = has_flag(0x4000000,flags1);
+    bool is_caged = flags1 & 0x2000000;
+    bool is_tame = flags1 & 0x4000000;
 
     if(!is_caged){
         if(civ_id != df->dwarf_civ_id()){ //non-animal, but wrong civ
@@ -223,7 +217,7 @@ Dwarf *Dwarf::get_dwarf(DFInstance *df, const VIRTADDR &addr) {
             //if it's a caged, trainable beast, keep it in our list, but only if it's alive
             Race *r = df->get_race(race_id);
             if(r){
-                trainable = r->is_trainable();
+                trainable = r->caste_flag(TRAINABLE);
                 r = 0;
             }
             if(!trainable){
@@ -244,7 +238,7 @@ Dwarf *Dwarf::get_dwarf(DFInstance *df, const VIRTADDR &addr) {
 bool Dwarf::has_invalid_flags(const QString creature_name, QHash<uint, QString> invalid_flags, quint32 dwarf_flags){
     foreach(uint invalid_flag, invalid_flags.uniqueKeys()) {
         QString reason = invalid_flags[invalid_flag];
-        if(has_flag(invalid_flag,dwarf_flags)) {
+        if(dwarf_flags & invalid_flag) {
             LOGI << "Ignoring" << creature_name << "who appears to be" << reason;
             return true;
         }
@@ -293,21 +287,22 @@ void Dwarf::refresh_data() {
     if(!m_validated)
         this->is_valid();
     if(m_is_valid){
-        read_caste(); //read before age        
+        read_hist_fig(); //read before noble positions, curse
+        read_caste(); //read before age
         read_labors();
         read_happiness();
         read_squad_info(); //read squad before job
         read_uniform();
+        read_gender_orientation(); //read before profession
+        read_profession(); //read profession before building the names, and before job
         read_current_job();
         read_syndromes(); //read syndromes before attributes
         read_turn_count(); //load time/date stuff for births/migrations - read before age
         set_age_and_migration(m_address + m_mem->dwarf_offset("birth_year"), m_address + m_mem->dwarf_offset("birth_time")); //set age before profession
-        read_profession(); //read profession before building the names
         read_body_size(); //body size after caste and age
         //curse check will change the name and age
         read_curse(); //read curse before attributes
         read_soul_aspects(); //assumes soul already read, and requires caste to be read first
-        read_sex();
         read_animal_type(); //need skills loaded to check for hostiles
         read_noble_position();
         read_preferences();
@@ -373,9 +368,9 @@ bool Dwarf::is_valid(){
 
             //check for migrants (which aren't dead/killed/ghosts)
             if(this->state_value(7) > 0
-                    && !has_flag(0x2,m_unit_flags.at(0))
-                    && !has_flag(0x80,m_unit_flags.at(1))
-                    && !has_flag(0x1000,m_unit_flags.at(2))){
+                    && !(m_unit_flags.at(0) & 0x2)
+                    && !(m_unit_flags.at(1) & 0x80)
+                    && !(m_unit_flags.at(2) & 0x1000)){
                 LOGI << "Found migrant " << this->nice_name();
                 m_validated = true;
                 m_is_valid = true;
@@ -392,7 +387,7 @@ bool Dwarf::is_valid(){
             }
 
             //check opposed to life
-            if(has_flag(eCurse::OPPOSED_TO_LIFE,m_curse_flags)){
+            if(m_curse_flags & eCurse::OPPOSED_TO_LIFE){
                 LOGI << "Ignoring " << this->nice_name() << " who appears to be a hostile undead!";
                 m_validated = true;
                 m_is_valid = false;
@@ -400,9 +395,7 @@ bool Dwarf::is_valid(){
             }
 
         }else{ //tame or caged animals
-            bool is_caged = has_flag(0x2000000,m_unit_flags.at(0));
-            bool is_tame = has_flag(0x4000000,m_unit_flags.at(0));
-            if(is_caged || is_tame){
+            if (m_unit_flags.at(0) & 0x6000000) {
                 //exclude cursed animals, this may be unnecessary with the civ check
                 //the full curse information hasn't been loaded yet, so just read the curse name
                 QString curse_name = m_df->read_string(m_address + m_mem->dwarf_offset("curse"));
@@ -452,17 +445,17 @@ void Dwarf::set_age_and_migration(VIRTADDR birth_year_offset, VIRTADDR birth_tim
     quint32 arrival_season = (arrival_time % ticks_per_year) / ticks_per_season;
     quint32 arrival_month = (arrival_time % ticks_per_year) / ticks_per_month;
     quint32 arrival_day = ((arrival_time % ticks_per_year) % ticks_per_month) / ticks_per_day;
-    quint32 time_since_birth = m_age * ticks_per_year + current_year_time - m_birth_time;
+    m_ticks_since_birth = m_age * ticks_per_year + current_year_time - m_birth_time;
     //this way we have the right sort order and all the data needed for the group by migration wave
     m_migration_wave = 100000 * arrival_year + 10000 * arrival_season + 100 * arrival_month + arrival_day;
-    m_born_in_fortress = (time_since_birth == m_turn_count);
+    m_born_in_fortress = (m_ticks_since_birth == m_turn_count);
 
-    m_age_in_months = time_since_birth / ticks_per_month;
+    m_age_in_months = m_ticks_since_birth / ticks_per_month;
 
     if(m_caste){
-        if(m_age == 0 || time_since_birth < m_caste->baby_age() * ticks_per_year)
+        if(m_age == 0 || m_ticks_since_birth < m_caste->baby_age() * ticks_per_year)
             m_is_baby = true;
-        else if(time_since_birth < m_caste->child_age() * ticks_per_year)
+        else if(m_ticks_since_birth < m_caste->child_age() * ticks_per_year)
             m_is_child = true;
     }
 }
@@ -487,15 +480,11 @@ QString Dwarf::get_migration_desc(){
     else if ((day == 3) || (day == 23))
         suffix = "rd";
 
-    if(m_born_in_fortress)
-    {
+    if(m_born_in_fortress){
         return QString("Born on the %1%4 of %2 in the year %3").arg(day).arg(GameDataReader::ptr()->m_months.at(month)).arg(year).arg(suffix);
-    }
-    else
-    {
+    }else{
         return QString("Arrived in the %2 of the year %1").arg(year).arg(GameDataReader::ptr()->m_seasons.at(season));
     }
-    return "Unknown Arrival";
 }
 
 /*******************************************************************************
@@ -503,27 +492,72 @@ QString Dwarf::get_migration_desc(){
 *******************************************************************************/
 
 void Dwarf::read_id() {
-    m_id = m_df->read_int(m_address + m_mem->dwarf_offset("id"));        
-    m_hist_id = m_df->read_int(m_address + m_mem->dwarf_offset("hist_id"));
-    TRACE << "UNIT ID:" << m_id << "HIST_FIG_ID:" << m_hist_id;
+    m_id = m_df->read_int(m_address + m_mem->dwarf_offset("id"));
+    TRACE << "UNIT ID:" << m_id;
 }
 
-void Dwarf::read_sex() {
+void Dwarf::read_hist_fig(){
+    m_hist_figure = new HistFigure(m_df->read_int(m_address + m_mem->dwarf_offset("hist_id")),m_df,this);
+    TRACE << "HIST_FIG_ID:" << m_hist_figure->id();
+}
+
+void Dwarf::read_gender_orientation() {
     BYTE sex = m_df->read_byte(m_address + m_mem->dwarf_offset("sex"));
     TRACE << "GENDER:" << sex;
-    m_gender = static_cast<GENDER_TYPE>(sex);    
-//    if(m_first_soul){
-//        quint32 orientation = m_df->read_int(m_first_soul + 0x78);
-//        m_unit_flags << orientation;
-//        LOGI << m_nice_name << "orientation" << orientation << "gender" << sex;
-//    }
-    if(m_gender == SEX_UNK){
-        m_icn_gender = tr(":img/question-white.png");
-    }else if(m_gender == SEX_M){
-        m_icn_gender = tr(":img/male.png");
+    m_gender_info.gender = static_cast<GENDER_TYPE>(sex);
+    m_gender_info.orientation = ORIENT_HETERO; //default
+
+    QStringList icon_name;
+
+    if(m_gender_info.gender == SEX_UNK){
+        icon_name.append("question-white");
+    }else if(m_gender_info.gender == SEX_M){
+        icon_name.append("male");
     }else{
-        m_icn_gender = tr(":img/female.png");
+        icon_name.append("female");
     }
+
+    int orient_offset = m_mem->soul_detail("orientation");
+    if(m_gender_info.gender != SEX_UNK && m_first_soul && orient_offset != -1){
+        quint32 orientation = m_df->read_addr(m_first_soul + orient_offset);
+        m_gender_info.male_interest = orientation & (1 << 1);
+        m_gender_info.male_commit = orientation & (1 << 2);
+        m_gender_info.female_interest = orientation & (1 << 3);
+        m_gender_info.female_commit = orientation & (1 << 4);
+
+        //check the commitment/breed bits first. this determines animal breeding, and will override the interest bit, seemingly
+        //for example, a male dwarf, with interest in males and commitment to females will marry a female
+        icon_name.append(get_gender_icon_suffix(m_gender_info.male_commit,m_gender_info.female_commit));
+    }
+    icon_name.removeAll("");
+    m_icn_gender = QString(":img/%1.png").arg(icon_name.join("-"));
+
+    QStringList gender_desc;
+    gender_desc << get_gender_desc(m_gender_info.gender) << get_orientation_desc(m_gender_info.orientation);
+    gender_desc.removeAll("");
+    m_gender_info.full_desc = gender_desc.join(" - ");
+}
+
+QString Dwarf::get_gender_icon_suffix(bool male_flag, bool female_flag, bool checking_interest){
+    QString suffix = "";
+    if(male_flag && female_flag){
+        suffix ="bi";
+        m_gender_info.orientation = ORIENT_BISEXUAL;
+    }else if(male_flag && m_gender_info.gender == SEX_M){
+        suffix ="male";
+        m_gender_info.orientation = ORIENT_HOMO;
+    }else if(female_flag && m_gender_info.gender == SEX_F){
+        suffix ="female";
+        m_gender_info.orientation = ORIENT_HOMO;
+    }else if(!male_flag && !female_flag){
+        if(m_is_animal || checking_interest){
+            suffix ="asexual";
+            m_gender_info.orientation = ORIENT_ASEXUAL;
+        }else{
+            return get_gender_icon_suffix(m_gender_info.male_interest,m_gender_info.female_interest,true);
+        }
+    }
+    return suffix;
 }
 
 void Dwarf::read_mood(){
@@ -531,7 +565,7 @@ void Dwarf::read_mood(){
 
     if(m_mood_id < 0){
         //also mark if they've had a mood, if they're not IN a mood
-        if(has_flag(0x00000008,m_unit_flags.at(0))){
+        if(m_unit_flags.at(0) & 0x8){
             m_had_mood = true;
             m_artifact_name = m_df->get_translated_word(m_address + m_mem->dwarf_offset("artifact_name"));
             m_highest_moodable_skill = m_df->read_short(m_address +m_mem->dwarf_offset("mood_skill"));
@@ -540,36 +574,24 @@ void Dwarf::read_mood(){
 }
 
 void Dwarf::read_body_size(){
-    //default caste size
-    m_body_size = body_size(true);
-
     //actual size of the creature
-    if(m_mem->dwarf_offset("body_size")){
-        QVector<VIRTADDR> entries = m_df->enumerate_vector(m_address + m_mem->dwarf_offset("body_size"));
-        foreach(VIRTADDR entry, entries) {
-            m_body_size = m_body_size * ((float)entry / 100);
-        }
+    int offset = m_mem->dwarf_offset("size_info");
+    if(offset){
+        m_body_size = m_df->read_int(m_address + offset);
+    }else{
+        LOGW << "Missing size_info offset!";
+        m_body_size = body_size(true);
     }
 }
 
 int Dwarf::body_size(bool use_default){
     //we include returning the default size because for the weapon columns, the size actually doesn't matter to DF (bug?)
     if(use_default){
-        int def_size = 6000; //default adult size
+        int def_size = 6000; //default adult size for a dwarf
         if(m_is_baby)
             def_size = 300;
         else if(m_is_child)
             def_size = 1500;
-
-        //now check the actual caste's size
-        if(m_caste){
-            if(m_is_child)
-                def_size = m_caste->child_size();
-            else if(m_is_baby)
-                def_size = m_caste->baby_size();
-            else
-                def_size = m_caste->adult_size();
-        }
         return def_size;
     }else{
         return m_body_size;
@@ -607,7 +629,7 @@ void Dwarf::read_states(){
     }
 }
 
-void Dwarf::read_curse(){    
+void Dwarf::read_curse(){
     QString curse_name = capitalizeEach(m_df->read_string(m_address + m_mem->dwarf_offset("curse")));
 
     if(!curse_name.isEmpty()){
@@ -617,31 +639,37 @@ void Dwarf::read_curse(){
         //want to be aware of for the purpose of highlighting them
 
         //TODO: check for removed flags as well
-        if(has_flag(eCurse::BLOODSUCKER, m_curse_flags)){ //if(!has_flag(eCurse::BLOODSUCKER, m_curse_rem_flags) && has_flag(eCurse::BLOODSUCKER,m_curse_flags)){
+        if(m_curse_flags & eCurse::BLOODSUCKER){ //if(!has_flag(eCurse::BLOODSUCKER, m_curse_rem_flags) && has_flag(eCurse::BLOODSUCKER,m_curse_flags)){
             //if it's a vampire then find the vampire's fake identity and use that name/age instead to match DF
             find_true_ident();
             m_curse_type = eCurse::VAMPIRE;
-        }        
+        }
 
-        m_curse_name == curse_name;
+        m_curse_name = curse_name;
     }
 }
 
 void Dwarf::find_true_ident(){
-    VIRTADDR fake_id = m_df->find_fake_identity(m_hist_id);
-    if(fake_id){
+    if(m_hist_figure->has_fake_identity()){
         //save the true name for display
         m_true_name = m_nice_name;
         m_true_birth_year = m_birth_year;
         //overwrite the default name, birth year with the assumed identity
-        m_first_name = capitalize(m_df->read_string(fake_id + m_mem->hist_figure_offset("fake_name") + m_mem->dwarf_offset("first_name")));
-        m_fake_nickname = fake_id + m_mem->hist_figure_offset("fake_name") + m_mem->dwarf_offset("nick_name");
-        m_nick_name = m_df->read_string(m_fake_nickname);
-        read_last_name(fake_id + m_mem->hist_figure_offset("fake_name"));
+        m_first_name = m_hist_figure->fake_name();
+        m_nick_name = m_hist_figure->fake_nick_name();
+        read_last_name(m_hist_figure->fake_name_offset());
         build_names();
         //vamps also use a fake age
-        set_age_and_migration(fake_id + m_mem->hist_figure_offset("fake_birth_year"),fake_id + m_mem->hist_figure_offset("fake_birth_time"));
+        set_age_and_migration(m_hist_figure->fake_birth_year_offset(),m_hist_figure->fake_birth_time_offset());
     }
+}
+
+int Dwarf::historical_id(){
+    return m_hist_figure->id();
+}
+
+HistFigure* Dwarf::hist_figure(){
+    return m_hist_figure;
 }
 
 void Dwarf::read_caste() {
@@ -695,11 +723,6 @@ void Dwarf::read_nick_name() {
     m_nick_name = m_df->read_string(m_address + m_mem->dwarf_offset("nick_name"));
     TRACE << "\tNICKNAME:" << m_nick_name;
     m_pending_nick_name = m_nick_name;
-
-    //save the historical figure's nickname address as we need to update it when nicknames are changed
-    VIRTADDR hist_addr = m_df->find_historical_figure(m_hist_id);
-    if(hist_addr)
-        m_hist_nickname = hist_addr + m_mem->hist_figure_offset("hist_name") + m_mem->dwarf_offset("nick_name");
 }
 
 void Dwarf::build_names() {
@@ -806,7 +829,7 @@ void Dwarf::read_profession() {
         img_idx = m_raw_profession + 1; //images start at 1, professions at 0, offest to match image
 
     //set the default path for the profession icon
-    m_icn_prof = QPixmap(":/profession/img/profession icons/prof_" + QString::number(img_idx) + ".png");
+    m_icn_prof = QPixmap(":/profession/prof_" + QString::number(img_idx) + ".png");
     //see if we have a custom profession or icon override
     CustomProfession *cp;
     if(!m_custom_profession.isEmpty()){
@@ -822,7 +845,7 @@ void Dwarf::read_profession() {
 }
 
 void Dwarf::read_noble_position(){
-    m_noble_position = m_df->fortress()->get_noble_positions(m_hist_id,is_male());
+    m_noble_position = m_df->fortress()->get_noble_positions(m_hist_figure->id(),is_male());
 }
 void Dwarf::read_preferences(){
     if(m_is_animal)
@@ -837,7 +860,7 @@ void Dwarf::read_preferences(){
     QString pref_name = "Unknown";
     ITEM_TYPE itype;
     PREF_TYPES ptype;
-    Preference *p;    
+    Preference *p;
     foreach(VIRTADDR pref, preferences){
         pref_type = m_df->read_short(pref);
         pref_id = m_df->read_short(pref + 0x2);
@@ -859,34 +882,17 @@ void Dwarf::read_preferences(){
         {
             pref_name = m_df->find_material_name(mat_index,mat_type,NONE);
             Material *m = m_df->find_material(mat_index,mat_type);
-            if(m->id() >= 0){
-                p->set_material_flags(m->flags());
+            if(m && m->id() >= 0){
+                p->set_pref_flags(m->flags());
             }
-            m = 0;
         }
             break;
         case 1: //like creature
         {
             Race* r = m_df->get_race(pref_id);
             if(r){
-                pref_name = r->plural_name().toLower();
-                p = new Preference(ptype,pref_name,this);
-                //set trainable flags as well for like creatures
-                if(r->is_trainable()){ //really only need to add one flag for a match..
-                    p->add_flag(TRAINABLE_HUNTING);
-                    p->add_flag(TRAINABLE_WAR); //seems this may only exist in mods?
-                }
-                //for fish dissection
-                if(r->flags().has_flag(VERMIN_FISH))
-                    p->add_flag(VERMIN_FISH);
-                //for milker
-                if(r->is_milkable()){
-                    p->add_flag(MILKABLE);
-                }
-                //animal dissection / beekeeper
-                if(r->is_vermin_extractable()){
-                    p->add_flag(HAS_EXTRACTS);
-                }
+                pref_name = r->plural_name();
+                p->set_pref_flags(r);
             }
         }
             break;
@@ -909,21 +915,20 @@ void Dwarf::read_preferences(){
         {
             Race* r = m_df->get_race(pref_id);
             if(r)
-                pref_name = r->plural_name().toLower();
+                pref_name = r->plural_name();
         }
             break;
         case 4: //like item
         {
-            pref_name = m_df->get_preference_item_name(pref_id,item_sub_type).toLower();
             p->set_item_type(itype);
-
-            //special case for weapon items. find the weapon and set ranged/melee flag for comparison
-            if(itype == WEAPON){
-                ItemWeaponSubtype *w = m_df->get_weapon_def(capitalizeEach(pref_name));
-                if(w && w->is_ranged())
-                    p->add_flag(ITEMS_WEAPON_RANGED);
-                else
-                    p->add_flag(ITEMS_WEAPON);
+            pref_name = m_df->get_preference_item_name(pref_id,item_sub_type);
+            if(item_sub_type >= 0 && Item::has_subtypes(itype)){
+                ItemSubtype *s = m_df->get_item_subtype(itype,item_sub_type);
+                if(s){
+                    p->set_pref_flags(s->flags());
+                }
+            }else if(Item::is_trade_good(itype)){
+                p->add_flag(IS_TRADE_GOOD);
             }
         }
             break;
@@ -931,26 +936,26 @@ void Dwarf::read_preferences(){
         {
             Plant *plnt = m_df->get_plant(pref_id);
             if(plnt){
-                pref_name = plnt->name_plural().toLower();
-                if(plnt->flags().has_flag(7)){
-                    p->add_flag(7);
-                }
+                pref_name = plnt->name_plural();
+                p->set_pref_flags(plnt->flags());
             }
         }
             break;
         case 6: //like tree
         {
-            pref_name = m_df->get_plant(pref_id)->name_plural().toLower();
+            Plant *plnt = m_df->get_plant(pref_id);
+            if (plnt)
+                pref_name = plnt->name_plural();
         }
             break;
         case 7: //like color
         {
-            pref_name = m_df->get_color(pref_id).toLower();
+            pref_name = m_df->get_color(pref_id);
         }
             break;
         case 8: //like shape
         {
-            pref_name = m_df->get_shape(pref_id).toLower();
+            pref_name = m_df->get_shape(pref_id);
         }
             break;
 
@@ -967,7 +972,7 @@ void Dwarf::read_preferences(){
     //add a special preference (actually a misc trait) for like outdoors
     if(has_state(14)){
         int val = state_value(14);
-        QString pref = tr("Does not mind being outdoors");
+        QString pref = tr("Doesn't mind being outdoors");
         if(val == 2)
             pref = tr("Likes working outdoors");
 
@@ -1020,13 +1025,13 @@ void Dwarf::read_preferences(){
     if(build_tooltip){
         m_pref_tooltip = tr("<b>Preferences: </b>");
         if(likes.count()>0)
-            m_pref_tooltip.append(tr("Likes ")).append(nice_list(likes)).append(". ");
+            m_pref_tooltip.append(tr("Likes ")).append(formatList(likes)).append(". ");
         if(consume.count()>0)
-            m_pref_tooltip.append(tr("Prefers to consume ")).append(nice_list(consume)).append(". ");
+            m_pref_tooltip.append(tr("Prefers to consume ")).append(formatList(consume)).append(". ");
         if(hates.count()>0)
-            m_pref_tooltip.append(tr("Hates ")).append(nice_list(hates)).append(". ");
+            m_pref_tooltip.append(tr("Hates ")).append(formatList(hates)).append(". ");
         if(other.count()>0)
-            m_pref_tooltip.append(nice_list(other)).append(". ");
+            m_pref_tooltip.append(formatList(other)).append(". ");
         m_pref_tooltip = m_pref_tooltip.trimmed();
     }
 }
@@ -1479,7 +1484,8 @@ void Dwarf::read_uniform(){
 void Dwarf::read_inventory(){
     LOGD << "reading inventory for" << m_nice_name;
     m_coverage_ratings.clear();
-    m_inventory_wear.clear();
+    m_max_inventory_wear.clear();
+    m_equip_warnings.clear();
     m_inventory_grouped.clear();
 
     bool has_shirt = false;
@@ -1496,6 +1502,7 @@ void Dwarf::read_inventory(){
     short bp_id = -1;
     QString category_name = "";
     int inv_count = 0;
+    bool include_mat_name = DT->user_settings()->value("options/docks/equipoverview_include_mats",false).toBool();
     foreach(VIRTADDR inventory_item_addr, m_df->enumerate_vector(m_address + m_mem->dwarf_offset("inventory"))){
         inv_type = m_df->read_short(inventory_item_addr + m_mem->dwarf_offset("inventory_item_mode"));
         bp_id = m_df->read_short(inventory_item_addr + m_mem->dwarf_offset("inventory_item_bodypart"));
@@ -1529,8 +1536,19 @@ void Dwarf::read_inventory(){
                 else if(i_type == SHOES)
                     shoes_count++;
 
-                if(ir->wear() > m_inventory_wear.value(i_type))
-                    m_inventory_wear.insert(i_type,ir->wear());
+                int wear_level = ir->wear();
+                if(wear_level > m_max_inventory_wear.value(i_type)){
+                    m_max_inventory_wear.insert(i_type,wear_level);
+                }
+                if(wear_level > 0 && Item::is_armor_type(i_type,false)){
+                    QString item_name = QString("%1 %2").arg((include_mat_name ? ir->get_material_name_base() : "")).arg(ir->get_details()->name_plural()).trimmed();
+                    QPair<QString,int> key = qMakePair(item_name,wear_level);
+                    if(m_equip_warnings.contains(key)){
+                        m_equip_warnings[key] += ir->get_stack_size();
+                    }else{
+                        m_equip_warnings.insert(key,ir->get_stack_size());
+                    }
+                }
 
                 LOGD << "  + found armor/clothing:" << ir->display_name(false);
             }else if(Item::is_supplies(i_type) || Item::is_ranged_equipment(i_type)){
@@ -1551,7 +1569,7 @@ void Dwarf::read_inventory(){
         }else{
             LOGD << "  - skipping inventory item due to invalid type (" + QString::number(inv_type) + ")";
         }
-    }    
+    }
     LOGD << "  total inventory items found:" << inv_count;
 
     //missing uniform items
@@ -1584,19 +1602,24 @@ void Dwarf::read_inventory(){
     }
 
     //set our coverage ratings. currently this is only important for the 3 clothing types that, if missing, give bad thoughts
+    QString title = "";
     if(has_pants){
         m_coverage_ratings.insert(PANTS,100.0f);
     }else{
         m_coverage_ratings.insert(PANTS,0.0f);
         m_missing_counts.insert(PANTS,1);
-        process_inv_item(Item::uncovered_group_name(),new Item(PANTS,tr("Legs Uncovered!"),this));
+        title = tr("Legs Uncovered!");
+        process_inv_item(Item::uncovered_group_name(),new Item(PANTS,title,this));
+        m_equip_warnings.insert(qMakePair(title,-1),1);
     }
     if(has_shirt){
         m_coverage_ratings.insert(ARMOR,100.0f);
     }else{
         m_coverage_ratings.insert(ARMOR,0);
         m_missing_counts.insert(ARMOR,1);
-        process_inv_item(Item::uncovered_group_name(),new Item(ARMOR,tr("Chest Uncovered!"),this));
+        title = tr("Torso Uncovered!");
+        process_inv_item(Item::uncovered_group_name(),new Item(ARMOR,title,this));
+        m_equip_warnings.insert(qMakePair(title,-1),1);
     }
     //for shoes, compare how many they're wearing compared to how many legs they've still got
     float limb_count =  m_unit_health.limb_count();
@@ -1604,8 +1627,11 @@ void Dwarf::read_inventory(){
     if(limb_count > 0)
         foot_coverage = shoes_count / limb_count * 100.0f;
     if(foot_coverage < 100.0f){
-        process_inv_item(Item::uncovered_group_name(),new Item(SHOES,tr("Feet Uncovered!"),this));
-        m_missing_counts.insert(SHOES,limb_count - shoes_count);
+        title = tr("Feet Uncovered!");
+        process_inv_item(Item::uncovered_group_name(),new Item(SHOES,title,this));
+        int count = limb_count - shoes_count;
+        m_missing_counts.insert(SHOES,count);
+        m_equip_warnings.insert(qMakePair(title,-1),count);
     }
     m_coverage_ratings.insert(SHOES,foot_coverage);
 }
@@ -1629,16 +1655,19 @@ void Dwarf::process_inv_item(QString category, Item *item, bool is_contained_ite
 }
 
 //returns 1-3, higher being more worn out items
-int Dwarf::get_inventory_wear(ITEM_TYPE itype){
+int Dwarf::get_max_wear_level(ITEM_TYPE itype){
     if(itype == NONE){
         int worst_wear=0;
-        foreach(int rating, m_inventory_wear.values()){
-            if(rating > worst_wear)
+        foreach(int rating, m_max_inventory_wear.values()){
+            if(rating > worst_wear){
                 worst_wear = rating;
+                if(worst_wear >= 3)
+                    break;
+            }
         }
         return worst_wear;
     }else{
-        return m_inventory_wear.value(itype);
+        return m_max_inventory_wear.value(itype);
     }
     return 0;
 }
@@ -1730,13 +1759,13 @@ void Dwarf::read_skills() {
     }
 }
 
-void Dwarf::read_personality() {        
+void Dwarf::read_personality() {
     if(!m_is_animal){
         VIRTADDR personality_addr = m_first_soul + m_mem->soul_detail("personality");
 
         //read personal beliefs before traits, as a dwarf will have a conflict with either personal beliefs or cultural beliefs
         m_beliefs.clear();
-        QVector<VIRTADDR> m_beliefs_addrs = m_df->enumerate_vector(personality_addr + m_mem->soul_detail("beliefs"));        
+        QVector<VIRTADDR> m_beliefs_addrs = m_df->enumerate_vector(personality_addr + m_mem->soul_detail("beliefs"));
         foreach(VIRTADDR addr, m_beliefs_addrs){
             int belief_id = m_df->read_int(addr);
             if(belief_id >= 0){
@@ -1758,12 +1787,12 @@ void Dwarf::read_personality() {
                 val = 100;
             m_traits.insert(trait_id, val);
 
-            QList<int> possible_conflicts = GameDataReader::ptr()->get_trait(trait_id)->get_conflicting_beliefs();            
+            QList<int> possible_conflicts = GameDataReader::ptr()->get_trait(trait_id)->get_conflicting_beliefs();
             foreach(int belief_id, possible_conflicts){
                 UnitBelief ub = get_unit_belief(belief_id);
                 if((ub.belief_value() > 10 && val < 40)  || (ub.belief_value() < -10 && val > 60)){
                     m_beliefs[belief_id].add_trait_conflict(trait_id);
-                    m_conflicting_beliefs.insertMulti(trait_id, ub);                    
+                    m_conflicting_beliefs.insertMulti(trait_id, ub);
                 }
             }
         }
@@ -1827,19 +1856,18 @@ void Dwarf::read_attributes() {
     //read the physical attributes
     VIRTADDR addr = m_address + m_mem->dwarf_offset("physical_attrs");
     for(int i=0; i<6; i++){
-        load_attribute(addr,i);
+        load_attribute(addr, static_cast<ATTRIBUTES_TYPE>(i));
     }
     //read the mental attributes, but append to our array (augment the key by the number of physical attribs)
     int phys_size = m_attributes.size();
     addr = m_first_soul + m_mem->soul_detail("mental_attrs");
     for(int i=0; i<13; i++){
-        load_attribute(addr,i+phys_size);
+        load_attribute(addr, static_cast<ATTRIBUTES_TYPE>(i+phys_size));
     }
 }
 
-void Dwarf::load_attribute(VIRTADDR &addr, int id){
+void Dwarf::load_attribute(VIRTADDR &addr, ATTRIBUTES_TYPE id){
     int cti = 500;
-    ATTRIBUTES_TYPE att_id = static_cast<ATTRIBUTES_TYPE>(id);
     QPair<int,QString> desc; //index, description of descriptor
 
     int value = (int)m_df->read_int(addr);
@@ -1849,19 +1877,19 @@ void Dwarf::load_attribute(VIRTADDR &addr, int id){
     //apply any permanent syndrome changes to the raw/base value
     int perm_add = 0;
     int perm_perc = 1;
-    if(m_attribute_mods_perm.contains(att_id)){
-        perm_perc = m_attribute_mods_perm.value(att_id).first;
+    if(m_attribute_mods_perm.contains(id)){
+        perm_perc = m_attribute_mods_perm.value(id).first;
         value *= perm_perc;
-        perm_add = m_attribute_mods_perm.value(att_id).second;
+        perm_add = m_attribute_mods_perm.value(id).second;
         value += perm_add;
     }
     //apply temp syndrome changes to the display value
-    if(m_attribute_mods_temp.contains(att_id)){
+    if(m_attribute_mods_temp.contains(id)){
         display_value *= perm_perc;
-        display_value *= m_attribute_mods_temp.value(att_id).first;
+        display_value *= m_attribute_mods_temp.value(id).first;
 
         display_value += perm_add;
-        display_value += m_attribute_mods_temp.value(att_id).second;
+        display_value += m_attribute_mods_temp.value(id).second;
     }else{
         display_value *= perm_perc;
         display_value += perm_add;
@@ -1869,7 +1897,7 @@ void Dwarf::load_attribute(VIRTADDR &addr, int id){
 
     if(m_caste){
         cti = m_caste->get_attribute_cost_to_improve(id);
-        desc = m_caste->get_attribute_descriptor_info(att_id, display_value);
+        desc = m_caste->get_attribute_descriptor_info(id, display_value);
     }
     Attribute a = Attribute(id, value, display_value, limit, cti, desc.first, desc.second);
 
@@ -1877,14 +1905,14 @@ void Dwarf::load_attribute(VIRTADDR &addr, int id){
     if(!m_is_baby && !m_is_animal)
         a.calculate_balanced_value();
 
-    if(m_attribute_syndromes.contains(att_id))
-        a.set_syn_names(m_attribute_syndromes.value(att_id));
+    if(m_attribute_syndromes.contains(id))
+        a.set_syn_names(m_attribute_syndromes.value(id));
 
     m_attributes.append(a);
     addr+=0x1c;
 }
 
-Attribute Dwarf::get_attribute(int id){
+Attribute Dwarf::get_attribute(ATTRIBUTES_TYPE id){
     if(id < m_attributes.count())
         return m_attributes.at(id);
     else
@@ -1893,7 +1921,11 @@ Attribute Dwarf::get_attribute(int id){
 
 Skill Dwarf::get_skill(int skill_id) {
     if(!m_skills.contains(skill_id)){
-        Skill s = Skill(skill_id, 0, -1, 0, m_caste->get_skill_rate(skill_id));
+        int skill_rate = 100;
+        if(m_caste){
+            skill_rate = m_caste->get_skill_rate(skill_id);
+        }
+        Skill s = Skill(skill_id, 0, -1, 0, skill_rate);
         s.get_balanced_level();
         m_skills.insert(skill_id,s);
         m_sorted_skills.insertMulti(s.capped_level_precise(), skill_id);
@@ -2065,10 +2097,10 @@ bool Dwarf::toggle_flag_bit(int bit) {
         mask<<=1;
     if (bit>31){
         //don't butcher if it's a pet, user will be notified via tooltip on column, same for non-butcherable
-        if(!m_is_pet && m_caste->can_butcher())
+        if(!m_is_pet && m_caste->flags().has_flag(BUTCHERABLE))
             m_butcher^=mask;
-    }else
-        m_caged^=mask;
+    }
+
     return true;
 }
 
@@ -2116,7 +2148,7 @@ void Dwarf::clear_pending() {
             if(s)
                 s->assign_to_squad(this); //updates uniform/inventory/squad
         }
-    }        
+    }
 
     //refresh any other data that may have been pending commit
     refresh_minimal_data();
@@ -2144,21 +2176,20 @@ void Dwarf::commit_pending(bool single) {
     if (m_pending_nick_name != m_nick_name){
         m_df->write_string(m_address + m_mem->dwarf_offset("nick_name"), m_pending_nick_name);
         m_df->write_string(m_first_soul + m_mem->soul_detail("name") + m_mem->dwarf_offset("nick_name"), m_pending_nick_name);
-        if(m_hist_nickname != 0)
-            m_df->write_string(m_hist_nickname, m_pending_nick_name);
-        if(m_fake_nickname != 0)
-            m_df->write_string(m_fake_nickname, m_pending_nick_name);
+        if(m_hist_figure){
+            m_hist_figure->write_nick_name(m_pending_nick_name);
+        }
     }
     if (m_pending_custom_profession != m_custom_profession)
         m_df->write_string(m_address + m_mem->dwarf_offset("custom_profession"), m_pending_custom_profession);
     if (m_caged != m_unit_flags.at(0))
         m_df->write_raw(m_address + m_mem->dwarf_offset("flags1"), 4, &m_caged);
     if (m_butcher != m_unit_flags.at(1))
-        m_df->write_raw(m_address + m_mem->dwarf_offset("flags2"), 4, &m_butcher);    
+        m_df->write_raw(m_address + m_mem->dwarf_offset("flags2"), 4, &m_butcher);
 
     int pen_sq_id = -1;
     int pen_sq_pos = -1;
-    QString pen_sq_name = "";    
+    QString pen_sq_name = "";
     if(m_pending_squad_id != m_squad_id){
         if(!single){    //currently we can't apply squad changes individually
             Squad *s;
@@ -2243,7 +2274,7 @@ void Dwarf::reset_custom_profession(bool reset_labors){
             set_labor(labor_id,false,false);
         }
     }
-     m_pending_custom_profession = "";
+    m_pending_custom_profession = "";
 }
 
 QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
@@ -2254,34 +2285,32 @@ QTreeWidgetItem *Dwarf::get_pending_changes_tree() {
     if (m_caged != m_unit_flags.at(0)) {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
         i->setText(0, tr("Caged changed to %1").arg(hexify(m_caged)));
-        i->setIcon(0, QIcon(":img/book_edit.png"));
+        i->setIcon(0, QIcon(":img/book--pencil.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
     }
     if (m_butcher != m_unit_flags.at(1)) {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
         i->setText(0, tr("Butcher changed to %1").arg(hexify(m_butcher)));
-        i->setIcon(0, QIcon(":img/book_edit.png"));
+        i->setIcon(0, QIcon(":img/book--pencil.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
     }
     if (m_pending_nick_name != m_nick_name) {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
         QString nick = m_pending_nick_name;
-        if (nick.isEmpty())
-            nick = tr("DEFAULT");
-        i->setText(0, tr("Nickname changed to %1").arg(nick));
-        i->setIcon(0, QIcon(":img/book_edit.png"));
+        i->setText(0, nick.isEmpty() ? tr("Nickname reset to default")
+                                     : tr("Nickname changed to %1").arg(nick));
+        i->setIcon(0, QIcon(":img/book--pencil.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
     }
     if (m_pending_custom_profession != m_custom_profession) {
         QTreeWidgetItem *i = new QTreeWidgetItem(d_item);
         QString prof = m_pending_custom_profession;
-        if (prof.isEmpty())
-            prof = tr("DEFAULT");
-        i->setText(0, tr("Profession changed to %1").arg(prof));
-        i->setIcon(0, QIcon(":img/book_edit.png"));
+        i->setText(0, prof.isEmpty() ? tr("Profession reset to default")
+                                     : tr("Profession changed to %1").arg(prof));
+        i->setIcon(0, QIcon(":img/book--pencil.png"));
         i->setToolTip(0, i->text(0));
         i->setData(0, Qt::UserRole, id());
     }
@@ -2329,11 +2358,12 @@ QString Dwarf::tooltip_text() {
     //in some mods animals may have skills
     if(!m_skills.isEmpty() && s->value("options/tooltip_show_skills",true).toBool()){
         int max_level = s->value("options/min_tooltip_skill_level", true).toInt();
+        bool check_social = !s->value("options/tooltip_show_social_skills",true).toBool();
         QMapIterator<float,int> i(m_sorted_skills);
         i.toBack();
         while(i.hasPrevious()){
             i.previous();
-            if(m_skills.value(i.value()).capped_level() < max_level) {
+            if(m_skills.value(i.value()).capped_level() < max_level || (check_social && gdr->social_skills().contains(i.value()))) {
                 continue;
             }
             skill_summary.append(QString("<li>%1</li>").arg(m_skills.value(i.value()).to_string()));
@@ -2378,7 +2408,7 @@ QString Dwarf::tooltip_text() {
                     continue;
                 Belief *b = gdr->get_belief(belief_id);
                 if (!b)
-                    continue;                
+                    continue;
                 beliefs_list.append(capitalize(b->level_message(m_beliefs.value(belief_id).belief_value())));
             }
             if(beliefs_list.size() > 0)
@@ -2429,7 +2459,7 @@ QString Dwarf::tooltip_text() {
         tt.append(tr("<b>Age:</b> %1").arg(get_age_formatted()));
 
     if(m_is_animal || s->value("options/tooltip_show_size",true).toBool())
-        tt.append(tr("<b>Size:</b> %1cm<sup>3</sup>").arg(m_body_size * 10));
+        tt.append(tr("<b>Size:</b> %1cm<sup>3</sup>").arg(QLocale(QLocale::system()).toString(m_body_size * 10)));
 
     if(!m_is_animal && s->value("options/tooltip_show_noble",true).toBool())
         tt.append(tr("<b>Profession:</b> %1").arg(profession()));
@@ -2527,6 +2557,10 @@ QString Dwarf::tooltip_text() {
         tt.append(curse_text);
     }
 
+    if(s->value("options/tooltip_show_kills",false).toBool() && m_hist_figure && m_hist_figure->total_kills() > 0){
+        tt.append(m_hist_figure->formatted_summary());
+    }
+
     return tt.join("<br/>");
 }
 
@@ -2544,7 +2578,8 @@ void Dwarf::dump_memory() {
     te->setReadOnly(true);
     te->setFontFamily("Courier");
     te->setFontPointSize(8);
-    QByteArray data = m_df->get_data(m_address, 0xb90);
+    QByteArray data;
+    m_df->read_raw(m_address, 0xb90, data);
     te->setText(m_df->pprint(data));
     v->addWidget(te);
     d->setLayout(v);
@@ -2561,7 +2596,8 @@ void Dwarf::dump_memory_to_file() {
     if (f->open(QFile::ReadWrite)) {
         f->write(QString("NAME: %1\n").arg(nice_name()).toLatin1());
         f->write(QString("ADDRESS: %1\n").arg(hexify(m_address)).toLatin1());
-        QByteArray data = m_df->get_data(m_address, 0xb90);
+        QByteArray data;
+        m_df->read_raw(m_address, 0xb90, data);
         f->write(m_df->pprint(data).toLatin1());
         f->close();
         QMessageBox::information(DT->get_main_window(), tr("Dumped"),
@@ -2623,49 +2659,48 @@ int Dwarf::total_assigned_labors(bool include_skill_less) {
 //load all the attribute display ratings
 void Dwarf::calc_attribute_ratings(){
     for(int i = 0; i < m_attributes.count(); i++){
-        float val = DwarfStats::get_attribute_rating(m_attributes[i].get_value(), true);
+        double val = DwarfStats::get_attribute_rating(m_attributes[i].get_value(), true);
         m_attributes[i].set_rating(val);
     }
 }
 
-QList<float> Dwarf::calc_role_ratings(){
+QList<double> Dwarf::calc_role_ratings(){
     calc_attribute_ratings();
 
     LOGD << ":::::::::::::::::::::::::::::::::::::::::::::::::::";
     LOGD << m_nice_name;
 
     m_role_ratings.clear();
+    m_raw_role_ratings.clear();
     m_sorted_role_ratings.clear();
     m_sorted_custom_role_ratings.clear();
-    QList<float> valid_ratings;
-    float rating = 0.0;
+    double rating = 0.0;
     foreach(Role *m_role, GameDataReader::ptr()->get_roles()){
         if(m_role){
             rating = calc_role_rating(m_role);
-            m_role_ratings.insert(m_role->name, rating);
-            valid_ratings.append(rating);
+            m_raw_role_ratings.insert(m_role->name(), rating);
         }
-    }    
-    return valid_ratings;
+    }
+    return m_raw_role_ratings.values();
 }
 
-float Dwarf::calc_role_rating(Role *m_role){
+double Dwarf::calc_role_rating(Role *m_role){
     //if there's a script, use this in place of any aspects
-    if(!m_role->script.trimmed().isEmpty()){
+    if(!m_role->script().trimmed().isEmpty()){
         QJSEngine m_engine;
         QJSValue d_obj = m_engine.newQObject(this);
         m_engine.globalObject().setProperty("d", d_obj);
-        return  m_engine.evaluate(m_role->script).toNumber(); //just show the raw value the script generates
+        return  m_engine.evaluate(m_role->script()).toNumber(); //just show the raw value the script generates
     }
 
-    LOGD << "  +" << m_role->name << "-" << m_nice_name;
+    LOGD << "  +" << m_role->name() << "-" << m_nice_name;
 
     //no script, calculate rating based on specified aspects
-    float rating_att = 0.0;
-    float rating_trait = 0.0;
-    float rating_skill = 0.0;
-    float rating_prefs = 0.0;
-    float rating_total = 0.0;
+    double rating_att = 0.0;
+    double rating_trait = 0.0;
+    double rating_skill = 0.0;
+    double rating_prefs = 0.0;
+    double rating_total = 0.0;
 
     //use the role's aspect section weights (these are defaulted to the global weights)
     float global_att_weight = m_role->attributes_weight.weight;
@@ -2684,13 +2719,12 @@ float Dwarf::calc_role_rating(Role *m_role){
 
     //ATTRIBUTES
     if(m_role->attributes.count()>0){
-        int attrib_id = 0;
-        aspect_value = 0;
+
         foreach(QString name, m_role->attributes.uniqueKeys()){
             a = m_role->attributes.value(name);
             weight = a->weight;
 
-            attrib_id = GameDataReader::ptr()->get_attribute_type(name.toUpper());
+            ATTRIBUTES_TYPE attrib_id = GameDataReader::ptr()->get_attribute_type(name.toUpper());
             aspect_value = get_attribute(attrib_id).rating(true);
 
             if(a->is_neg)
@@ -2700,7 +2734,11 @@ float Dwarf::calc_role_rating(Role *m_role){
             total_weight += weight;
 
         }
-        rating_att = (rating_att / total_weight) * 100.0f; //weighted average percentile
+        if(total_weight > 0){
+            rating_att = (rating_att / total_weight) * 100.0f; //weighted average percentile
+        }else{
+            return 50.0f;
+        }
     }else{
         rating_att = 50.0f;
     }
@@ -2708,7 +2746,6 @@ float Dwarf::calc_role_rating(Role *m_role){
     //TRAITS
     if(m_role->traits.count()>0){
         total_weight = 0;
-        aspect_value = 0;
         foreach(QString trait_id, m_role->traits.uniqueKeys()){
             a = m_role->traits.value(trait_id);
             weight = a->weight;
@@ -2721,7 +2758,11 @@ float Dwarf::calc_role_rating(Role *m_role){
 
             total_weight += weight;
         }
-        rating_trait = (rating_trait / total_weight) * 100.0f;//weighted average percentile
+        if(total_weight > 0){
+            rating_trait = (rating_trait / total_weight) * 100.0f;//weighted average percentile
+        }else{
+            return 50.0f;
+        }
     }else{
         rating_trait = 50.0f;
     }
@@ -2730,7 +2771,6 @@ float Dwarf::calc_role_rating(Role *m_role){
     float total_skill_rates = 0.0;
     if(m_role->skills.count()>0){
         total_weight = 0;
-        aspect_value = 0;
         Skill s;
         foreach(QString skill_id, m_role->skills.uniqueKeys()){
             a = m_role->skills.value(skill_id);
@@ -2748,15 +2788,19 @@ float Dwarf::calc_role_rating(Role *m_role){
 
             if(a->is_neg)
                 aspect_value = 1-aspect_value;
-
             rating_skill += (aspect_value*weight);
+
             total_weight += weight;
         }
         if(total_skill_rates <= 0){
             //this unit cannot improve the skills associated with this role so cancel any rating
             return 0.0001;
         }else{
-            rating_skill = (rating_skill / total_weight) * 100.0f;//weighted average percentile
+            if(total_weight > 0){
+                rating_skill = (rating_skill / total_weight) * 100.0f;//weighted average percentile
+            }else{
+                rating_skill = 50.0f;
+            }
         }
     }else{
         rating_skill = 50.0f;
@@ -2764,26 +2808,8 @@ float Dwarf::calc_role_rating(Role *m_role){
 
     //PREFERENCES
     if(m_role->prefs.count()>0){
-        total_weight = 0;
-        aspect_value = 0;
-        foreach(Preference *role_pref,m_role->prefs){
-            aspect_value = get_role_pref_match_counts(role_pref);
-            //preferences are slightly different due to their binary nature. large numbers of preferences result in a very low weighted average
-            //so if there isn't a match, don't include it in the weighted average to try to keep roles relatively equal regardless of how many preferences they have
-            if(aspect_value > 0){
-                aspect_value = DwarfStats::get_preference_rating(aspect_value);
-                weight = role_pref->pref_aspect->weight;
-                if(role_pref->pref_aspect->is_neg)
-                    aspect_value = 1-aspect_value;
-
-                rating_prefs += (aspect_value*weight);
-                total_weight += weight;
-            }
-        }
-        if(total_weight > 0)
-            rating_prefs = (rating_prefs / total_weight) * 100.0f;//weighted average percentile
-        else
-            rating_prefs = DwarfStats::get_preference_rating(0.0f) * 100.0f;
+        aspect_value = get_role_pref_match_counts(m_role);
+        rating_prefs = DwarfStats::get_preference_rating(aspect_value) * 100.0f;
     }else{
         rating_prefs = 50.0f;
     }
@@ -2813,17 +2839,19 @@ const QList<Role::simple_rating> &Dwarf::sorted_role_ratings(){
 float Dwarf::get_role_rating(QString role_name){
     return m_role_ratings.value(role_name);
 }
-void Dwarf::set_role_rating(QString role_name, float value){
-    m_role_ratings.insert(role_name,value);
+float Dwarf::get_raw_role_rating(QString role_name){
+    return m_raw_role_ratings.value(role_name);
 }
 
-void Dwarf::update_rating_list(){
+void Dwarf::refresh_role_display_ratings(){
     GameDataReader *gdr = GameDataReader::ptr();
-    //keep a sorted list of the ratings as well
-    foreach(QString name, m_role_ratings.uniqueKeys()){
+    //keep a sorted list of the display ratings for tooltips, detail pane, etc.
+    foreach(QString name, m_raw_role_ratings.uniqueKeys()){
         Role::simple_rating sr;
-        sr.is_custom = gdr->get_role(name)->is_custom;
-        sr.rating = m_role_ratings.value(name);
+        sr.is_custom = gdr->get_role(name)->is_custom();
+        float display_rating = DwarfStats::get_role_rating(m_raw_role_ratings.value(name)) * 100.0f;
+        m_role_ratings.insert(name,display_rating);
+        sr.rating = display_rating;
         sr.name = name;
         m_sorted_role_ratings.append(sr);
     }
@@ -2834,27 +2862,41 @@ void Dwarf::update_rating_list(){
     }
 }
 
-QList<double> Dwarf::get_role_pref_match_counts(Role *r){
-    QList<double> ratings;
+double Dwarf::get_role_pref_match_counts(Role *r, bool load_map){
+    double total_rating = 0.0;
     foreach(Preference *role_pref,r->prefs){
-        ratings.append(get_role_pref_match_counts(role_pref));
+        double matches = get_role_pref_match_counts(role_pref,(load_map ? r : 0));
+        if(matches > 0){
+            double rating = matches * role_pref->pref_aspect->weight;
+            if(role_pref->pref_aspect->is_neg)
+                rating = 1.0f-rating;
+            total_rating += rating;
+        }
     }
-    return ratings;
+    return total_rating;
 }
 
-double Dwarf::get_role_pref_match_counts(Preference *role_pref){
-        double matches = 0;
-        int key = role_pref->get_pref_category();
-        QMultiMap<int, Preference *>::iterator i = m_preferences.find(key);
-        while(i != m_preferences.end() && i.key() == key){
-            matches += (double)static_cast<Preference*>(i.value())->matches(role_pref,this);
-            i++;
+double Dwarf::get_role_pref_match_counts(Preference *role_pref, Role *r){
+    double matches = 0;
+    int key = role_pref->get_pref_category();
+    QMultiMap<int, Preference *>::iterator i = m_preferences.find(key);
+    Preference *p;
+    while(i != m_preferences.end() && i.key() == key){
+        p = static_cast<Preference*>(i.value());
+        double match = (double)p->matches(role_pref,this);
+        if(match > 0){
+            if(r){
+                m_role_pref_map[r->name()].append(qMakePair(role_pref->get_name(), p->get_name()));
+            }
         }
-        //give a 0.1 bonus for each match after the first, this only applies when getting matches for groups
-        if(matches > 1.0)
-            matches = 1.0f + ((matches-1.0f) / 10.0f);
+        matches += match;
+        i++;
+    }
+    //give a 0.1 bonus for each match after the first, this only applies when getting matches for groups
+    if(matches > 1.0)
+        matches = 1.0f + ((matches-1.0f) / 10.0f);
 
-        return matches;
+    return matches;
 }
 
 Reaction *Dwarf::get_reaction()

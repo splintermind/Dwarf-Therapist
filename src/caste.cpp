@@ -20,7 +20,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#include <QtDebug>
 #include "caste.h"
 #include "attribute.h"
 #include "dfinstance.h"
@@ -47,8 +46,6 @@ Caste::Caste(DFInstance *df, VIRTADDR address, Race *r, QObject *parent)
     , m_df(df)
     , m_mem(df->memory_layout())
     , m_flags()
-    , m_has_extracts(false)
-    , m_can_butcher(false)
     , m_body_addr(0x0)
 {
     load_data();
@@ -56,14 +53,9 @@ Caste::Caste(DFInstance *df, VIRTADDR address, Race *r, QObject *parent)
 
 Caste::~Caste() {
     qDeleteAll(m_body_parts);
-    m_body_sizes.clear();
     m_attrib_ranges.clear();
-    m_skill_rates.clear();    
+    m_skill_rates.clear();
     m_race = 0;
-}
-
-Caste* Caste::get_caste(DFInstance *df, const VIRTADDR & address, Race *r) {
-    return new Caste(df, address, r);
 }
 
 void Caste::load_data() {
@@ -73,23 +65,17 @@ void Caste::load_data() {
     }
     // make sure our reference is up to date to the active memory layout
     m_mem = m_df->memory_layout();
-    TRACE << "Starting refresh of Caste data at" << hexify(m_address);    
+    TRACE << "Starting refresh of Caste data at" << hexify(m_address);
 
     read_caste();
 }
 
 void Caste::read_caste() {
-    m_tag = m_df->read_string(m_address);    
+    m_tag = m_df->read_string(m_address);
     m_name = capitalizeEach(m_df->read_string(m_address + m_mem->caste_offset("caste_name")));
     m_name_plural = capitalizeEach(m_df->read_string(m_address + m_mem->word_offset("noun_plural")));
     m_description = m_df->read_string(m_address + m_mem->caste_offset("caste_descr"));
 
-//    could update this to read the child/baby sizes instead of just the adult size
-//    QVector<VIRTADDR> body_sizes = m_df->enumerate_vector(m_address + m_mem->caste_offset("body_sizes_vector"));
-//    foreach(VIRTADDR size, body_sizes){
-//        m_body_sizes.prepend((int)size);
-//    }
-    m_body_sizes.append(m_df->read_int(m_address + m_mem->caste_offset("adult_size")));
     m_flags = FlagArray(m_df, m_address + m_mem->caste_offset("flags"));
 
     if(m_flags.has_flag(BABY))
@@ -102,27 +88,32 @@ void Caste::read_caste() {
     if(m_baby_age < 0)
         m_baby_age = 0;
 
-    QVector<uint> extracts = m_df->enumerate_vector(m_address + m_mem->caste_offset("extracts"));
-    if(extracts.count() > 0)
-        m_has_extracts = true;
-
-    m_can_butcher = !m_flags.has_flag(NOT_BUTCHERABLE);
+    if(!m_flags.has_flag(NOT_BUTCHERABLE)){
+        m_flags.set_flag(BUTCHERABLE,true);
+    }
 
     m_body_addr = m_address + m_mem->caste_offset("body_info");
     m_body_parts_addr = m_df->enumerate_vector(m_body_addr - DFInstance::VECTOR_POINTER_OFFSET);
-}
 
-bool Caste::is_trainable(){
     if(m_flags.has_flag(TRAINABLE_HUNTING) || m_flags.has_flag(TRAINABLE_WAR) ||
             m_flags.has_flag(PET) || m_flags.has_flag(PET_EXOTIC)){
-        return true;
-    }else{
-        return false;
+        m_flags.set_flag(TRAINABLE,true);
     }
-}
 
-bool Caste::is_milkable(){
-    return m_flags.has_flag(MILKABLE);
+    if(m_df->enumerate_vector(m_address + m_mem->caste_offset("extracts")).count() > 0){
+        m_flags.set_flag(HAS_EXTRACTS,true);
+    }
+    int offset = m_mem->caste_offset("shearable_tissues_vector");
+    if(offset != -1){
+        if(m_df->enumerate_vector(m_address + offset).count() > 0){
+            m_flags.set_flag(SHEARABLE,true);
+        }
+    }
+    //raws can have both fishable and non-fishable, but for our purposes we only care that it can be fished
+    //so ensure that both flags are false if the caste is not fishable
+    if(m_flags.has_flag(NO_FISH)){
+        m_flags.set_flag(FISHABLE,false);
+    }
 }
 
 void Caste::load_skill_rates(){
@@ -161,10 +152,10 @@ void Caste::load_attribute_info(){
     int cost_to_improve = 500; //cost to improve default is 500
     for (int i=0; i<19; i++)
     {
-        att_range r;                                
+        att_range r;
         for (int j=0; j<7; j++){
-            int val = m_df->read_int(base + i*28 + j*4);            
-            r.raw_bins.append(val);            
+            int val = m_df->read_int(base + i*28 + j*4);
+            r.raw_bins.append(val);
         }
         median = r.raw_bins.at(3);
         display_max = median + 1000; //maybe this is based on the perc below?
@@ -172,7 +163,7 @@ void Caste::load_attribute_info(){
         //add a bin between the max raw value, and the 5000 limit, based on the max %
         perc = m_df->read_int(base_caps + i*4);
         limit = r.raw_bins.at(6) * (perc/100);
-        r.raw_bins.append(limit);            
+        r.raw_bins.append(limit);
 
         //add the absolute max
         r.raw_bins.append(5000);
@@ -187,9 +178,9 @@ void Caste::load_attribute_info(){
             if(k!=4)
                 r.display_bins.prepend(display_max < 0 ? 0 : display_max);
             display_max -= 250; //game spaces by 250 per descriptor bin
-        }        
+        }
         m_attrib_ranges.insert(i,r);
-    }    
+    }
 }
 
 QPair<int, QString> Caste::get_attribute_descriptor_info(ATTRIBUTES_TYPE id, int value){
@@ -228,21 +219,16 @@ int Caste::get_attribute_cost_to_improve(int id){
 
 BodyPart* Caste::get_body_part(int body_part_id){
     if(body_part_id >= 0 && body_part_id < m_body_parts_addr.size()){
+        if(m_body_parts.size() <= 0)
+            m_body_parts.insert(-1,new BodyPart());
+
         if(!m_body_parts.keys().contains(body_part_id)){
-            BodyPart *bp = new BodyPart(m_df,m_race,m_body_parts_addr.at(body_part_id),body_part_id);
-            m_body_parts.insert(body_part_id,bp);
+            m_body_parts.insert(body_part_id,new BodyPart(m_df,m_race,m_body_parts_addr.at(body_part_id),body_part_id));
         }
         return m_body_parts.value(body_part_id);
     }else{
-        return new BodyPart();
+        return m_body_parts.value(-1);
     }
-}
-
-int Caste::get_body_size(int index){
-    if(m_body_sizes.size()>index)
-        return m_body_sizes.at(index);
-    else
-        return 0;
 }
 
 QString Caste::description(){

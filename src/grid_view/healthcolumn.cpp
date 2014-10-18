@@ -20,23 +20,25 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-
-#if QT_VERSION >= 0x050000
-# include <QRegularExpresson>
-#else
-# include <QRegExp>
-#endif
 #include "healthcolumn.h"
+
 #include "columntypes.h"
 #include "viewcolumnset.h"
 #include "dwarfmodel.h"
 #include "dwarf.h"
+#include "healthcategory.h"
 #include "unithealth.h"
 #include "gamedatareader.h"
 #include "dwarftherapist.h"
 #include "healthinfo.h"
 
-HealthColumn::HealthColumn(const QString &title, int categoryID, ViewColumnSet *set, QObject *parent)
+#if QT_VERSION >= 0x050000
+# include <QRegularExpression>
+#else
+# include <QRegExp>
+#endif
+
+HealthColumn::HealthColumn(const QString &title, eHealth::H_INFO categoryID, ViewColumnSet *set, QObject *parent)
     : ViewColumn(title, CT_HEALTH, set, parent)
     , m_id(categoryID)
 {
@@ -44,7 +46,7 @@ HealthColumn::HealthColumn(const QString &title, int categoryID, ViewColumnSet *
 
 HealthColumn::HealthColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
     : ViewColumn(s, set, parent)
-    , m_id(s.value("id", 0).toInt())
+    , m_id(static_cast<eHealth::H_INFO>(s.value("id", -1).toInt()))
 {
 }
 
@@ -91,28 +93,26 @@ QStandardItem *HealthColumn::build_cell(Dwarf *d) {
     if(health_summary.trimmed().isEmpty())
          health_summary = tr("<b>No Issues.</b>");
 
-    eHealth::H_INFO hs = static_cast<eHealth::H_INFO>(m_id);
-
     //get a list of the symbols for this category
-    QString symbols = dHealth.get_all_category_desc(hs,true,true).join(", ");
+    QString symbols = dHealth.get_all_category_desc(m_id,true,true).join(", ");
 
     int rating = 0;
     QString symbol = "";
-    HealthInfo* hi = dHealth.get_most_severe(hs);
+    HealthInfo* hi = dHealth.get_most_severe(m_id);
     if(hi){
         symbol = hi->symbol(false);
         rating = 100 - hi->severity();
 
         //find the matching descriptions in the category in the summary, bold and color them
-        if(UnitHealth::get_display_categories().count() > 0 && UnitHealth::get_display_categories().contains(hs)){
-            QList<HealthInfo*> cat_infos = UnitHealth::get_display_categories().value(hs)->descriptions();
+        if(UnitHealth::get_display_categories().count() > 0 && UnitHealth::get_display_categories().contains(m_id)){
+            QList<HealthInfo*> cat_infos = UnitHealth::get_display_categories().value(m_id)->descriptions();
             foreach(HealthInfo *h_info, cat_infos){
 #if QT_VERSION >= 0x050000
                 QRegularExpression
 #else
                 QRegExp
 #endif
-                                   re("((?<=, )|(?<=[>])|^)" + h_info->description(false));
+                        re("((?<=, )|(?<=[>])|^)" + h_info->description(false));
                 if(re.isValid())
                     health_summary.replace(re, QString("<b>%2</b>").arg(h_info->description(true)));
             }
@@ -121,8 +121,8 @@ QStandardItem *HealthColumn::build_cell(Dwarf *d) {
     }
 
     item->setData(rating, DwarfModel::DR_SORT_VALUE);
-    item->setData(rating, DwarfModel::DR_RATING);    
-    item->setData(symbol, DwarfModel::DR_DISPLAY_RATING);    
+    item->setData(rating, DwarfModel::DR_RATING);
+    item->setData(symbol, DwarfModel::DR_DISPLAY_RATING);
 
     QString tooltip = QString("<center><b><h3 style=\"margin:0;\">%1</h3><h5 style=\"margin:0;\">%2</h4></b></center><br>%3%4")
             .arg(m_title)

@@ -27,7 +27,6 @@ THE SOFTWARE.
 #include "ui_customprofession.h"
 #include "dwarf.h"
 #include "defines.h"
-#include "labor.h"
 #include "profession.h"
 #include "dwarftherapist.h"
 #include "iconchooser.h"
@@ -41,9 +40,10 @@ Default ctor. Creates a blank skill template with no name
 */
 CustomProfession::CustomProfession(QObject *parent)
     : MultiLabor(parent)
-    , ui(new Ui::CustomProfessionEditor)    
+    , ui(new Ui::CustomProfessionEditor)
     , m_icon_id(-1)
     , m_is_mask(false)
+    , m_font_custom_color(0x0)
     , m_bg_custom_color(0x0)
     , m_font_color(Qt::black)
     , m_bg_color(Qt::transparent)
@@ -65,24 +65,21 @@ This is used by the "Create custom profession from this dwarf..." action.
 */
 CustomProfession::CustomProfession(Dwarf *d, QObject *parent)
     : MultiLabor(parent)
-    , ui(new Ui::CustomProfessionEditor)    
+    , ui(new Ui::CustomProfessionEditor)
     , m_icon_id(-1)
     , m_is_mask(false)
+    , m_font_custom_color(0x0)
     , m_bg_custom_color(0x0)
     , m_font_color(Qt::black)
     , m_bg_color(Qt::transparent)
     , m_txt("")
     , m_prof_id(-1)
     , m_fnt(0x0)
-{    
+{
     m_dwarf = d;
     if(m_dwarf){
         m_name = d->profession();
-        QList<Labor*> labors = gdr->get_ordered_labors();
-        foreach(Labor *l, labors) {
-            if (m_dwarf->labor_enabled(l->labor_id))
-                add_labor(l->labor_id);
-        }
+        set_labors();
     }
 }
 
@@ -92,6 +89,7 @@ CustomProfession::CustomProfession(int profession_id, QObject *parent)
     , ui(new Ui::CustomProfessionEditor)
     , m_icon_id(-1)
     , m_is_mask(false)
+    , m_font_custom_color(0x0)
     , m_bg_custom_color(0x0)
     , m_font_color(Qt::black)
     , m_bg_color(Qt::transparent)
@@ -106,22 +104,30 @@ CustomProfession::CustomProfession(int profession_id, QObject *parent)
 CustomProfession::CustomProfession(QString name, QSettings &s, QObject *parent)
     :MultiLabor(parent)
     , ui(new Ui::CustomProfessionEditor)
+    , m_font_custom_color(0x0)
+    , m_bg_custom_color(0x0)
     , m_fnt(0x0)
-{    
+{
     set_name(name);
     s.beginGroup(name);
     init(s);
-    s.endGroup();    
+    s.endGroup();
 }
 
 //import from file
 CustomProfession::CustomProfession(QSettings &s, QObject *parent)
     :MultiLabor(parent)
     , ui(new Ui::CustomProfessionEditor)
+    , m_font_custom_color(0x0)
+    , m_bg_custom_color(0x0)
     , m_fnt(0x0)
 {
     set_name(s.value("name", "UNKNOWN").toString());
     init(s);
+}
+
+CustomProfession::~CustomProfession() {
+    delete ui;
 }
 
 void CustomProfession::init(QSettings &s){
@@ -166,7 +172,7 @@ int CustomProfession::show_builder_dialog(QWidget *parent) {
     m_font_custom_color = new CustomColor("",tr("The color of the text drawn over the icon."),"text_color", Qt::black, 0);
     m_font_custom_color->set_color(m_font_color);
     m_font_custom_color->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
-    ui->hLayoutText->insertWidget(3,m_font_custom_color);    
+    ui->hLayoutText->insertWidget(3,m_font_custom_color);
     connect(m_font_custom_color, SIGNAL(color_changed(QString,QColor)), this, SLOT(color_selected(QString,QColor)));
 
     //setup the mask
@@ -278,7 +284,7 @@ void CustomProfession::mask_changed(bool value){
 void CustomProfession::build_icon_path(int id){
     m_icon_id = id;
     if(m_icon_id > -1 && m_icon_id < 105){
-        m_icon_path = QString(":/profession/img/profession icons/prof_%1.png").arg(QString::number(m_icon_id));
+        m_icon_path = QString(":/profession/prof_%1.png").arg(QString::number(m_icon_id));
     }else{
         m_icon_path = "";
     }
@@ -397,7 +403,7 @@ void CustomProfession::save(QSettings &s){
     s.setValue("icon_id",m_icon_id);
     s.setValue("text", m_txt);
     s.setValue("text_color", m_font_color);
-    s.setValue("bg_color", m_bg_color);    
+    s.setValue("bg_color", m_bg_color);
 
     //save non-icon override custom profession stuff
     if(m_prof_id < 0){

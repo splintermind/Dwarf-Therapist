@@ -20,18 +20,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#include <QtDebug>
+#include <QMessageBox>
+#include <QFile>
 #include "gamedatareader.h"
 #include "labor.h"
 #include "trait.h"
 #include "attribute.h"
 #include "dwarfjob.h"
 #include "profession.h"
-#include "defines.h"
-#include "raws/rawreader.h"
-#include "math.h"
 #include "laboroptimizerplan.h"
-#include "skill.h"
 #include "thought.h"
 #include "unithealth.h"
 #include "belief.h"
@@ -41,19 +38,31 @@ QStringList GameDataReader::m_months;
 
 GameDataReader::GameDataReader(QObject *parent)
     : QObject(parent)
-    , m_data_settings(0)
 {
-    foreach(QString path, find_files_list("game_data.ini")) {
-        if (QFile::exists(path)) {
-            LOGI << "Found game_data.ini:" << path;
-            m_data_settings = new QSettings(path, QSettings::IniFormat);
-            break;
+    //load override game_data
+    if (QFile::exists("share:game_data.ini")) {
+        m_data_settings = QPointer<QSettings>(new QSettings("share:game_data.ini", QSettings::IniFormat));
+        LOGI << "Found custom game_data.ini:" << m_data_settings->fileName();
+    } else {
+        //load default game_data
+        m_data_settings = QPointer<QSettings>(new QSettings(":config/game_data", QSettings::IniFormat));
+        if(m_data_settings->childGroups().count() <= 0){
+            QString err = tr("Dwarf Therapist cannot run because game_data.ini could not be found!");
+            QMessageBox::critical(0,tr("Missing File"),err);
+            FATAL << err;
+            exit(1);
         }
     }
 
-    if (!m_data_settings) {
-        FATAL << "Could not find game_data.ini.";
-        qApp->exit(1);
+    QStringList required_sections;
+    required_sections << "labors" << "attributes" << "dwarf_jobs" << "goals" << "beliefs" << "unit_thoughts" << "facets" << "skill_names" << "skill_levels";
+    foreach(QString key, required_sections){
+        if(!m_data_settings->childGroups().contains(key)){
+            QString err = tr("Dwarf Therapist cannot run because game_data.ini is missing [%1], a critical section!").arg(key);
+            QMessageBox::critical(0,tr("Missing Section"),err);
+            FATAL << err;
+            break;
+        }
     }
 
     build_calendar();
@@ -99,31 +108,24 @@ GameDataReader::GameDataReader(QObject *parent)
     int attributes = m_data_settings->beginReadArray("attributes");
     QStringList attribute_names;
     for(int i = 0; i < attributes; ++i) {
-        m_data_settings->setArrayIndex(i);        
-        int id = m_data_settings->value("id",0).toInt();
+        m_data_settings->setArrayIndex(i);
+        ATTRIBUTES_TYPE id = static_cast<ATTRIBUTES_TYPE>(m_data_settings->value("id",0).toInt());
         QString name = m_data_settings->value("name","unknown").toString();
         m_attribute_names.insert(id,name);
-        m_attributes_by_name.insert(name.toUpper(),static_cast<ATTRIBUTES_TYPE>(id));
+        m_attributes_by_name.insert(name.toUpper(),id);
         attribute_names << name;
     }
-    m_data_settings->endArray();  
+    m_data_settings->endArray();
 
     qSort(attribute_names);
     foreach(QString sorted_name, attribute_names) {
-        foreach(int id, m_attribute_names.uniqueKeys()) {
+        foreach(ATTRIBUTES_TYPE id, m_attribute_names.uniqueKeys()) {
             if (m_attribute_names.value(id) == sorted_name) {
-                m_ordered_attribute_names << QPair<int, QString>(id, m_attribute_names.value(id));
+                m_ordered_attribute_names << QPair<ATTRIBUTES_TYPE, QString>(id, m_attribute_names.value(id));
                 break;
             }
         }
     }
-
-    m_data_settings->beginGroup("attribute_levels");
-    foreach(QString k, m_data_settings->childKeys()) {
-        int num_attributes = k.toInt();
-        m_attribute_levels.insert(num_attributes, m_data_settings->value(k).toInt());
-    }
-    m_data_settings->endGroup();
 
     m_data_settings->beginGroup("skill_names");
     QStringList skill_names;
@@ -143,7 +145,7 @@ GameDataReader::GameDataReader(QObject *parent)
                 break;
             }
         }
-    }        
+    }
 
     m_data_settings->beginGroup("skill_levels");
     foreach(QString k, m_data_settings->childKeys()) {
@@ -176,6 +178,9 @@ GameDataReader::GameDataReader(QObject *parent)
     m_mood_skills_profession_map.insert(37,27);
     m_mood_skills_profession_map.insert(49,3);
     m_mood_skills_profession_map.insert(55,60);
+
+    //load a list of social conversational skills
+    m_social_skills << 72 << 78 << 79 << 80 << 81 << 82 << 83 << 84;
 
     //goals
     int goal_count = m_data_settings->beginReadArray("goals");
@@ -284,7 +289,6 @@ GameDataReader::GameDataReader(QObject *parent)
 
 GameDataReader::~GameDataReader(){
     delete m_instance;
-    m_data_settings = 0;
 }
 
 int GameDataReader::get_int_for_key(QString key, short base) {
@@ -308,15 +312,6 @@ QString GameDataReader::get_string_for_key(QString key) {
                 .arg(m_data_settings->fileName());
     }
     return m_data_settings->value(key, QVariant("UNKNOWN")).toString();
-}
-
-QColor GameDataReader::get_color(QString key) {
-    QString hex_code = get_string_for_key(key);
-    bool ok;
-    QColor c(hex_code.toInt(&ok, 16));
-    if (!ok || !c.isValid())
-        c = Qt::white;
-    return c;
 }
 
 QString GameDataReader::get_skill_level_name(short level) {
@@ -345,20 +340,6 @@ QString GameDataReader::get_goal_desc(int id, bool realized){
     if(realized)
         desc.append(tr(", and this dream was realized"));
     return desc;
-}
-
-QStringList GameDataReader::get_child_groups(QString section) {
-    m_data_settings->beginGroup(section);
-    QStringList groups = m_data_settings->childGroups();
-    m_data_settings->endGroup();
-    return groups;
-}
-
-QStringList GameDataReader::get_keys(QString section) {
-    m_data_settings->beginGroup(section);
-    QStringList keys = m_data_settings->childKeys();
-    m_data_settings->endGroup();
-    return keys;
 }
 
 Labor *GameDataReader::get_labor(const int &labor_id) {
@@ -396,24 +377,6 @@ DwarfJob *GameDataReader::get_job(const short &job_id) {
     return m_dwarf_jobs.value(job_id, 0);
 }
 
-int GameDataReader::get_xp_for_next_attribute_level(int current_number_of_attributes) {
-    return m_attribute_levels.value(current_number_of_attributes + 1, 0); // return 0 if we don't know
-}
-
-int GameDataReader::get_level_from_xp(int xp) {
-    int last_xp = 0;
-    int ret_val = 0;
-    QList<int> levels = m_attribute_levels.uniqueKeys();
-    qStableSort(levels);
-    foreach(int lvl, levels) {
-        if (last_xp <= xp && xp <= m_attribute_levels.value(lvl, 0)) {
-            ret_val = lvl - 1;
-            break;
-        }
-    }
-    return ret_val;
-}
-
 void GameDataReader::load_roles(){
     qDeleteAll(m_dwarf_roles);
     m_dwarf_roles.clear();
@@ -424,8 +387,8 @@ void GameDataReader::load_roles(){
     for (short i = 0; i < dwarf_roles; ++i) {
         u->setArrayIndex(i);
         Role *r = new Role(*u, this);
-        r->is_custom = true;
-        m_dwarf_roles.insert(r->name,r);
+        r->is_custom(true);
+        m_dwarf_roles.insert(r->name(),r);
     }
     u->endArray();
 
@@ -434,10 +397,10 @@ void GameDataReader::load_roles(){
         m_data_settings->setArrayIndex(i);
         Role *r = new Role(*m_data_settings, this);
         //keep a list of default roles to check custom roles against
-        m_default_roles.append(r->name);
+        m_default_roles.append(r->name());
         //don't overwrite any custom role with the same name
-        if(!m_dwarf_roles.contains(r->name))
-            m_dwarf_roles.insert(r->name, r);
+        if(!m_dwarf_roles.contains(r->name()))
+            m_dwarf_roles.insert(r->name(), r);
     }
     m_data_settings->endArray();
 
@@ -511,17 +474,17 @@ void GameDataReader::refresh_opt_plans(){
 }
 
 void GameDataReader::load_role_mappings(){
-    //load sorted role list    
+    //load sorted role list
     m_ordered_roles.clear();
     QStringList role_names;
     foreach(Role *r, m_dwarf_roles) {
-        role_names << r->name.toUpper();
+        role_names << r->name().toUpper();
     }
     qSort(role_names);
     foreach(QString name, role_names) {
         foreach(Role *r, m_dwarf_roles) {
-            if (r->name.toUpper() == name.toUpper()) {
-                m_ordered_roles << QPair<QString, Role*>(r->name, r);
+            if (r->name().toUpper() == name.toUpper()) {
+                m_ordered_roles << QPair<QString, Role*>(r->name(), r);
                 break;
             }
         }

@@ -22,32 +22,34 @@ THE SOFTWARE.
 */
 
 #include "syndrome.h"
+#include "dfinstance.h"
+#include "memorylayout.h"
+#include "gamedatareader.h"
 
 Syndrome::Syndrome()
+    : m_df(0x0)
+    , m_mem(0x0)
+    , m_addr(0)
+    , m_transform_race(-1)
+    , m_has_transform(false)
+    , m_is_sickness(false)
+    , m_name("Unknown")
+    , m_id(-1)
 {
-    m_is_sickness = false;
-    m_name   = "Unknown";
-    m_df = 0x0;
-    m_addr = 0;
-    m_transform_race = -1;
-    m_has_transform = false;
 }
 
-Syndrome::Syndrome(DFInstance *df, VIRTADDR addr){
-    m_df = df;
-    m_addr = addr;
-    m_mem = m_df->memory_layout();
-    m_transform_race = -1;
-    m_has_transform = false;
-
-//        m_year = m_df->read_int(m_addr + 0x4);
-//        m_time = m_df->read_int(m_addr + 0x8);
-
+Syndrome::Syndrome(DFInstance *df, VIRTADDR addr)
+    : m_df(df)
+    , m_mem(m_df->memory_layout())
+    , m_addr(addr)
+    , m_transform_race(-1)
+    , m_has_transform(false)
+{
     m_id = m_df->read_int(addr);
     m_is_sickness = m_df->read_byte(m_addr + m_mem->dwarf_offset("syn_sick_flag"));
 
     VIRTADDR syn_addr = m_df->get_syndrome(m_id);
-    if(syn_addr > 0){
+    if(syn_addr){
         m_name = capitalizeEach(m_df->read_string(syn_addr));
         //SYN_CLASS tokens
         QRegExp rx = QRegExp("[-_\\*~@#\\^]");
@@ -77,6 +79,8 @@ Syndrome::Syndrome(DFInstance *df, VIRTADDR addr){
                     m_transform_race = m_df->read_int(ce_addr + m_mem->syndrome_offset("trans_race_id"));
             }
         }
+    }else{
+        m_name = "??";
     }
 }
 

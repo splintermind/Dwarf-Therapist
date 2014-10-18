@@ -65,7 +65,7 @@ laborOptimizerPlan::laborOptimizerPlan(const laborOptimizerPlan &lop)
     auto_haulers = lop.auto_haulers;
     pop_percent = lop.pop_percent;
     hauler_percent = lop.hauler_percent;
-    name = lop.name;    
+    name = lop.name;
     foreach(PlanDetail *pd, lop.plan_details){
         PlanDetail *tmp = new PlanDetail(*pd);
         plan_details.append(tmp);

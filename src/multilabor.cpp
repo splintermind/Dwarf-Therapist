@@ -121,6 +121,18 @@ void MultiLabor::set_labor(int labor_id, bool active) {
         m_active_labors.insert(labor_id, true);
 }
 
+void MultiLabor::set_labors(Dwarf *d){
+    if(!d){
+        d = m_dwarf;
+    }
+    m_active_labors.clear();
+    QList<Labor*> labors = gdr->get_ordered_labors();
+    foreach(Labor *l, labors) {
+        if(d->labor_enabled(l->labor_id))
+            add_labor(l->labor_id);
+    }
+}
+
 void MultiLabor::refresh(){
     m_qvariant_labors.clear();
     m_ratings.clear();
@@ -131,7 +143,7 @@ void MultiLabor::refresh(){
         m_role = gdr->get_role(m_role_name); //default overridden or new role
     }else{
         //check for a name change and update
-        QString curr_id = m_role->name;
+        QString curr_id = m_role->name();
         if(curr_id != m_role_name)
             m_role_name = curr_id;
     }
@@ -173,7 +185,7 @@ void MultiLabor::refresh(){
                     if(skill_id >= 0){
                         QVector<Role*> roles = gdr->get_skill_roles().value(l->skill_id);
                         if(roles.size() > 0){
-                            ratings[ML_ROLE] += d->get_role_rating(roles.first()->name);
+                            ratings[ML_ROLE] += d->get_role_rating(roles.first()->name());
                         }
                     }
                 }else if(!m_ratings.contains(d->id())){

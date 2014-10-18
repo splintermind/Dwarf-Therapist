@@ -1,8 +1,8 @@
 #ifndef GLOBAL_ENUMS_H
 #define GLOBAL_ENUMS_H
 
-#include "qstring.h"
 #include "qobject.h"
+#include "qstring.h"
 
 typedef enum {
     DH_MISERABLE = 0,
@@ -16,6 +16,7 @@ typedef enum {
 } DWARF_HAPPINESS;
 
 typedef enum {
+    AT_NONE = -1,
     AT_STRENGTH = 0,
     AT_AGILITY=1,
     AT_TOUGHNESS=2,
@@ -67,7 +68,6 @@ static inline QString get_animal_trained_descriptor(const TRAINED_LEVEL &type) {
     default:
         return QObject::tr("Unknown");
     }
-    return QObject::tr("Unknown");
 }
 
 typedef enum {
@@ -162,10 +162,14 @@ typedef enum {
     EGG=87,
     BOOK=88,
     NUM_OF_ITEM_TYPES=89,
+    //custom flags
     SUPPLIES=999,
     ARTIFACTS=1000,
     MELEE_EQUIPMENT=1001,
-    RANGED_EQUIPMENT=1002
+    RANGED_EQUIPMENT=1002,
+    IS_CLOTHING=1003,
+    IS_ARMOR=1004,
+    IS_TRADE_GOOD=1005
 } ITEM_TYPE;
 
 typedef enum {
@@ -288,6 +292,7 @@ typedef enum{
 } MATERIAL_CLASS;
 
 typedef enum{
+    WAGON=1,
     VERMIN_FISH=9,
     CAN_LEARN=71,
     HATEABLE=72,
@@ -300,10 +305,13 @@ typedef enum{
     NO_EAT=13,
     NO_DRINK=14,
     NO_SLEEP=15,
+    DOMESTIC=16,
     FLIER=19,
     WEB_IMMUNE=25,
+    FISHABLE=26,
     IMMOBILE_LAND=27,
     MILKABLE=29,
+    NO_FISH=37,
     NO_DIZZINESS=39,
     NO_FEVERS=40,
     NOT_BUTCHERABLE=46,
@@ -323,8 +331,29 @@ typedef enum{
     CHILD=98,
     CRAZED=161, //werebeasts
     BLOODSUCKER=162, //vampires
-    HAS_EXTRACTS=200 //custom
+    HAS_EXTRACTS=200, //custom past this
+    SHEARABLE=201,
+    BUTCHERABLE=202, //indicates non-butcherable for convenience
+    TRAINABLE=203 //indicates pet, pet exotic, war/hunt trainable
 } CASTE_FLAGS;
+
+typedef enum {
+    P_SPRING = 0,
+    P_SUMMER = 1,
+    P_AUTUMN = 2,
+    P_WINTER = 3,
+    P_SEED = 5,
+    P_DRINK = 7,
+    P_EXTRACT_BARREL = 8,
+    P_EXTRACT_VIAL = 9,
+    P_EXTRACT_STILL_VIAL = 10,
+    P_THREAD = 12,
+    P_MILL = 13,
+    P_SAPLING = 77,
+    P_TREE =78,
+    P_CROP = 200, //custom, indicates it has some season to plant
+    P_HAS_EXTRACTS = 201 //indicates thread or extracts all used by processing
+} PLANT_FLAGS;
 
 namespace eCurse{
 typedef enum {
@@ -350,6 +379,7 @@ typedef enum {
 namespace eHealth
 {
 typedef enum  {
+    HI_UNK = -1,
     HI_DIAGNOSIS = 0, //diagnosis and recovery
     HI_BLEEDING = 1,
     HI_BLOOD_LOSS = 2,
@@ -416,22 +446,5 @@ typedef enum {
     SCR_PREF_EXP, //explicitly chosen from the filter text search
     SCR_ALL
 } FILTER_SCRIPT_TYPE;
-
-typedef enum {
-    SEX_UNK = -1,
-    SEX_F = 0,
-    SEX_M = 1
-} GENDER_TYPE;
-
-static inline QString get_gender_desc(const GENDER_TYPE &type) {
-    switch (type) {
-    case SEX_UNK: return QObject::tr("Other");
-    case SEX_F: return QObject::tr("Female");
-    case SEX_M: return QObject::tr("Male");
-    default:
-        return QObject::tr("Unknown");
-    }
-    return QObject::tr("Unknown");
-}
 
 #endif // GLOBAL_ENUMS_H

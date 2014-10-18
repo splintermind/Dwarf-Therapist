@@ -28,8 +28,10 @@ THE SOFTWARE.
 #include "global_enums.h"
 #include "flagarray.h"
 
-class Material;
 class RoleAspect;
+class ItemSubtype;
+class Plant;
+class Race;
 
 class Preference : public QObject {
     Q_OBJECT
@@ -54,7 +56,6 @@ public:
     Preference(PREF_TYPES category, QString name, QObject *parent = 0);
     Preference(PREF_TYPES category, ITEM_TYPE iType, QObject *parent = 0);
     Preference(const Preference &p);
-    virtual ~Preference();
 
     int matches(Preference *role_pref, Dwarf *d = 0);
 
@@ -62,30 +63,37 @@ public:
     void set_name(QString value) {m_name = value;}
     void set_category(PREF_TYPES cat) {m_pType = cat;}
     void set_item_type(ITEM_TYPE iType) {m_iType = iType;}
-    //void set_material(Material* m) {m_mat = m;}
-    void set_material_flags(FlagArray f) {m_material_flags = f;}
     void set_exact(bool m) {m_exact_match = m;}
 
     QString get_name() {return m_name;}
     PREF_TYPES get_pref_category() {return m_pType;}
     ITEM_TYPE get_item_type() {return m_iType;}
-    QVector<int> special_flags() {return m_special_flags;}
+    FlagArray &flags() {return m_flags;}
     bool exact_match() {return m_exact_match;}
 
     RoleAspect *pref_aspect;
+
+    //this is a general setter for a unit's preference's flags
+    void set_pref_flags(const FlagArray &flags);
+
+    //these setters to load specific flags for the role
+    void set_pref_flags(Race *r);
+    void set_pref_flags(Plant *p);
+    void set_pref_flags(ItemSubtype *i);
 
 protected:
     QString m_name; //actual value to search for when doing string comparisons
     PREF_TYPES m_pType; //preference category
     ITEM_TYPE m_iType; //type of item for an dwarf's item preference
-    //Material *m_mat; //references a dwarf's preference material
-    FlagArray m_material_flags;
 
     //these flags are used when writing to the ini. they're specifically chosen to find matches of particular materials
-    QVector<int> m_special_flags;
+    FlagArray m_flags;
 
     //if it's not a general category preference (ie. 'wood') an exact match of the string is required
     bool m_exact_match;
+
+    bool set_flag(FlagArray origin, const int flag);
+    void set_flags(FlagArray origin, const QList<int> flags);
 };
 
 #endif // PREFERENCE_H

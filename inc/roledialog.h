@@ -28,7 +28,7 @@ class roleDialog;
 class roleDialog : public QDialog
 {
     Q_OBJECT
-    
+
 public:
     explicit roleDialog(DFInstance *dfi, QWidget *parent = 0);
     ~roleDialog();
@@ -38,10 +38,10 @@ public:
 
 public slots:
     void selection_changed();
-    
+
 private:
     Ui::roleDialog *ui;
-    Role *m_role;    
+    Role *m_role;
     QColor color_override;
     QColor color_default;
     DFInstance *m_df;
@@ -51,20 +51,19 @@ private:
     QHash<QTreeWidgetItem*,QVector<Preference*>* > m_pref_list;
 
     //specific categories
-    QTreeWidgetItem *m_inorganic_other;
     QTreeWidgetItem *m_gems;
     QTreeWidgetItem *m_glass;
     QTreeWidgetItem *m_metals;
     QTreeWidgetItem *m_stone;
     QTreeWidgetItem *m_wood;
     QTreeWidgetItem *m_glazes_wares;
-    QTreeWidgetItem *m_seeds;
-    QTreeWidgetItem *m_plant_other;
     QTreeWidgetItem *m_plants;
     QTreeWidgetItem *m_plants_alcohol;
+    QTreeWidgetItem *m_plants_crops;
+    QTreeWidgetItem *m_plants_crops_plantable;
+    QTreeWidgetItem *m_plants_mill;
+    QTreeWidgetItem *m_plants_extract;
     QTreeWidgetItem *m_trees;
-    QTreeWidgetItem *m_drinks;
-    QTreeWidgetItem *m_food;
     QTreeWidgetItem *m_fabrics;
 
     //creature categories
@@ -73,6 +72,11 @@ private:
     QTreeWidgetItem *m_trainable;
     QTreeWidgetItem *m_milkable;
     QTreeWidgetItem *m_extracts;
+    QTreeWidgetItem *m_extracts_fish;
+    QTreeWidgetItem *m_fishable;
+    QTreeWidgetItem *m_shearable;
+    QTreeWidgetItem *m_butcher;
+    QTreeWidgetItem *m_domestic;
 
     QTreeWidgetItem *m_creature_mats;
 
@@ -80,15 +84,13 @@ private:
     QTreeWidgetItem *m_general_item;
     QTreeWidgetItem *m_general_material;
     QTreeWidgetItem *m_general_creature;
-    QTreeWidgetItem *m_general_craft;
-    QTreeWidgetItem *m_general_food;
+    QTreeWidgetItem *m_general_trade_good;
+    QTreeWidgetItem *m_general_plant_tree;
     QTreeWidgetItem *m_general_other;
+    QTreeWidgetItem *m_general_equip;
 
     //preference include/exclude lists
     QVector<ITEM_TYPE> item_ignore;
-    QVector<ITEM_TYPE> item_food;
-    QVector<ITEM_TYPE> item_drink;
-    QVector<ITEM_TYPE> item_crafts;
     QVector<MATERIAL_FLAGS> mats_include;
 
     void load_role_data();
@@ -105,11 +107,13 @@ private:
     bool m_override;
 
     //preferences
+    void add_general_node(const QString title, PREF_TYPES ptype, QList<int> &flags, QTreeWidgetItem *parent, ITEM_TYPE itype = NONE);
     void build_pref_tree();
-    void load_material_prefs(QVector<Material*> mats, QString prefix_name = "");
+    void load_material_prefs(QVector<Material*> mats, QString prefix_name = "", MATERIAL_STATES state_name = GENERIC);
     void load_plant_prefs(QVector<Plant *> plants);
     void load_items();
     void load_creatures();
+    void add_general_creature_node(const QString suffix, QList<int> &flags, QTreeWidgetItem **parent_node);
     void load_weapons();
     QTreeWidgetItem* init_parent_node(QString title);
     void add_pref_to_tree(QTreeWidgetItem *parent, Preference *p);
@@ -127,7 +131,7 @@ private slots:
     void save_pressed();
     void save_role(Role *);
     void copy_pressed();
-    void name_changed(QString text);    
+    void name_changed(QString text);
 
     //attributes
     void draw_attribute_context_menu(const QPoint &);

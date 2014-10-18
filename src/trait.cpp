@@ -23,6 +23,7 @@ THE SOFTWARE.
 #include "trait.h"
 #include "gamedatareader.h"
 #include "belief.h"
+#include <QSettings>
 
 QColor Trait::goal_color = QColor(255,153,0,255);
 QColor Trait::belief_color = QColor(32,156,158,255);
@@ -99,7 +100,7 @@ QString Trait::level_message(const short &val){
             ret_val = i.value();
             break;
         }
-    }            
+    }
     return capitalize(ret_val);
 }
 
@@ -130,7 +131,7 @@ QString Trait::skill_conflict_msg(const short &skill_id, const short &val){
     return "";
 }
 
-QString Trait::belief_conflicts_names(){    
+QString Trait::belief_conflicts_names(){
     QStringList items;
     foreach(int belief_id, m_belief_conflicts){
         items.append(GameDataReader::ptr()->get_belief_name(belief_id));
@@ -156,10 +157,10 @@ QString Trait::belief_conficts_msgs(short raw_value, QList<UnitBelief> conflicti
     }
     QStringList combined;
     if(cultural_conflicts.size() > 0)
-        combined << (raw_value > 50 ? tr(", but") : tr(", and")) + tr(" is conflicted because their culture %1").arg(nice_list(cultural_conflicts));
+        combined << (raw_value > 50 ? tr(", but") : tr(", and")) + tr(" is conflicted because their culture %1").arg(formatList(cultural_conflicts));
     if(personal_conflicts.size() > 0)
-        combined << tr(" although %1").arg(nice_list(personal_conflicts));
-    QString msgs = nice_list(combined);
+        combined << tr(" although %1").arg(formatList(personal_conflicts));
+    QString msgs = formatList(combined);
     return msgs;
 }
 

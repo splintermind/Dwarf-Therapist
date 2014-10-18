@@ -23,11 +23,9 @@ THE SOFTWARE.
 
 #include "currentjobcolumn.h"
 #include "columntypes.h"
-#include "viewcolumnset.h"
 #include "dwarfmodel.h"
 #include "dwarf.h"
 #include "dwarftherapist.h"
-#include "defines.h"
 #include "dwarfjob.h"
 #include "gamedatareader.h"
 #include "reaction.h"
@@ -39,12 +37,12 @@ CurrentJobColumn::CurrentJobColumn(QSettings &s, ViewColumnSet *set, QObject *pa
 
 CurrentJobColumn::CurrentJobColumn(const QString &title, ViewColumnSet *set, QObject *parent)
     : ViewColumn(title, CT_IDLE, set, parent)
-{    
+{
 }
 
 CurrentJobColumn::CurrentJobColumn(const CurrentJobColumn &to_copy)
     : ViewColumn(to_copy)
-{    
+{
 }
 
 QStandardItem *CurrentJobColumn::build_cell(Dwarf *d) {
@@ -64,7 +62,7 @@ QStandardItem *CurrentJobColumn::build_cell(Dwarf *d) {
         }
 
         if(pref_id != -1){
-            pixmap_name = ":/profession/img/profession icons/prof_" + QString::number(pref_id+1) + ".png";  //offset for the image name
+            pixmap_name = ":/profession/prof_" + QString::number(pref_id+1) + ".png";  //offset for the image name
             item->setData(QColor(50,50,50), DwarfModel::DR_DEFAULT_BG_COLOR); //shade the background
         }else{
             DwarfJob::DWARF_JOB_TYPE job_type = job->type;
@@ -339,7 +337,7 @@ QStandardItem *CurrentJobColumn::build_cell(Dwarf *d) {
     return item;
 }
 
-QStandardItem *CurrentJobColumn::build_aggregate(const QString &group_name,const QVector<Dwarf*> &dwarves) {    
+QStandardItem *CurrentJobColumn::build_aggregate(const QString &group_name,const QVector<Dwarf*> &dwarves) {
     Q_UNUSED(dwarves);
     QStandardItem *item = init_aggregate(group_name);
     return item;

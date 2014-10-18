@@ -25,17 +25,18 @@ THE SOFTWARE.
 #include "dwarfstats.h"
 #include "dwarftherapist.h"
 #include "gamedatareader.h"
+#include <QSettings>
 
 QHash<int, QVector<QString> > Attribute::m_display_descriptions;
 
 Attribute::Attribute()
-    : m_id(-1)
+    : m_id(AT_NONE)
     , m_value(0)
     , m_value_potential(-1)
     , m_value_balanced(-1)
     , m_display_value(0)
     , m_max(0)
-    , m_rating_potential(-1)    
+    , m_rating_potential(-1)
     , m_rating(-1)
     , m_cti(0)
     , m_descriptor("")
@@ -43,7 +44,7 @@ Attribute::Attribute()
 {
 }
 
-Attribute::Attribute(int id, int value, int display_value, int max, int cost_to_improve, int desc_index, QString desc)
+Attribute::Attribute(ATTRIBUTES_TYPE id, int value, int display_value, int max, int cost_to_improve, int desc_index, QString desc)
         : m_id(id)
         , m_value(value)
         , m_value_potential(-1)
@@ -84,20 +85,20 @@ QString Attribute::get_syndrome_desc(){
         return "";
 }
 
-float Attribute::get_potential_value(){
+double Attribute::get_potential_value(){
     if(m_value_potential < 0){
         m_value_potential = DwarfStats::calc_att_potential_value(m_value,m_max,m_cti);
     }
     return m_value_potential;
 }
 
-void Attribute::set_rating(float rating, bool potential){
+void Attribute::set_rating(double rating, bool potential){
     if(potential)
         m_rating_potential = rating;
     else
         m_rating = rating;
 }
-float Attribute::rating(bool potential){
+double Attribute::rating(bool potential){
     if(potential){
         if(m_rating_potential < 0){
             m_rating_potential = DwarfStats::get_attribute_rating(get_balanced_value());
@@ -107,7 +108,7 @@ float Attribute::rating(bool potential){
         return m_rating;
     }
 }
-float Attribute::get_balanced_value(){
+double Attribute::get_balanced_value(){
     calculate_balanced_value();
     return m_value_balanced;
 }

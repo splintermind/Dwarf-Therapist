@@ -20,17 +20,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#include <QtCore>
-#include <QtDebug>
-
 #include "dfinstance.h"
 #include "dwarfmodel.h"
 #include "dwarf.h"
 #include "skill.h"
-#include "labor.h"
-#include "profession.h"
 #include "squad.h"
-#include "statetableview.h"
 #include "truncatingfilelogger.h"
 #include "dwarftherapist.h"
 #include "defaultfonts.h"
@@ -40,7 +34,6 @@ THE SOFTWARE.
 #include "viewcolumnset.h"
 #include "viewcolumn.h"
 #include "laborcolumn.h"
-#include "skillcolumn.h"
 #include "spacercolumn.h"
 #include "races.h"
 #include "fortressentity.h"
@@ -48,8 +41,9 @@ THE SOFTWARE.
 #include "dwarfjob.h"
 #include "unithealth.h"
 #include "customprofession.h"
+#include "defines.h"
 
-#include "superlaborcolumn.h"
+#include <QTime>
 
 DwarfModel::DwarfModel(QObject *parent)
     : QStandardItemModel(parent)
@@ -57,6 +51,8 @@ DwarfModel::DwarfModel(QObject *parent)
     , m_group_by(GB_NOTHING)
     , m_selected_col(-1)
     , m_gridview(0x0)
+    , m_total_row_count(0)
+    , m_clearing_data(false)
 {
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
     read_settings();
@@ -67,7 +63,7 @@ DwarfModel::~DwarfModel() {
 }
 
 void DwarfModel::clear_all(bool clr_pend) {
-    clearing_data = true;
+    m_clearing_data = true;
     if(clr_pend)
         clear_pending();
 
@@ -83,10 +79,10 @@ void DwarfModel::clear_all(bool clr_pend) {
         }
     }
 
-    total_row_count = 0;
+    m_total_row_count = 0;
     clear();
 
-    clearing_data = false;
+    m_clearing_data = false;
 }
 
 void DwarfModel::section_right_clicked(int col) {
@@ -119,7 +115,7 @@ Squad* DwarfModel::get_squad(int id){
 }
 
 void DwarfModel::update_header_info(int id, COLUMN_TYPE type){
-    int index = 0;    
+    int index = 0;
     foreach(ViewColumnSet *set, m_gridview->sets()) {
         foreach(ViewColumn *col, set->columns()) {
             index ++;
@@ -150,7 +146,7 @@ void DwarfModel::draw_headers(){
     QStandardItem *name_col = new QStandardItem();
     name_col->setToolTip(tr("Right click to sort."));
     setHorizontalHeaderItem(0, name_col);
-    emit clear_spacers();    
+    emit clear_spacers();
 
     QString max_title = "";
     foreach(ViewColumnSet *set, m_gridview->sets()) {
@@ -176,7 +172,7 @@ void DwarfModel::draw_headers(){
             header->setToolTip(build_col_tooltip(col));
             header->setData(col->bg_color(), Qt::BackgroundColorRole);
             header->setData(set->name(), Qt::UserRole);
-            setHorizontalHeaderItem(start_col++, header);            
+            setHorizontalHeaderItem(start_col++, header);
             switch (col->type()) {
             case CT_SPACER:
             {
@@ -188,7 +184,7 @@ void DwarfModel::draw_headers(){
             default:
                 emit preferred_header_size(start_col - 1, m_cell_width);
             }
-        }        
+        }
     }
     emit preferred_header_height(max_title);
 }
@@ -227,7 +223,7 @@ void DwarfModel::build_rows() {
         }
     }
     clear();
-    total_row_count = 0;
+    m_total_row_count = 0;
 
     draw_headers();
 
@@ -259,9 +255,9 @@ void DwarfModel::build_rows() {
             }else if(m_group_by == GB_PROFESSION){
                 m_grouped_dwarves[d->profession()].append(d);
             }else if(m_group_by == GB_SEX){
-                m_grouped_dwarves[get_gender_desc(d->get_gender())].append(d);
+                m_grouped_dwarves[d->get_gender_orient_desc()].append(d);
             }else if(m_group_by == GB_MIGRATION_WAVE){
-                m_grouped_dwarves[d->get_migration_desc()].append(d);                
+                m_grouped_dwarves[d->get_migration_desc()].append(d);
             }else if(m_group_by == GB_AGE){
                 if(d->is_baby()){
                     m_grouped_dwarves[d->profession()].append(d);
@@ -301,9 +297,9 @@ void DwarfModel::build_rows() {
                 int wounds = d->get_unit_health().get_wound_details().count();
 
                 bool critical_wounds = d->get_unit_health().has_critical_wounds();
-                if(critical_wounds > 0){
+                if(critical_wounds){
                     m_grouped_dwarves[tr("Critical Health Issues")].append(d);
-                }else if(treatments > 0 || statuses > 0 || wounds > 0){
+                }else if(treatments || statuses || wounds){
                     m_grouped_dwarves[tr("Minor Health Issues")].append(d);
                 }else{
                     m_grouped_dwarves[tr("No Health Issues")].append(d);
@@ -466,6 +462,8 @@ void DwarfModel::build_row(const QString &key) {
             agg_first_col->setData(first_dwarf->caste_tag(), DR_SORT_VALUE);
         } else if (m_group_by == GB_AGE){
             agg_first_col->setData(first_dwarf->get_age(), DR_SORT_VALUE);
+        } else if (m_group_by == GB_SEX){
+            agg_first_col->setData(first_dwarf->get_gender_orient_desc(), DR_SORT_VALUE);
         } else if (m_group_by == GB_SQUAD){
             int squad_id = first_dwarf->squad_id();
             if(squad_id != -1){
@@ -496,7 +494,7 @@ void DwarfModel::build_row(const QString &key) {
     }
 
     if (agg_first_col) { // we have a parent, so we should draw an aggregate row
-        total_row_count += 1;
+        m_total_row_count += 1;
         foreach(ViewColumnSet *set, m_gridview->sets()) {
             foreach(ViewColumn *col, set->columns()) {
                 QStandardItem *item = col->build_aggregate(key, m_grouped_dwarves[key]);
@@ -521,7 +519,7 @@ void DwarfModel::build_row(const QString &key) {
             if(d->noble_position() != ""){
                 QColor col = m_df->fortress()->get_noble_color(d->historical_id());
                 i_name->setData(build_gradient_brush(col,col.alpha(),0,QPoint(0,0),QPoint(1,0)),Qt::BackgroundRole);
-                i_name->setData(compliment(col,false,0.25),Qt::ForegroundRole);
+                i_name->setData(complement(col,0.25),Qt::ForegroundRole);
             }
         }
 
@@ -533,7 +531,7 @@ void DwarfModel::build_row(const QString &key) {
             {
                 name_italic = true;
                 i_name->setData(m_cursed_bg,Qt::BackgroundRole);
-                i_name->setData(compliment(m_curse_col,false,0.25),Qt::ForegroundRole);
+                i_name->setData(complement(m_curse_col,0.25),Qt::ForegroundRole);
             }
                 break;
             case eCurse::OTHER:
@@ -548,7 +546,12 @@ void DwarfModel::build_row(const QString &key) {
         }
 
         i_name->setData(get_font(d->active_military(),name_italic),Qt::FontRole);
-        i_name->setToolTip(d->tooltip_text());
+        if(m_show_tooltips){
+            i_name->setToolTip(d->tooltip_text());
+        }else{
+            i_name->setData(d->tooltip_text(),DwarfModel::DR_TOOLTIP);
+        }
+
         i_name->setStatusTip(d->nice_name());
         i_name->setData(false, DR_IS_AGGREGATE);
         i_name->setData(0, DR_RATING);
@@ -604,7 +607,7 @@ void DwarfModel::build_row(const QString &key) {
                     item->setData(d->get_global_sort_key(m_group_by),DwarfModel::DR_GLOBAL);
                 items << item;
             }
-        }        
+        }
 
         if (agg_first_col) {
             agg_first_col->appendRow(items);
@@ -612,7 +615,7 @@ void DwarfModel::build_row(const QString &key) {
             appendRow(items);
         }
         d->m_name_idx = indexFromItem(i_name);
-        total_row_count += 1;
+        m_total_row_count += 1;
     }
     if (agg_first_col) {
         appendRow(agg_items);
@@ -774,7 +777,7 @@ void DwarfModel::clear_pending() {
             d->clear_pending();
         }
     }
-    //reset();    
+    //reset();
     DT->emit_labor_counts_updated();
     emit new_pending_changes(0);
     emit need_redraw();
@@ -906,6 +909,8 @@ void DwarfModel::read_settings(){
     m_cursed_bg = build_gradient_brush(m_curse_col,m_curse_col.alpha(),0,QPoint(0,0),QPoint(1,0));
     m_cursed_bg_light = build_gradient_brush(m_curse_col, 50,0,QPoint(0,0),QPoint(1,0)); //keep a weakly highlighted version
     m_show_labor_counts = s->value("options/grid/show_labor_counts",false).toBool();
+    m_show_tooltips = s->value("options/grid/show_tooltips",true).toBool();
+
     m_cell_width = s->value("options/grid/cell_size", DEFAULT_CELL_SIZE).toInt();
     m_cell_padding = s->value("options/grid/cell_padding", 0).toInt();
     m_cell_width += (m_cell_padding*2)+2;

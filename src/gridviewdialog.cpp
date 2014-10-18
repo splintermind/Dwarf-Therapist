@@ -46,9 +46,9 @@ THE SOFTWARE.
 #include "superlaborcolumn.h"
 #include "customprofessioncolumn.h"
 #include "beliefcolumn.h"
+#include "unitkillscolumn.h"
 
 #include "defines.h"
-#include "statetableview.h"
 #include "gamedatareader.h"
 #include "labor.h"
 #include "utils.h"
@@ -56,11 +56,11 @@ THE SOFTWARE.
 #include "ui_columneditdialog.h"
 #include "dfinstance.h"
 #include "itemweaponsubtype.h"
-#include "attribute.h"
 #include "unithealth.h"
 #include "healthcategory.h"
 #include "superlabor.h"
 #include "customprofession.h"
+#include "item.h"
 
 GridViewDialog::GridViewDialog(ViewManager *mgr, GridView *view, QWidget *parent)
     : QDialog(parent)
@@ -71,7 +71,10 @@ GridViewDialog::GridViewDialog(ViewManager *mgr, GridView *view, QWidget *parent
     , m_is_editing(false)
     , m_set_model(new QStandardItemModel)
     , m_col_model(new QStandardItemModel)
-    , m_active_set(NULL)
+    , m_temp_set(-1)
+    , m_temp_col(-1)
+    , m_active_set(0)
+    , m_cmh(0)
 {
     ui->setupUi(this);
     ui->list_sets->setModel(m_set_model);
@@ -151,7 +154,7 @@ void GridViewDialog::draw_sets() {
     foreach(ViewColumnSet *set, m_pending_view->sets()) {
         QStandardItem *set_item = new QStandardItem(set->name());
         set_item->setBackground(set->bg_color());
-        set_item->setForeground(compliment(set->bg_color()));
+        set_item->setForeground(complement(set->bg_color()));
         set_item->setDropEnabled(false);
         set_item->setData(set->name(), GPDT_TITLE);
         set_item->setData(set->bg_color(), GPDT_BG_COLOR);
@@ -180,7 +183,7 @@ void GridViewDialog::draw_columns_for_set(ViewColumnSet *set) {
         item->setData(vc->title(), GPDT_TITLE);
         item->setData(vc->type(), GPDT_COLUMN_TYPE);
         item->setBackground(vc->override_color() ? vc->bg_color() : set->bg_color());
-        item->setForeground(compliment(vc->override_color() ? vc->bg_color() : set->bg_color()));
+        item->setForeground(complement(vc->override_color() ? vc->bg_color() : set->bg_color()));
         item->setDropEnabled(false);
         m_col_model->appendRow(item);
     }
@@ -359,8 +362,8 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
 
     //ATTRIBUTE
     QMenu *m_attr = m_cmh->create_title_menu(m, tr("Attribute"),"");
-    QList<QPair<int, QString> > atts = gdr->get_ordered_attribute_names();
-    QPair<int, QString> att_pair;
+    QList<QPair<ATTRIBUTES_TYPE, QString> > atts = gdr->get_ordered_attribute_names();
+    QPair<ATTRIBUTES_TYPE, QString> att_pair;
     foreach(att_pair, atts){
         a = m_attr->addAction(tr(att_pair.second.toLatin1()), this, SLOT(add_attribute_column()));
         a->setData(att_pair.first);
@@ -403,8 +406,8 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
     //HEALTH
     QMenu *m_health = m_cmh->create_title_menu(m,tr("Health Column"),tr("Health columns will show various information about status, treatment and wounds."));
     m_cmh->add_sub_menus(m_health,4);
-    QList<QPair<int,QString> > cat_names = UnitHealth::ordered_category_names();
-    QPair<int,QString> health_pair;
+    QList<QPair<eHealth::H_INFO,QString> > cat_names = UnitHealth::ordered_category_names();
+    QPair<eHealth::H_INFO,QString> health_pair;
     foreach(health_pair, cat_names){
         QString name = health_pair.second;
         QMenu *menu_to_use = m_cmh->find_menu(m_health,name);
@@ -433,6 +436,10 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
         a->setToolTip(tr("Add a column for %1").arg(name));
     }
 
+    //KILLS
+    a = m->addAction(tr("Kills"), this, SLOT(add_kills_column()));
+    a->setToolTip(tr("Adds a single column that shows a unit's kills."));
+
     //LABOUR
     QMenu *m_labor = m_cmh->create_title_menu(m,tr("Labor"),tr("Labor columns function as toggle switches for individual labors on a dwarf."));
     m_cmh->add_sub_menus(m_labor,5);
@@ -458,10 +465,10 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
     QPair<QString, Role*> role_pair;
     foreach(role_pair, roles){
         Role *r = role_pair.second;
-        QMenu *menu_to_use = m_cmh->find_menu(m_roles,r->name);
-        QAction *a = menu_to_use->addAction(r->name, this, SLOT(add_role_column()));
+        QMenu *menu_to_use = m_cmh->find_menu(m_roles,r->name());
+        QAction *a = menu_to_use->addAction(r->name(), this, SLOT(add_role_column()));
         a->setData(role_pair.first);
-        a->setToolTip(tr("Add a column for role %1 (ID%2)").arg(r->name).arg(role_pair.first));
+        a->setToolTip(tr("Add a column for role %1 (ID%2)").arg(r->name()).arg(role_pair.first));
     }
 
     //SKILL
@@ -509,12 +516,12 @@ void GridViewDialog::draw_column_context_menu(const QPoint &p) {
     QMenu *m_weapon = m_cmh->create_title_menu(m, tr("Weapon"),
                                         tr("Weapon columns will show an indicator of whether the dwarf can wield the weapon with one hand, two hands or not at all."));
     m_cmh->add_sub_menus(m_weapon,DT->get_DFInstance()->get_ordered_weapon_defs().count() / 15);
-    QPair<QString, ItemWeaponSubtype*> weapon_pair;
-    foreach(weapon_pair, DT->get_DFInstance()->get_ordered_weapon_defs()) {
-        QMenu *menu_to_use = m_cmh->find_menu(m_weapon,weapon_pair.first);
-        QAction *a = menu_to_use->addAction(weapon_pair.first, this, SLOT(add_weapon_column()));
-        a->setData(weapon_pair.first);
-        a->setToolTip(tr("Add a column for weapon %1").arg(weapon_pair.first));
+    foreach(ItemWeaponSubtype *w, DT->get_DFInstance()->get_ordered_weapon_defs().values()) {
+        QString title = w->name_plural(); //allow adding every type
+        QMenu *menu_to_use = m_cmh->find_menu(m_weapon,title);
+        QAction *a = menu_to_use->addAction(title, this, SLOT(add_weapon_column()));
+        a->setData(w->subType());
+        a->setToolTip(tr("Add a column for weapon %1").arg(title));
     }
 
 
@@ -541,6 +548,14 @@ void GridViewDialog::add_trained_column(){
         return;
 
     new TrainedColumn(tr("Training"),m_active_set, m_active_set);
+    draw_columns_for_set(m_active_set);
+}
+
+void GridViewDialog::add_kills_column(){
+    if (!m_active_set)
+        return;
+
+    new UnitKillsColumn(tr("Kills"),m_active_set, m_active_set);
     draw_columns_for_set(m_active_set);
 }
 
@@ -647,7 +662,7 @@ void GridViewDialog::add_attribute_column() {
         return;
     QAction *a = qobject_cast<QAction*>(QObject::sender());
     ATTRIBUTES_TYPE type = static_cast<ATTRIBUTES_TYPE>(a->data().toInt());
-    new AttributeColumn(GameDataReader::ptr()->get_attribute_name((int)type), type, m_active_set, m_active_set);
+    new AttributeColumn(GameDataReader::ptr()->get_attribute_name(type), type, m_active_set, m_active_set);
     draw_columns_for_set(m_active_set);
 }
 
@@ -664,16 +679,19 @@ void GridViewDialog::add_weapon_column(){
     if(!m_active_set)
         return;
     QAction *a = qobject_cast<QAction*>(QObject::sender());
-    QString key = a->data().toString();
-    new WeaponColumn(key,DT->get_DFInstance()->get_weapon_defs().value(key),m_active_set,m_active_set);
-    draw_columns_for_set(m_active_set);
+    int sub_type = a->data().toInt();
+    ItemWeaponSubtype *w = qobject_cast<ItemWeaponSubtype*>(DT->get_DFInstance()->get_item_subtype(WEAPON,sub_type));
+    if(w){
+        new WeaponColumn(w->name_plural(),sub_type,m_active_set,m_active_set);
+        draw_columns_for_set(m_active_set);
+    }
 }
 
 void GridViewDialog::add_health_column(){
     if(!m_active_set)
         return;
     QAction *a = qobject_cast<QAction*>(QObject::sender());
-    int key = a->data().toInt();
+    eHealth::H_INFO key = static_cast<eHealth::H_INFO>(a->data().toInt());
     new HealthColumn(UnitHealth::get_display_categories().value(key)->name(),key,m_active_set,m_active_set);
     draw_columns_for_set(m_active_set);
 }

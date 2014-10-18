@@ -26,9 +26,11 @@ THE SOFTWARE.
 #include "item.h"
 #include "itemweaponsubtype.h"
 
+class ItemWeaponSubtype;
+
 class ItemWeapon : public Item {
 
-public:    
+public:
     ItemWeapon(const Item &baseItem)
         :Item(baseItem)
     {
@@ -71,7 +73,7 @@ private:
 
     void read_def(){
         if(m_addr > 0){
-            m_weapon = ItemWeaponSubtype::get_weapon(m_df,m_df->read_addr(m_addr+m_df->memory_layout()->item_offset("item_def")),this);
+            m_weapon = new ItemWeaponSubtype(m_df,m_df->read_addr(m_addr+m_df->memory_layout()->item_offset("item_def")),this);
             m_item_name = m_weapon->name();
         }
     }

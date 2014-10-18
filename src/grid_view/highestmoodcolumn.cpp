@@ -41,7 +41,7 @@ HighestMoodColumn::HighestMoodColumn(QSettings &s, ViewColumnSet *set, QObject *
 HighestMoodColumn::HighestMoodColumn(const QString &title, ViewColumnSet *set, QObject *parent)
     : SkillColumn(title,-1,set,parent,CT_HIGHEST_MOOD)
 {
-    m_sortable_types.clear();    
+    m_sortable_types.clear();
 }
 
 HighestMoodColumn::HighestMoodColumn(const HighestMoodColumn &to_copy)
@@ -63,7 +63,7 @@ QStandardItem *HighestMoodColumn::build_cell(Dwarf *d) {
     if(s.capped_level() != -1)
         img_id = gdr->get_pref_from_skill(s.id()) + 1; //prof images start at 1, id start at 0
 
-    QString pixmap_name = ":/profession/img/profession icons/prof_" + QString::number(img_id) + ".png";
+    QString pixmap_name = ":/profession/prof_" + QString::number(img_id) + ".png";
     item->setData(QIcon(pixmap_name), Qt::DecorationRole);
 
     item->setData(CT_HIGHEST_MOOD, DwarfModel::DR_COL_TYPE);

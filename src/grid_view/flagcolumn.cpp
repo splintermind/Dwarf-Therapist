@@ -34,21 +34,21 @@ FlagColumn::FlagColumn(QString title, int bit_pos, bool bit_value, ViewColumnSet
         : ViewColumn(title, CT_FLAGS, set, parent)
         , m_bit_pos(bit_pos)
         , m_bit_value(bit_value)
-{    
+{
 }
 
 FlagColumn::FlagColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
         : ViewColumn(s, set, parent)
         , m_bit_pos(s.value("bit_pos", -1).toInt())
         , m_bit_value(s.value("bit_value", 0).toBool())
-{    
+{
 }
 
 FlagColumn::FlagColumn(const FlagColumn &to_copy)
     : ViewColumn(to_copy)
     , m_bit_pos(to_copy.m_bit_pos)
     , m_bit_value(to_copy.m_bit_value)
-{    
+{
 }
 
 QStandardItem *FlagColumn::build_cell(Dwarf *d) {
@@ -59,7 +59,7 @@ QStandardItem *FlagColumn::build_cell(Dwarf *d) {
 
         short rating = 0;
         if(d->get_flag_value(m_bit_pos))
-            rating = 1;      
+            rating = 1;
         //check to fix butchering pets. currently this will cause the butchered parts to still be recognized as a pet
         //and they'll put them into a burial recepticle, but won't use them as a food source
         if(m_bit_pos == 49){
@@ -67,7 +67,7 @@ QStandardItem *FlagColumn::build_cell(Dwarf *d) {
             if(d->is_pet()){
                 item->setToolTip(tr("<b>Pets cannot be butchered!</b>"));
                 disabled = true;
-            }else if(!d->get_caste()->can_butcher()){
+            }else if(!d->get_caste() || !d->get_caste()->flags().has_flag(BUTCHERABLE)){
                 item->setToolTip(tr("<b>This creature cannot be butchered!</b>"));
                 disabled = true;
             }

@@ -24,9 +24,10 @@ THE SOFTWARE.
 #define ABOUT_DIALOG_H
 
 #include <QDialog>
-#include "mainwindow.h"
 #include "ui_about.h"
 #include "version.h"
+
+class MainWindow;
 
 class AboutDialog : public QDialog {
     Q_OBJECT
@@ -35,9 +36,6 @@ public:
     ~AboutDialog(){
         delete ui;
     }
-
-    void set_latest_version(const Version &v);
-    void version_check_failed();
 
 private:
     Ui::AboutDialog *ui;

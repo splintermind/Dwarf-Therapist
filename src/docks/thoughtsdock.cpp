@@ -20,15 +20,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+#include "thoughtsdock.h"
+#include "dwarftherapist.h"
+#include "thought.h"
+#include "gamedatareader.h"
+#include "dfinstance.h"
 #include <QVBoxLayout>
 #include <QLineEdit>
 #include <QHeaderView>
 #include <QPushButton>
 #include <QCloseEvent>
-#include "thoughtsdock.h"
-#include "dwarftherapist.h"
-#include "thought.h"
-#include "gamedatareader.h"
 
 #if QT_VERSION < 0x050000
 # define setSectionResizeMode setResizeMode
@@ -36,7 +37,7 @@ THE SOFTWARE.
 
 ThoughtsDock::ThoughtsDock(QWidget *parent, Qt::WindowFlags flags)
     : BaseDock(parent, flags)
-{    
+{
     setWindowTitle(tr("Thoughts"));
     setObjectName("dock_thoughts");
     setFeatures(QDockWidget::AllDockWidgetFeatures);
@@ -60,7 +61,7 @@ ThoughtsDock::ThoughtsDock(QWidget *parent, Qt::WindowFlags flags)
     tw_thoughts->verticalHeader()->hide();
     tw_thoughts->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Interactive);
     tw_thoughts->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Interactive);
-    tw_thoughts->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Interactive);    
+    tw_thoughts->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Interactive);
     tw_thoughts->setColumnWidth(0,100);
     tw_thoughts->setColumnWidth(1,50);
     tw_thoughts->horizontalHeader()->setStretchLastSection(true);
@@ -87,6 +88,8 @@ ThoughtsDock::ThoughtsDock(QWidget *parent, Qt::WindowFlags flags)
     connect(btn, SIGNAL(clicked()),this,SLOT(clear_filter()));
     connect(le_search, SIGNAL(textChanged(QString)),this, SLOT(search_changed(QString)));
     connect(btn_clear_search, SIGNAL(clicked()),this,SLOT(clear_search()));
+
+    connect(DT,SIGNAL(units_refreshed()),this,SLOT(refresh()));
 }
 
 void ThoughtsDock::clear(){
@@ -140,7 +143,7 @@ void ThoughtsDock::refresh(){
                 tw_thoughts->setItem(0, 2, item_desc);
             }
         tw_thoughts->setSortingEnabled(true);
-        tw_thoughts->sortItems(1, Qt::DescendingOrder);        
+        tw_thoughts->sortItems(1, Qt::DescendingOrder);
         filter();
     }
 }

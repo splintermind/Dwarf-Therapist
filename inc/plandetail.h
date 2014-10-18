@@ -13,7 +13,7 @@ public:
         role_name = "";
         priority = 0.0;
         ratio = 0.0;
-        use_skill = false;        
+        use_skill = false;
         assigned_laborers = 0;
         group_ratio = 0;
         m_max_count = 0;
@@ -37,7 +37,7 @@ public:
     QString role_name;
     float priority;
     float ratio; //ratio compared to other jobs
-    bool use_skill; //set if a role isn't specified    
+    bool use_skill; //set if a role isn't specified
     int assigned_laborers; //used when applying optimization
     float group_ratio;
 

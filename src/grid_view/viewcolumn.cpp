@@ -23,9 +23,8 @@ THE SOFTWARE.
 #include "viewcolumnset.h"
 #include "viewcolumn.h"
 #include "dwarf.h"
-#include "utils.h"
 #include "dwarftherapist.h"
-#include "truncatingfilelogger.h"
+#include "dtstandarditem.h"
 
 ViewColumn::ViewColumn(QString title, COLUMN_TYPE type, ViewColumnSet *set,
                        QObject *parent, int col_idx)
@@ -37,6 +36,7 @@ ViewColumn::ViewColumn(QString title, COLUMN_TYPE type, ViewColumnSet *set,
     , m_type(type)
     , m_count(-1)
     , m_export_data_role(DwarfModel::DR_SORT_VALUE)
+    , m_current_sort(CST_DEFAULT)
 {
     if (set) {
         set->add_column(this,col_idx);
@@ -54,13 +54,15 @@ ViewColumn::ViewColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
     , m_type(get_column_type(s.value("type", "DEFAULT").toString()))
     , m_count(-1)
     , m_export_data_role(DwarfModel::DR_SORT_VALUE)
+    , m_current_sort(CST_DEFAULT)
 {
     if (set) {
         set->add_column(this);
         m_bg_color = set->bg_color();
     }
-    if (m_override_set_colors)
-        m_bg_color = from_hex(s.value("bg_color").toString());
+    if (m_override_set_colors){
+        m_bg_color = set->read_color(s.value("bg_color").toString());
+    }
 
     connect(DT, SIGNAL(settings_changed()), this, SLOT(read_settings()));
 }
@@ -74,6 +76,7 @@ ViewColumn::ViewColumn(const ViewColumn &to_copy)
     , m_type(to_copy.m_type)
     , m_count(to_copy.m_count)
     , m_export_data_role(to_copy.m_export_data_role)
+    , m_current_sort(to_copy.m_current_sort)
 {
     // cloning should not add it to the copy's set! You must add it manually!
     if (m_set && !m_override_set_colors)
@@ -86,7 +89,7 @@ ViewColumn::~ViewColumn(){
 }
 
 QStandardItem *ViewColumn::init_cell(Dwarf *d) {
-    QStandardItem *item = new QStandardItem;
+    DTStandardItem *item = new DTStandardItem;
     item->setStatusTip(QString("%1 :: %2").arg(m_title).arg(d->nice_name()));
     QColor bg;
     if (m_override_set_colors) {
@@ -99,13 +102,13 @@ QStandardItem *ViewColumn::init_cell(Dwarf *d) {
     item->setData(false, DwarfModel::DR_IS_AGGREGATE);
     item->setData(d->id(), DwarfModel::DR_ID);
     item->setData(0,DwarfModel::DR_BASE_SORT);
-    m_cells[d] = item;    
+    m_cells[d] = item;
 
     return item;
 }
 
 QStandardItem *ViewColumn::init_aggregate(QString group_name){
-    QStandardItem *item = new QStandardItem;
+    DTStandardItem *item = new DTStandardItem;
 
     item->setStatusTip(m_title + " :: " + group_name);
 
@@ -117,7 +120,7 @@ QStandardItem *ViewColumn::init_aggregate(QString group_name){
     item->setData(bg, Qt::BackgroundColorRole);
     item->setData(bg, DwarfModel::DR_DEFAULT_BG_COLOR);
 
-    item->setData(group_name, DwarfModel::DR_GROUP_NAME);    
+    item->setData(group_name, DwarfModel::DR_GROUP_NAME);
     item->setData(-1, DwarfModel::DR_RATING);
     item->setData(-1, DwarfModel::DR_DISPLAY_RATING);
     item->setData(m_set->name(), DwarfModel::DR_SET_NAME);
@@ -139,7 +142,7 @@ void ViewColumn::write_to_ini(QSettings &s) {
     s.setValue("type", get_column_type(m_type));
     if (m_override_set_colors) {
         s.setValue("override_color", true);
-        s.setValue("bg_color", to_hex(m_bg_color));
+        s.setValue("bg_color", m_bg_color);
     }
 }
 

@@ -23,15 +23,12 @@ THE SOFTWARE.
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <QCoreApplication>
-#include <QDir>
-#include <QByteArray>
 #include <QColor>
-#include <QtGlobal>
 #include <QVariant>
 #include <QPixmap>
 #include <QBuffer>
 #include <QIODevice>
+#include <QString>
 #include <math.h>
 
 // valid for as long as DF stays 32bit
@@ -41,101 +38,18 @@ typedef qint32 SSIZE;
 typedef quint8 BYTE;
 typedef quint16 WORD;
 
-static inline QByteArray encode_short(const short &num) {
-    QByteArray arr(reinterpret_cast<const char *>(&num), sizeof(short));
-    return arr;
+static inline QColor complement(const QColor &in_color, float brightness_threshold = 0.50) {
+    qreal brightness = sqrt(pow(in_color.redF(),2.0) * 0.241 +
+                            pow(in_color.greenF(),2.0) * 0.691 +
+                            pow(in_color.blueF(),2.0) * 0.068);
+    return QColor::fromHsv(in_color.toHsv().hue(), 25, brightness >= brightness_threshold || in_color.alpha() < 130 ? 0 : 255);
 }
 
-static inline QByteArray encode(const int &num) {
-    QByteArray arr(reinterpret_cast<const char *>(&num), sizeof(int));
-    return arr;
-}
-
-static inline QByteArray encode(const VIRTADDR &num) {
-    QByteArray arr(reinterpret_cast<const char *>(&num), sizeof(VIRTADDR));
-    return arr;
-}
-
-static inline QByteArray encode(const ushort &num) {
-    QByteArray arr(reinterpret_cast<const char *>(&num), sizeof(ushort));
-    return arr;
-}
-
-static inline int decode_int(const QByteArray &arr) {
-    return *arr.constData();
-}
-
-static inline QByteArray encode_skillpattern(short skill, short exp, short rating) {
-    QByteArray bytes;
-    bytes.reserve(6);
-    bytes[0] = (uchar)skill;
-    bytes[1] = (uchar)(skill >> 8);
-    bytes[2] = (uchar)exp;
-    bytes[3] = (uchar)(exp >> 8);
-    bytes[4] = (uchar)rating;
-    bytes[5] = (uchar)(rating >> 8);
-    return bytes;
-}
-
-static inline QString by_char(QByteArray arr) {
-    QString out;
-    for(int i=0; i < arr.size(); i++) {
-        out += QString::number((uchar)arr.at(i), 16);
-        out += " ";
-    }
-    return out;
-}
-
-static inline QColor compliment(const QColor &in_color, bool true_compliment = false, float brighness_threshold = 0.50) {
-    if(!true_compliment){
-        //    qreal brightness = (in_color.red() * 299 + in_color.green() * 587 + in_color.blue() * 114) / 255000.0;
-        qreal brightness = sqrt(pow(in_color.redF(),2.0) * 0.241 +
-                                pow(in_color.greenF(),2.0) * 0.691 +
-                                pow(in_color.blueF(),2.0) * 0.068);
-        QColor tmp = in_color.toHsv();
-        int h = tmp.hue();
-        int s = 25;
-        int v;
-        if(brightness >= brighness_threshold || in_color.alpha() < 130) {
-            v = 0;
-        } else {
-            v = 255;
-        }
-        return QColor::fromHsv(h, s, v);
-    }else{
-            int r = (~in_color.red()) & 0xff;
-            int b = (~in_color.blue()) & 0xff;
-            int g = (~in_color.green()) & 0xff;
-//            int a = in_color.alpha(); //leave the alpha the same
-        //    int a = (~in_color.alpha()) & 0xff;
-            return QColor(r,g,b,255);
-    }
-}
-
-static inline QColor from_hex(const QString &h) {
-    bool ok;
-    QColor retval = Qt::gray;
-    if (h.length() == 8) { // "0x99AABB" (no alpha)
-        retval = QColor(h.toInt(&ok, 16));
-    } else if (h.length() == 10) { // "0x99AABBFF" (last two for alpha channel)
-        int r = h.mid(2, 2).toInt(&ok, 16);
-        int g = h.mid(4, 2).toInt(&ok, 16);
-        int b = h.mid(6, 2).toInt(&ok, 16);
-        int a = h.mid(8, 2).toInt(&ok, 16);
-        retval = QColor(r, g, b, a);
-    }
-    return retval;
-}
-
-static inline QString to_hex(const QColor &c) {
-    return QString("0x%1%2%3%4")
-        .arg(c.red(), 2, 16, QChar('0'))
-        .arg(c.green(), 2, 16, QChar('0'))
-        .arg(c.blue(), 2, 16, QChar('0'))
-        .arg(c.alpha(), 2, 16, QChar('0'));
-}
-static inline QString hexify(const quint32 &num) {
-    return QString("0x%1").arg(num, 8, 16, QChar('0'));
+static inline QString hexify(const quint64 &num) {
+    int width = 8;
+    if (num >> 32)
+        width = 16;
+    return QString("0x%1").arg(num, width, 16, QChar('0'));
 }
 static inline QString hexify(const QByteArray &bytes) {
     return QString("0x%1").arg(QString(bytes.toHex()), 8, QChar('0'));
@@ -144,30 +58,34 @@ static inline QString hexify(const QByteArray &bytes) {
 static inline QString capitalize(const QString & word) {
     QString result = word;
     if(!result.isEmpty()) {
-        result = result.toLower();
-        result[0] = result[0].toUpper();
+        int idx = 0;
+        for(idx=0;idx < word.size();idx++){
+            if(word.at(idx).isLetter())
+                break;
+        }
+        if(idx == word.size()-1)
+            idx = 0;
+        result[idx] = result[idx].toUpper();
     }
     return result;
 }
 
 static inline QString capitalizeEach(const QString & word){
-    QString result = word;
-    QStringList list = result.split(" ");
-    for(int i=0; i<list.length(); i++){
+    QStringList list = word.split(" ");
+    for(int i = 0; i < list.length(); i++){
         list[i] = capitalize(list[i]);
     }
-    result = list.join(" ");
-    return result;
+    return list.join(" ");
 }
 
 template <class T> class vPtr
 {
 public:
-    static T* asPtr(QVariant v){
-        return (T*)v.value<void *>();
+    static inline T* asPtr(QVariant v){
+        return static_cast<T*>(v.value<void *>());
     }
-    static QVariant asQVariant(T* ptr){
-        return qVariantFromValue((void*) ptr);
+    static inline QVariant asQVariant(T* ptr){
+        return qVariantFromValue(static_cast<void*>(ptr));
     }
 };
 
@@ -179,11 +97,7 @@ static inline QString embedPixmap(const QPixmap &img){
     return QString("<img src=\"data:image/png;base64,%1\"/>").arg(QString(buffer.data().toBase64()));
 }
 
-static inline bool has_flag(int flag, int flags){
-    return ((flag & flags) == flag);
-}
-
-static inline QString nice_list(QStringList values){
+static inline QString formatList(QStringList values){
     QString ret_val = "";
     QString last_msg;
     if(values.count() > 1)
@@ -195,19 +109,14 @@ static inline QString nice_list(QStringList values){
     return ret_val;
 }
 
-static inline QStringList find_files_list(const QString &file){
-    QStringList out;
-    QString working_dir = QDir::current().path();
-    QString appdir = QCoreApplication::applicationDirPath();
-    // Dwarf Therapist xx.x/share/game_data.ini
-    out << QString("%1/share/%2").arg(appdir, file);
-    // Dwarf-Therapist/release/../share/game_data.ini
-    out << QString("%1/../share/%2").arg(appdir, file);
-    // /usr/bin/../share/dwarftherapist/game_data.ini
-    out << QString("%1/../share/dwarftherapist/%2").arg(appdir, file);
-    // cwd/game_data.ini
-    out << QString("%1/%2").arg(working_dir, file);
-    return out;
+static inline QString formatNumber(double value) {
+    QString suffixes(QObject::tr("kMGT"));
+    for(int idx = suffixes.length(); idx > 0; idx--){
+        double unit = pow(1000,idx);
+        if(value >= unit)
+            return QString("%L1%2").arg(value/unit,0,'f',1).arg(suffixes.at(idx-1));
+    }
+    return QString("%L1").arg(value);
 }
 
 #endif // UTILS_H

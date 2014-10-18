@@ -3,6 +3,7 @@
 
 #include "truncatingfilelogger.h"
 #include "healthinfo.h"
+#include <QSettings>
 
 class MemoryLayout;
 class DFInstance;
@@ -10,22 +11,20 @@ class DFInstance;
 class HealthCategory{
 
 public:
-    HealthCategory(){
-        m_id = -1;
+    HealthCategory()
+    {
+        m_id = eHealth::HI_UNK;
         m_color = "#000000";
         m_multiple = false;
         m_type_flags = 2;
         m_individual_types = false;
-
-        HealthInfo *hi = new HealthInfo();
-        m_descriptors.insert(0,hi);
-
+        m_descriptors.insert(0,new HealthInfo());
         m_color = QColor(m_color_name);
     }
 
     HealthCategory(QSettings &s)
     {
-        m_id = s.value("id",0).toInt();
+        m_id = static_cast<eHealth::H_INFO>(s.value("id",-1).toInt());
         m_color_name = s.value("color","#000000").toString(); //default color for the whole category
         m_name = s.value("name", "Unknown").toString();
         m_multiple = s.value("multiple",false).toBool(); //indicates if a category/group allows multiple descriptions. ie. motor and sensory nerve damage
@@ -58,8 +57,12 @@ public:
         }
         s.endArray();
 
+        if(desc_count <= 0){ //ensure there's always one descriptor
+            m_descriptors.insert(0,new HealthInfo());
+        }
+
         if(requireSort)
-            std::sort(m_descriptors.begin(), m_descriptors.end(), HealthInfo::less_than_severity());
+            qSort(m_descriptors.begin(), m_descriptors.end(), HealthInfo::less_than_severity);
 
         m_color = QColor(m_color_name);
     }
@@ -68,7 +71,7 @@ public:
         m_descriptors.clear();
     }
 
-    int id() {return m_id;}
+    eHealth::H_INFO id() {return m_id;}
 
     QString name() {return m_name;}
     bool allows_multiple() {return m_multiple;}
@@ -80,7 +83,7 @@ public:
         if(idx >= 0 && idx < m_descriptors.size())
             return m_descriptors.at(idx);
         else
-            return new HealthInfo();
+            return m_descriptors.at(0);
     }
 
     bool diff_subitem_types() {return m_individual_types;}
@@ -98,12 +101,12 @@ public:
         return descriptions;
     }
 
-    bool is_treatment() {return (has_flag(1,m_type_flags));}
-    bool is_status() {return (has_flag(2,m_type_flags));}
-    bool is_wound() {return (has_flag(4,m_type_flags));}
+    bool is_treatment() {return m_type_flags & 1;}
+    bool is_status() {return m_type_flags & 2;}
+    bool is_wound() {return m_type_flags & 4;}
 
 private:
-    int m_id;
+    eHealth::H_INFO m_id;
     QString m_name;
     bool m_multiple;
     QString m_color_name;

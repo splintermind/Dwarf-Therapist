@@ -23,12 +23,9 @@ THE SOFTWARE.
 #ifndef GAME_DATA_READER_H
 #define GAME_DATA_READER_H
 
-#include <string>
-#include <stdexcept>
-#include <QtCore>
-#include "raws/rawobjectlist.h"
 #include "global_enums.h"
 #include "utils.h"
+#include <QPointer>
 
 // forward declaration
 class QSettings;
@@ -43,17 +40,6 @@ class DwarfJob;
 class Thought;
 class Belief;
 
-// exceptions
-class MissingValueException : public std::runtime_error {
-public:
-    MissingValueException(const std::string &msg) : runtime_error(msg) {}
-};
-
-class CorruptedValueException : public std::runtime_error {
-public:
-    CorruptedValueException(const std::string &msg) : runtime_error(msg) {}
-};
-
 //singleton reader of game data
 class GameDataReader : public QObject {
     Q_OBJECT
@@ -66,21 +52,17 @@ public:
     }
 
     int get_int_for_key(QString key, short base = 16);
-    int get_address(QString key) {return get_int_for_key("addresses/" + key);}
-    int get_offset(QString key) {return get_int_for_key("offsets/" + key);}
-    int get_dwarf_offset(QString key) {return get_int_for_key("dwarf_offsets/" + key);}
-    int get_xp_for_next_attribute_level(int current_number_of_attributes);
 
     QList<Labor*> get_ordered_labors() {return m_ordered_labors;}
     QList<QPair<int, QString> > get_ordered_skills() {return m_ordered_skills;}
     QHash<int, Trait*> get_traits() {return m_traits;}
     QList<QPair<int, Trait*> > get_ordered_traits() {return m_ordered_traits;}
-    QList<QPair<int, QString> > get_ordered_attribute_names() {return m_ordered_attribute_names;}    
-    QHash<short, Profession*> get_professions() {return m_professions;}    
+    QList<QPair<ATTRIBUTES_TYPE, QString> > get_ordered_attribute_names() {return m_ordered_attribute_names;}
+    QHash<short, Profession*> get_professions() {return m_professions;}
     QHash<QString, Role*>& get_roles(){return m_dwarf_roles;}
     QList<QPair<QString, Role*> > get_ordered_roles() {return m_ordered_roles;}
     QVector<QString> get_default_roles() {return m_default_roles;}
-    QHash<int,QVector<Role*> > get_skill_roles() {return m_skill_roles;}    
+    QHash<int,QVector<Role*> > get_skill_roles() {return m_skill_roles;}
     QHash<int,QString> get_skills(){return m_skills;}
     QList<QPair<int,QString> > get_ordered_beliefs(){return m_ordered_beliefs;}
     QList<QPair<int,QString> > get_ordered_goals(){return m_ordered_goals;}
@@ -109,8 +91,8 @@ public:
     void refresh_opt_plans();
     void refresh_facets();
 
-    QString get_attribute_name(int id){return m_attribute_names.value(id);}
-    QHash<int,QString> get_attributes(){return m_attribute_names;}
+    QString get_attribute_name(ATTRIBUTES_TYPE id){return m_attribute_names.value(id);}
+    QHash<ATTRIBUTES_TYPE,QString> get_attributes(){return m_attribute_names;}
     ATTRIBUTES_TYPE get_attribute_type(QString name){return m_attributes_by_name.value(name);}
 
     QString get_string_for_key(QString key);
@@ -120,30 +102,9 @@ public:
     int get_total_skill_count() {return m_skills.count();}
     int get_total_belief_count() {return m_beliefs.count();}
 
-    QColor get_color(QString key);
-
-    QStringList get_child_groups(QString section);
-    QStringList get_keys(QString section);
-    int get_level_from_xp(int xp);
-
-    RawObjectPtr get_reaction(QString reactionClass, QString id) {
-        if(m_reaction_classes.contains(reactionClass)) {
-            return m_reaction_classes.value(reactionClass)
-                    .getRawObject("REACTION", id);
-        }
-        return RawObjectPtr();
-    }
-
-    RawObjectPtr get_creature(QString creatureClass, QString id) {
-        if(m_creatures_classes.contains(creatureClass)) {
-            return m_creatures_classes.value(creatureClass)
-                    .getRawObject("CREATURE", id);
-        }
-        return RawObjectPtr();
-    }
-
     const QVector<int> moodable_skills() {return m_moodable_skills;}
     int get_pref_from_skill(int skill_id) const {return m_mood_skills_profession_map.value(skill_id,-1);}
+    const QList<int> social_skills() {return m_social_skills;}
 
     QString get_goal_desc(int id, bool realized);
     QString get_goal_name(int id){return capitalize(m_goals.value(id).first);}
@@ -156,7 +117,7 @@ protected:
     virtual ~GameDataReader();
 private:
     static GameDataReader *m_instance;
-    QSettings *m_data_settings;
+    QPointer<QSettings> m_data_settings;
 
     QHash<int, Labor*> m_labors;
     QList<Labor*> m_ordered_labors;
@@ -171,13 +132,12 @@ private:
     QList<QPair<int,QString> > m_ordered_goals;
 
     QHash<int, QString> m_skills;
-    QList<QPair<int, QString> > m_ordered_skills;    
+    QList<QPair<int, QString> > m_ordered_skills;
     QHash<int, QString> m_skill_levels;
 
-    QHash<int, int> m_attribute_levels;
-    QHash<int, QString> m_attribute_names;
+    QHash<ATTRIBUTES_TYPE, QString> m_attribute_names;
     QHash<QString, ATTRIBUTES_TYPE> m_attributes_by_name;
-    QList<QPair<int,QString> > m_ordered_attribute_names;
+    QList<QPair<ATTRIBUTES_TYPE,QString> > m_ordered_attribute_names;
 
     QHash<short, DwarfJob*> m_dwarf_jobs;
     QList<QPair<int, QString> > m_ordered_jobs;
@@ -193,19 +153,12 @@ private:
     QHash<QString, laborOptimizerPlan*> m_opt_plans;
     QList<QPair<QString, laborOptimizerPlan*> > m_ordered_opts;
 
-    QHash<QString, QRawObjectList> m_reaction_classes;
-    QHash<QString, QRawObjectList> m_creatures_classes;    
-
-    QHash<QString, QString> m_race_names;
-    QHash<QString, QStringList> m_caste_names;
-
     QVector<int> m_moodable_skills;
     QMap<int, int> m_mood_skills_profession_map;
+    QList<int> m_social_skills;
 
     QMap<short, Thought*> m_unit_thoughts;
 
-    void load_race_names();
-    void load_caste_names();
     void build_calendar();
 };
 #endif

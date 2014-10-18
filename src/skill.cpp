@@ -22,6 +22,8 @@ THE SOFTWARE.
 */
 #include "skill.h"
 #include "gamedatareader.h"
+#include "dwarfstats.h"
+#include "dwarftherapist.h"
 
 QHash<int,int> Skill::m_experience_levels = Skill::load_base_xp_levels();
 int Skill::MAX_CAPPED_XP = 29000;
@@ -36,15 +38,17 @@ Skill::Skill()
     , m_exp_progress(0)
     , m_capped_level(-1)
     , m_raw_level(-1)
-    , m_name("UNKNOWN")      
+    , m_name("UNKNOWN")
     , m_rust_rating("")
     , m_skill_rate(100)
+    , m_rust(0)
+    , m_losing_xp(false)
     , m_rating(-1)
     , m_balanced_level(-1)
     , m_rust_level(0)
 {}
 
-Skill::Skill(short id, uint exp, short rating, int rust, int skill_rate)    
+Skill::Skill(short id, uint exp, short rating, int rust, int skill_rate)
     : m_id(id)
     , m_exp(exp)
     , m_actual_exp(exp)
@@ -52,17 +56,17 @@ Skill::Skill(short id, uint exp, short rating, int rust, int skill_rate)
     , m_exp_for_next_level(exp + 1)
     , m_exp_progress(0)
     , m_raw_level(rating)
-    , m_name("UNKNOWN")     
+    , m_name("UNKNOWN")
     , m_rust_rating("")
     , m_skill_rate(skill_rate)
     , m_rust(rust)
     , m_rating(-1)
     , m_balanced_level(-1)
     , m_rust_level(0)
-{    
+{
     m_name = GameDataReader::ptr()->get_skill_name(m_id);
     //defaults
-    m_rust_rating = "";    
+    m_rust_rating = "";
     m_capped_level = m_raw_level > 20 ? 20 : m_raw_level;
 
     //current xp
@@ -112,7 +116,7 @@ QString Skill::to_string(bool include_level, bool include_exp_summary, bool use_
     if(!m_rust_rating.isEmpty())
         rusted = true;
 
-    QString out;    
+    QString out;
 
     if(rusted && use_color)
         out.append(QString("<font color=%1>").arg(m_rust_color.name()));
@@ -144,13 +148,16 @@ bool Skill::operator<(const Skill *s2) const {
 }
 
 QString Skill::exp_summary() const {
-    if (m_capped_level >= 20) {
-        return QString("%L1xp").arg(m_actual_exp);
-    }
+    QString xp_str = formatNumber(m_actual_exp);//format_exp(m_actual_exp);
 
-    return QString("%L1/%L2xp (%L3%)")
-            .arg(m_actual_exp)
-            .arg(m_exp_for_next_level)
+    if (m_capped_level >= 20) {
+        return xp_str.append(" xp");
+    }
+    QString xp_next = formatNumber(m_exp_for_next_level);//format_exp(m_exp_for_next_level);
+
+    return QString("%1/%2 xp (%L3%)")
+            .arg(xp_str)
+            .arg(xp_next)
             .arg(m_exp_progress, 0, 'f', 1);
 }
 

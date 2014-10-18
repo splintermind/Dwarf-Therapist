@@ -37,6 +37,7 @@ class DwarfDetailsWidget: public QWidget {
     Q_OBJECT
 public:
     DwarfDetailsWidget(QWidget *parent = 0, Qt::WindowFlags flags = 0);
+    ~DwarfDetailsWidget();
 
 public slots:
     void clear();
@@ -44,16 +45,13 @@ public slots:
 
 private:
     Ui::DwarfDetailsWidget *ui;
-    QGridLayout *m_skills_layout;
-//    QVector<QObject*> m_cleanup_list;
     QVector<QTableWidget*> m_tables;
     QByteArray m_splitter_sizes;
 
     QList<QPair<int,Qt::SortOrder> > m_sorting;
-
     int m_current_id;
 
-    void clear_table(QTableWidget &t);    
+    void clear_table(QTableWidget &t);
     QString build_gradient(QColor c1, QColor c2);
 
     void add_personality_row(QString title, int raw_value, QString info, QString tooltip, QColor override = Qt::black);
@@ -63,7 +61,6 @@ private:
     static QColor color_high;
     static QColor color_mood_high;
     static QColor color_mood_had;
-
 };
 
 #endif

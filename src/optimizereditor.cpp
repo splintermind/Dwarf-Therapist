@@ -1,23 +1,22 @@
-#include <QComboBox>
-#include <QMessageBox>
-#include <QMenu>
-#include <QFileDialog>
 #include "optimizereditor.h"
 #include "ui_optimizereditor.h"
 #include "gamedatareader.h"
-
 #include "dwarftherapist.h"
 #include "viewmanager.h"
 #include "dwarfmodel.h"
 #include "dwarfmodelproxy.h"
-
 #include "laboroptimizer.h"
 #include "laboroptimizerplan.h"
 #include "plandetail.h"
-
 #include "sortabletableitems.h"
-
 #include "labor.h"
+
+#include <QComboBox>
+#include <QMessageBox>
+#include <QMenu>
+#include <QFileDialog>
+#include <QTextStream>
+
 #include "math.h"
 
 #if QT_VERSION < 0x050000
@@ -25,11 +24,14 @@
 #endif
 
 //optimizereditor::optimizereditor(QString name, QWidget *parent) :
-optimizereditor::optimizereditor(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::optimizereditor),
-    m_optimizer(0),
-    is_editing(true)
+optimizereditor::optimizereditor(QWidget *parent)
+    : QDialog(parent)
+    , ui(new Ui::optimizereditor)
+    , m_optimizer(0)
+    , m_original_plan(0)
+    , m_plan(0)
+    , m_editing(true)
+    , m_loading(false)
 {
     ui->setupUi(this);
 
@@ -39,7 +41,7 @@ optimizereditor::optimizereditor(QWidget *parent) :
 
     //job/labor table
     ui->tw_labors->setEditTriggers(QTableWidget::AllEditTriggers);
-    ui->tw_labors->verticalHeader()->hide();    
+    ui->tw_labors->verticalHeader()->hide();
     ui->tw_labors->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->tw_labors->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     ui->tw_labors->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Interactive);
@@ -71,10 +73,9 @@ optimizereditor::optimizereditor(QWidget *parent) :
     connect(ui->btnImport, SIGNAL(clicked()), this, SLOT(import_details()));
     connect(ui->btnExport, SIGNAL(clicked()), this, SLOT(export_details()));
 
-    connect(ui->tw_labors, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(draw_labor_context_menu(QPoint)));        
-
+    connect(ui->tw_labors, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(draw_labor_context_menu(QPoint)));
     connect(ui->treeMessages, SIGNAL(currentItemChanged(QTreeWidgetItem *, QTreeWidgetItem *)),
-        DT->get_main_window()->get_view_manager(), SLOT(jump_to_dwarf(QTreeWidgetItem *, QTreeWidgetItem *)));
+            DT->get_main_window()->get_view_manager(), SLOT(jump_to_dwarf(QTreeWidgetItem *, QTreeWidgetItem *)));
 
     QSplitterHandle *h = ui->splitter->handle(1);
     QVBoxLayout *layout = new QVBoxLayout(h);
@@ -100,13 +101,13 @@ optimizereditor::optimizereditor(QWidget *parent) :
 }
 
 void optimizereditor::load_plan(QString name){
-    is_editing = true;
+    m_editing = true;
 
     m_original_plan = GameDataReader::ptr()->get_opt_plans().take(name);
     if(!m_original_plan){
         m_plan = new laborOptimizerPlan();
         m_plan->name = "New Plan";
-        is_editing = false;
+        m_editing = false;
     }else{
         m_plan = new laborOptimizerPlan(*m_original_plan);
     }
@@ -125,7 +126,7 @@ void optimizereditor::load_plan(QString name){
 
     find_target_population();
 
-    loading = true;
+    m_loading = true;
     foreach(PlanDetail *d, m_plan->plan_details){
         insert_row(d);
     }
@@ -133,7 +134,7 @@ void optimizereditor::load_plan(QString name){
     ui->tw_labors->resizeColumnsToContents();
     ui->tw_labors->resizeRowsToContents();
     ui->tw_labors->show();
-    loading = false;
+    m_loading = false;
 
     refresh_job_counts();
 
@@ -162,7 +163,7 @@ void optimizereditor::auto_haul_changed(int val){
     m_plan->auto_haulers = val;
 }
 
-void optimizereditor::pop_percent_changed(int val){    
+void optimizereditor::pop_percent_changed(int val){
     m_plan->pop_percent = val;
     populationChanged();
 }
@@ -174,7 +175,7 @@ void optimizereditor::insert_row(PlanDetail *d){
     ui->tw_labors->setSortingEnabled(false);
     QString title;
     int row = ui->tw_labors->rowCount();
-    ui->tw_labors->insertRow(row);    
+    ui->tw_labors->insertRow(row);
     ui->tw_labors->setRowHeight(row,18);
 
     title = capitalize(l->name);
@@ -238,29 +239,29 @@ void optimizereditor::insert_row(PlanDetail *d){
     ui->tw_labors->setSortingEnabled(true);
 
     //refresh_all_counts();
-    if(!loading){
+    if(!m_loading){
         refresh_job_counts();
     }
 }
 
 void optimizereditor::count_edited(){
     qDebug("count edited");
-//    QWidget *w = QApplication::focusWidget();
-//    if(w){
-//        QModelIndex idx = ui->tw_labors->indexAt(w->pos());
-//        PlanDetail *det = m_plan->job_exists(ui->tw_labors->item(idx.row(),0)->data(Qt::UserRole).toInt());
-//        if(det){
-//            QSpinBox* sb_count = qobject_cast<QSpinBox*>(ui->tw_labors->cellWidget(idx.row(),4));
-//            det->is_overridden(true);
-//            if(sb_count){
-//                QPalette p = sb_count->palette();
-//                QColor c = QColor(57,113,249,180);
-//                p.setColor(sb_count->backgroundRole(),c);
-//                sb_count->setPalette(p);
-//            }
-//        }
-//    }
-//        refresh_job_counts();
+    //    QWidget *w = QApplication::focusWidget();
+    //    if(w){
+    //        QModelIndex idx = ui->tw_labors->indexAt(w->pos());
+    //        PlanDetail *det = m_plan->job_exists(ui->tw_labors->item(idx.row(),0)->data(Qt::UserRole).toInt());
+    //        if(det){
+    //            QSpinBox* sb_count = qobject_cast<QSpinBox*>(ui->tw_labors->cellWidget(idx.row(),4));
+    //            det->is_overridden(true);
+    //            if(sb_count){
+    //                QPalette p = sb_count->palette();
+    //                QColor c = QColor(57,113,249,180);
+    //                p.setColor(sb_count->backgroundRole(),c);
+    //                sb_count->setPalette(p);
+    //            }
+    //        }
+    //    }
+    //        refresh_job_counts();
 }
 
 void optimizereditor::labor_cell_changed(int row, int col){
@@ -314,7 +315,7 @@ void optimizereditor::priority_changed(double val){
         QModelIndex idx = ui->tw_labors->indexAt(w->pos());
         PlanDetail *det = m_plan->job_exists(ui->tw_labors->item(idx.row(),0)->data(Qt::UserRole).toInt());
         if(det){
-            det->priority = val;       
+            det->priority = val;
         }
     }
 
@@ -459,21 +460,21 @@ void optimizereditor::draw_labor_context_menu(const QPoint &p){
         }
     }
 
-    QString msg = tr("A-I (%1 jobs)").arg(QString::number(labor_a_l->children().count()));
+    QString msg = tr("A-I (%1 jobs)").arg(labor_a_l->children().count());
     labor_a_l->setWindowTitle(msg);
     labor_a_l->setTitle(msg);
 
-    msg = tr("J-R (%1 jobs)").arg(QString::number(labor_j_r->children().count()));
+    msg = tr("J-R (%1 jobs)").arg(labor_j_r->children().count());
     labor_j_r->setWindowTitle(msg);
     labor_j_r->setTitle(msg);
 
-    msg = tr("S-Z (%1 jobs)").arg(QString::number(labor_s_z->children().count()));
+    msg = tr("S-Z (%1 jobs)").arg(labor_s_z->children().count());
     labor_s_z->setWindowTitle(msg);
     labor_s_z->setTitle(msg);
 
     m->addSeparator();
-    a = m->addAction(icn,tr("Assign remaining %1 jobs.")
-                     .arg(QString::number(m_remaining_labors.count())),this, SLOT(add_remaining_jobs()));
+    m->addAction(icn, tr("Assign remaining %1 jobs.").arg(m_remaining_labors.count())
+                 , this, SLOT(add_remaining_jobs()));
 
     m->exec(ui->tw_labors->viewport()->mapToGlobal(p));
 }
@@ -529,7 +530,7 @@ QString optimizereditor::find_role(int id){
     //find first related role
     QVector<Role*> roles = GameDataReader::ptr()->get_skill_roles().value(l->skill_id);
     if(roles.count() > 0){
-        return roles.at(0)->name;
+        return roles.at(0)->name();
     }else{
         return "";
     }
@@ -543,7 +544,7 @@ void optimizereditor::save(laborOptimizerPlan *p){
     p->max_jobs_per_dwarf = ui->sb_max_jobs->value();
     p->hauler_percent = ui->sb_hauler_percent->value();
     p->pop_percent = ui->sb_pop_percent->value();
-    p->auto_haulers = ui->chk_auto->isChecked();    
+    p->auto_haulers = ui->chk_auto->isChecked();
     p->name = ui->le_name->text();
     //save_details(p);
 }
@@ -632,7 +633,7 @@ void optimizereditor::save_pressed(){
 
 void optimizereditor::cancel_pressed(){
     //if we were editing and cancelled, put the original back!
-    if(is_editing)
+    if(m_editing)
         GameDataReader::ptr()->get_opt_plans().insert(m_original_plan->name, m_original_plan);
     this->reject();
     delete m_plan;
@@ -659,107 +660,109 @@ void optimizereditor::import_details(){
     QString path = QFileDialog::getOpenFileName(this, tr("CSV Import"),"",tr("CSV (*.csv);;All Files (*)"));
 
     QFile file(path);
-     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)){
-         display_message("File could not be opened.",true);
-         return;
-     }
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)){
+        display_message("File could not be opened.",true);
+        return;
+    }
 
-     //clear current rows
-     for(int i=ui->tw_labors->rowCount()-1; i>=0; i--){
-         ui->tw_labors->removeRow(i);
-     }
+    //clear current rows
+    for(int i=ui->tw_labors->rowCount()-1; i>=0; i--){
+        ui->tw_labors->removeRow(i);
+    }
 
-     QTextStream s(&file);
-     int linenum = 0;
-     QString line;
-     QStringList fields;     
-     bool check;     
-     loading = true;
-     while (!s.atEnd()) {
-         linenum++;
-         line = s.readLine();
-         fields = line.split(",");
+    QTextStream s(&file);
+    int linenum = 0;
+    QString line;
+    QStringList fields;
+    bool check;
+    m_loading = true;
+    while (!s.atEnd()) {
+        linenum++;
+        line = s.readLine();
+        fields = line.split(",");
 
-         if(fields.count() == 4){
-             fields.at(1).toInt(&check);
-             if(!check){
-                 display_message("Invalid labor id (2nd column) at line " + QString::number(linenum),true);
-                 continue;
-             }
-             fields.at(2).toFloat(&check);
-             if(!check){
-                 display_message("Invalid priority (3rd column) at line " + QString::number(linenum),true);
-                 continue;
-             }
-             fields.at(3).toFloat(&check);
-             if(!check){
-                 display_message("Invalid population percent (4th column) at line " + QString::number(linenum),true);
-                 continue;
-             }
+        if(fields.count() == 4){
+            fields.at(1).toInt(&check);
+            if(!check){
+                display_message("Invalid labor id (2nd column) at line " + QString::number(linenum),true);
+                continue;
+            }
+            fields.at(2).toFloat(&check);
+            if(!check){
+                display_message("Invalid priority (3rd column) at line " + QString::number(linenum),true);
+                continue;
+            }
+            fields.at(3).toFloat(&check);
+            if(!check){
+                display_message("Invalid population percent (4th column) at line " + QString::number(linenum),true);
+                continue;
+            }
 
-             PlanDetail *d = new PlanDetail();
-             d->role_name = fields.at(0);
-             d->labor_id = fields.at(1).toInt();
-             d->priority = fields.at(2).toFloat();
-             d->ratio = fields.at(3).toFloat();
-             d->assigned_laborers = 0;
+            PlanDetail *d = new PlanDetail();
+            d->role_name = fields.at(0);
+            d->labor_id = fields.at(1).toInt();
+            d->priority = fields.at(2).toFloat();
+            d->ratio = fields.at(3).toFloat();
+            d->assigned_laborers = 0;
 
-             //if the csv has a role we don't have, find a match if possible and report
-             if(GameDataReader::ptr()->get_role(d->role_name) == NULL){
-                 QString role_name = find_role(d->labor_id);
-                 QString msg = "";
-                 if(!role_name.isEmpty())
-                     msg = "Role [" + role_name + "] was used instead.";
-                 display_message("The role for " + GameDataReader::ptr()->get_labor(d->labor_id)->name +
-                                 " [" + d->role_name + "] could not be found. " +
-                                         msg + " (line " + QString::number(linenum) + ")",true);
-                 d->role_name = role_name;
-             }
+            //if the csv has a role we don't have, find a match if possible and report
+            if(GameDataReader::ptr()->get_role(d->role_name) == NULL){
+                QString role_name = find_role(d->labor_id);
+                QString msg = "";
+                if(!role_name.isEmpty())
+                    msg = "Role [" + role_name + "] was used instead.";
+                display_message(tr("The role for %1 [%2] could not be found at line %3.")
+                                .arg(GameDataReader::ptr()->get_labor(d->labor_id)->name)
+                                .arg(d->role_name)
+                                .arg(msg)
+                                .arg(linenum), true);
+                d->role_name = role_name;
+            }
 
-             if(!m_plan->job_exists(d->labor_id)){
-                 m_plan->plan_details.append(d);
-                 insert_row(d);
-             }
+            if(!m_plan->job_exists(d->labor_id)){
+                m_plan->plan_details.append(d);
+                insert_row(d);
+            }
 
-         }else if(fields.count() <= 9 && linenum == 1){
-             int count = fields.count();
+        }else if(fields.count() <= 9 && linenum == 1){
+            int count = fields.count();
 
-             if(count >= 1)
-                 ui->le_name->setText(fields.at(0));
-             if(count >= 2)
-                 ui->sb_max_jobs->setValue(fields.at(1).toInt());
-             if(count >= 3)
-                 ui->sb_pop_percent->setValue(fields.at(2).toFloat());
-             if(count >= 4)
-                 ui->sb_hauler_percent->setValue(fields.at(3).toFloat());
-             if(count >= 5)
-                 ui->chk_military->setChecked(fields.at(4).toInt());
-             if(count >= 6)
-                 ui->chk_nobles->setChecked(fields.at(5).toInt());
-             if(count >= 7)
-                 ui->chk_injured->setChecked(fields.at(6).toInt());
-             if(count >= 8)
-                 ui->chk_auto->setChecked(fields.at(7).toInt());
-             if(count >= 9)
-                 ui->chk_squads->setChecked(fields.at(8).toInt());
+            if(count >= 1)
+                ui->le_name->setText(fields.at(0));
+            if(count >= 2)
+                ui->sb_max_jobs->setValue(fields.at(1).toInt());
+            if(count >= 3)
+                ui->sb_pop_percent->setValue(fields.at(2).toFloat());
+            if(count >= 4)
+                ui->sb_hauler_percent->setValue(fields.at(3).toFloat());
+            if(count >= 5)
+                ui->chk_military->setChecked(fields.at(4).toInt());
+            if(count >= 6)
+                ui->chk_nobles->setChecked(fields.at(5).toInt());
+            if(count >= 7)
+                ui->chk_injured->setChecked(fields.at(6).toInt());
+            if(count >= 8)
+                ui->chk_auto->setChecked(fields.at(7).toInt());
+            if(count >= 9)
+                ui->chk_squads->setChecked(fields.at(8).toInt());
 
-             save(m_plan);
-         }else{
-             display_message(tr("CSV has an invalid number of columns (%1) at line %2.")
-                             .arg(QString::number(fields.count())).arg(QString::number(linenum)),true);
-         }
+            save(m_plan);
+        }else{
+            display_message(tr("CSV has an invalid number of columns (%1) at line %2.")
+                            .arg(fields.count()).arg(linenum),true);
+        }
 
-     }     
-     loading = false;
-     file.close();
-     ui->tw_labors->hide();
-     ui->tw_labors->resizeColumnsToContents();
-     ui->tw_labors->resizeRowsToContents();
-     ui->tw_labors->show();
+    }
+    m_loading = false;
+    file.close();
+    ui->tw_labors->hide();
+    ui->tw_labors->resizeColumnsToContents();
+    ui->tw_labors->resizeRowsToContents();
+    ui->tw_labors->show();
 
-     refresh_job_counts();
+    refresh_job_counts();
 
-     display_message("Import complete.");
+    display_message("Import complete.");
 }
 
 void optimizereditor::export_details(){
@@ -767,34 +770,34 @@ void optimizereditor::export_details(){
     QString path = QFileDialog::getSaveFileName(this, tr("CSV Export"),m_plan->name,tr("CSV (*.csv);;All Files (*)"));
 
     QFile file(path);
-     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)){
-         display_message("File could not be opened.",true);
-         return;
-     }
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)){
+        display_message("File could not be opened.",true);
+        return;
+    }
 
-     QTextStream s(&file);
+    QTextStream s(&file);
 
-     s << ui->le_name->text() + ",";
-     s << QString::number(ui->sb_max_jobs->value()) + ",";
-     s << QString::number(ui->sb_pop_percent->value()) + ",";
-     s << QString::number(ui->sb_hauler_percent->value()) + ",";
-     s << QString::number((int)ui->chk_military->isChecked()) + ",";
-     s << QString::number((int)ui->chk_nobles->isChecked()) + ",";
-     s << QString::number((int)ui->chk_injured->isChecked()) + ",";
-     s << QString::number((int)ui->chk_auto->isChecked()) + ",";
-     s << QString::number((int)ui->chk_squads->isChecked()) + "\n";
+    s << ui->le_name->text() << ",";
+    s << ui->sb_max_jobs->value() << ",";
+    s << ui->sb_pop_percent->value() << ",";
+    s << ui->sb_hauler_percent->value() << ",";
+    s << (int)ui->chk_military->isChecked() << ",";
+    s << (int)ui->chk_nobles->isChecked() << ",";
+    s << (int)ui->chk_injured->isChecked() << ",";
+    s << (int)ui->chk_auto->isChecked() << ",";
+    s << (int)ui->chk_squads->isChecked() << "\n";
 
-     for(int i = 0; i < ui->tw_labors->rowCount(); i++){
-         QComboBox *c = static_cast<QComboBox*>(ui->tw_labors->cellWidget(i,1));
-         s << c->itemData(c->currentIndex(), Qt::UserRole).toString() + ",";
-         s << ui->tw_labors->item(i,0)->data(Qt::UserRole).toString() + ",";
-         s << (float)static_cast<QDoubleSpinBox*>(ui->tw_labors->cellWidget(i,2))->value();
-         s << ",";
-         s << static_cast<QDoubleSpinBox*>(ui->tw_labors->cellWidget(i,3))->value();
-         s << "\n";
-     }
-     file.close();
-     display_message("Export complete.");
+    for(int i = 0; i < ui->tw_labors->rowCount(); i++){
+        QComboBox *c = static_cast<QComboBox*>(ui->tw_labors->cellWidget(i,1));
+        s << c->itemData(c->currentIndex(), Qt::UserRole).toString() << ",";
+        s << ui->tw_labors->item(i,0)->data(Qt::UserRole).toString() << ",";
+        s << (float)static_cast<QDoubleSpinBox*>(ui->tw_labors->cellWidget(i,2))->value();
+        s << ",";
+        s << static_cast<QDoubleSpinBox*>(ui->tw_labors->cellWidget(i,3))->value();
+        s << "\n";
+    }
+    file.close();
+    display_message("Export complete.");
 }
 
 bool optimizereditor::event(QEvent *evt) {

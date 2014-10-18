@@ -25,7 +25,6 @@ THE SOFTWARE.
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QLineEdit>
-#include "qmath.h"
 
 #include "mainwindow.h"
 #include "statetableview.h"
@@ -39,7 +38,6 @@ THE SOFTWARE.
 #include "gridview.h"
 #include "viewcolumnset.h"
 #include "laborcolumn.h"
-#include "happinesscolumn.h"
 #include "dwarftherapist.h"
 #include "customprofession.h"
 #include "viewmanager.h"
@@ -47,8 +45,8 @@ THE SOFTWARE.
 #include "gamedatareader.h"
 #include "profession.h"
 #include "labor.h"
-#include "truncatingfilelogger.h"
 #include "defaultfonts.h"
+#include "dtstandarditem.h"
 
 StateTableView::~StateTableView()
 {}
@@ -56,13 +54,14 @@ StateTableView::~StateTableView()
 StateTableView::StateTableView(QWidget *parent)
     : QTreeView(parent)
     , m_last_sorted_col(0)
-    , m_last_sort_order(Qt::AscendingOrder)    
+    , m_last_sort_order(Qt::AscendingOrder)
     , m_default_group_by(-1)
     , m_model(0)
     , m_proxy(0)
     , m_delegate(new UberDelegate(this))
     , m_header(new RotatedHeader(Qt::Horizontal, this))
     , m_expanded_rows(QList<int>())
+    , m_last_button(Qt::NoButton)
     , m_last_group_by(-1)
     , m_vscroll(0)
     , m_hscroll(0)
@@ -80,7 +79,7 @@ StateTableView::StateTableView(QWidget *parent)
     setFocusPolicy(Qt::ClickFocus);
 
     setItemDelegate(m_delegate);
-    setHeader(m_header);    
+    setHeader(m_header);
 
     verticalScrollBar()->setFocusPolicy(Qt::StrongFocus);
     horizontalScrollBar()->setFocusPolicy(Qt::StrongFocus);
@@ -94,7 +93,7 @@ StateTableView::StateTableView(QWidget *parent)
     connect(this, SIGNAL(collapsed(const QModelIndex &)),SLOT(index_collapsed(const QModelIndex &)));
 
     connect(m_header, SIGNAL(sectionPressed(int)), SLOT(header_pressed(int)));
-    connect(m_header, SIGNAL(sectionClicked(int)), SLOT(header_clicked(int)));    
+    connect(m_header, SIGNAL(sectionClicked(int)), SLOT(header_clicked(int)));
 
     connect(horizontalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(hscroll_value_changed(int)));
     connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(vscroll_value_changed(int)));
@@ -141,6 +140,7 @@ void StateTableView::build_custom_profession_menu(){
     customization_menu->addAction(tr("Reset to default profession"), this, SLOT(reset_custom_profession()));
     customization_menu->addSeparator();
     m_professions = customization_menu->addAction(QIcon(":img/new.png"), tr("New custom profession from this unit..."), this, SLOT(custom_profession_from_dwarf()));
+    m_update_profession = customization_menu->addAction(QIcon(":img/refresh.png"), "", this, SLOT(update_custom_profession_from_dwarf()));
     m_super_labors = customization_menu->addAction(QIcon(":img/new.png"), tr("New super labor column from this unit..."), this, SLOT(super_labor_from_dwarf()));
     customization_menu->addSeparator();
     foreach(CustomProfession *cp, DT->get_custom_professions()) {
@@ -166,7 +166,7 @@ void StateTableView::read_settings() {
 }
 
 void StateTableView::set_single_click_labor_changes(bool enabled){
-    m_single_click_labor_changes = enabled;    
+    m_single_click_labor_changes = enabled;
 
     //if using double click, then wait until the cell is activated to change cell states
     //if using single click, we can process the cell states immediately upon a click
@@ -260,6 +260,8 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
             m_assign_labors->setEnabled(true);
             m_assign_skilled_labors->setEnabled(true);
             m_remove_labors->setEnabled(true);
+
+            refresh_update_c_prof_menu(d);
 
             if(d->is_adult()){
                 if(m_model->active_squads().count() <= 0){
@@ -377,6 +379,17 @@ void StateTableView::contextMenuEvent(QContextMenuEvent *event) {
         }
 
         prof_icon.exec(viewport()->mapToGlobal(event->pos()));
+    }
+}
+
+void StateTableView::refresh_update_c_prof_menu(Dwarf *d){
+    if(!d->custom_profession_name().isEmpty()){
+        m_update_profession->setVisible(true);
+        m_update_profession->setEnabled(true);
+        m_update_profession->setText(tr("Update custom profession (%1) from this unit").arg(d->custom_profession_name()));
+    }else{
+        m_update_profession->setEnabled(false);
+        m_update_profession->setVisible(false);
     }
 }
 
@@ -503,7 +516,7 @@ void StateTableView::assign_to_squad(){
         }
     }
     disconnect(new_squad,SIGNAL(squad_leader_changed()),this,SLOT(emit_squad_leader_changed()));
-    m_model->calculate_pending();    
+    m_model->calculate_pending();
     DT->get_main_window()->get_view_manager()->redraw_current_tab();
 }
 void StateTableView::remove_squad(){
@@ -568,6 +581,13 @@ void StateTableView::custom_profession_from_dwarf() {
         m_model->calculate_pending();
         DT->emit_labor_counts_updated();
     }
+}
+
+void StateTableView::update_custom_profession_from_dwarf() {
+    QAction *a = qobject_cast<QAction*>(QObject::sender());
+    int id = a->data().toInt();
+    Dwarf *d = m_model->get_dwarf_by_id(id);
+    DT->update_multilabor(d,d->custom_profession_name(),CUSTOM_PROF);
 }
 
 void StateTableView::super_labor_from_dwarf(){
@@ -647,6 +667,8 @@ void StateTableView::currentChanged(const QModelIndex &cur, const QModelIndex &i
         if(idx.column() <= 0 && !idx.data(DwarfModel::DR_IS_AGGREGATE).toBool()){
             m_prof_name->setData(id);
             m_professions->setData(id);
+            m_update_profession->setData(id);
+            refresh_update_c_prof_menu(d);
             m_super_labors->setData(id);
         }
         //LOGD << "focus changed to" << d->nice_name();
@@ -665,7 +687,7 @@ void StateTableView::select_dwarf(Dwarf *d) {
     select_dwarf(d->id());
 }
 
-void StateTableView::select_dwarf(int id) {    
+void StateTableView::select_dwarf(int id) {
     for(int top = 0; top < m_proxy->rowCount(); ++top) {
         QModelIndex idx = m_proxy->index(top, 0);
         if (idx.data(DwarfModel::DR_ID).toInt() == id) {
@@ -724,7 +746,7 @@ void StateTableView::mouseMoveEvent(QMouseEvent *event) {
         //if we're dragging while holding down the left button, and not over the names
         //then start painting labor cells
         //if we're dragging over the names, allow it to select the rows
-        if(m_last_button == Qt::LeftButton && !idx.column() == 0){
+        if(m_last_button == Qt::LeftButton && idx.column() != 0){
             m_dragging = true;
             activate_cells(idx);
         }else{
@@ -734,6 +756,9 @@ void StateTableView::mouseMoveEvent(QMouseEvent *event) {
             }
             else
                 m_dragging = false;
+        }
+        if(m_proxy){
+          m_proxy->redirect_tooltip(idx);
         }
     }
     QTreeView::mouseMoveEvent(event);
@@ -798,7 +823,7 @@ void StateTableView::activate_cells(const QModelIndex &idx){
     m_last_cell = idx;
 }
 
-void StateTableView::header_clicked(int index) {    
+void StateTableView::header_clicked(int index) {
     if (!m_column_already_sorted && index > 0) {
         m_header->setSortIndicator(index, Qt::DescendingOrder);
     }
@@ -999,16 +1024,10 @@ void StateTableView::keyPressEvent(QKeyEvent *event ){
 }
 
 void StateTableView::restore_scroll_positions(){
-    if(m_vscroll > verticalScrollBar()->maximum())
-        m_vscroll = verticalScrollBar()->maximum();
-    else if(m_vscroll < verticalScrollBar()->minimum())
-        m_vscroll = verticalScrollBar()->minimum();
+    m_vscroll = qBound(verticalScrollBar()->minimum(), m_vscroll, verticalScrollBar()->maximum());
     verticalScrollBar()->setValue(m_vscroll);
 
-    if(m_hscroll > horizontalScrollBar()->maximum())
-        m_hscroll = horizontalScrollBar()->maximum();
-    else if(m_hscroll < verticalScrollBar()->minimum())
-        m_hscroll = horizontalScrollBar()->minimum();
+    m_hscroll = qBound(horizontalScrollBar()->minimum(), m_hscroll, horizontalScrollBar()->maximum());
     horizontalScrollBar()->setValue(m_hscroll);
 }
 
@@ -1019,11 +1038,11 @@ void StateTableView::restore_scroll_positions(){
 //additionally when the model clears data after a read, it will reset the scroll positions
 
 void StateTableView::vscroll_value_changed(int value){
-    if(!is_loading_rows && is_active && m_model != 0 && !m_model->clearing_data)
+    if(!is_loading_rows && is_active && m_model != 0 && !m_model->clearing_data())
         m_vscroll = value;
 }
 void StateTableView::hscroll_value_changed(int value){
-    if(!is_loading_rows && is_active && m_model != 0 && !m_model->clearing_data)
+    if(!is_loading_rows && is_active && m_model != 0 && !m_model->clearing_data())
         m_hscroll = value;
 }
 

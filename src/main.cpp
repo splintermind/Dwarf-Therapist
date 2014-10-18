@@ -31,12 +31,12 @@ THE SOFTWARE.
 */
 
 #include "dwarftherapist.h"
-#include "dfinstance.h"
 
-int main(int argc, char *argv[]) {    
-    if(!DFInstance::authorize()){
-        return 0;
-    }
+int main(int argc, char *argv[]) {
+#ifdef Q_OS_MAC
+    QCoreApplication::setSetuidAllowed(true);
+#endif
+
     DwarfTherapist d(argc, argv);
     return d.exec();
 }

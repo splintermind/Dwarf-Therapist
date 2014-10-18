@@ -91,6 +91,7 @@ sub generate_dt_ini($$$$) {
     emit_addr 'dwarf_civ_index',%globals,'ui','ui.civ_id';
     emit_addr 'races_vector',%globals,'world','world.raws.creatures.all';
     emit_addr 'reactions_vector',%globals,'world','world.raws.reactions';
+    emit_addr 'events_vector',%globals,'world','world.history.events';
     emit_addr 'historical_figures_vector',%globals,'world','world.history.figures';
     emit_addr 'fake_identities_vector',%globals,'world','world.identities.all';
     emit_addr 'fortress_entity',%globals,'ui','ui.main.fortress_entity';
@@ -150,7 +151,7 @@ sub generate_dt_ini($$$$) {
     emit_addr 'words',%all,'language_name','words';
     emit_addr 'word_type',%all,'language_name','parts_of_speech';
     emit_addr 'language_id',%all,'language_name','language';
-    
+
     emit_header 'general_ref_offsets';
     emit_addr 'ref_type',%all,'general_ref::vtable','getType';
     emit_addr 'artifact_id',%all,'general_ref_artifact','artifact_id';
@@ -176,15 +177,16 @@ sub generate_dt_ini($$$$) {
     emit_addr 'caste_descr',%all,'caste_raw','description';
     emit_addr 'caste_trait_ranges',%all,'caste_raw','personality.a';
     emit_addr 'caste_phys_att_ranges',%all,'caste_raw','attributes.phys_att_range';
-    emit_addr 'caste_att_rates',%all,'caste_raw','attributes.phys_att_rates';
-    emit_addr 'caste_att_caps',%all,'caste_raw','attributes.phys_att_cap_perc';
     emit_addr 'baby_age',%all,'caste_raw','misc.baby_age';
     emit_addr 'child_age',%all,'caste_raw','misc.child_age';
     emit_addr 'adult_size',%all,'caste_raw','misc.adult_size';
     emit_addr 'flags',%all,'caste_raw','flags';
-    emit_addr 'extracts',%all,'caste_raw','extracts.extract_matidx';
-    emit_addr 'skill_rates',%all,'caste_raw','skill_rates';
     emit_addr 'body_info',%all,'caste_raw','body_info';
+    emit_addr 'skill_rates',%all,'caste_raw','skill_rates';
+    emit_addr 'caste_att_rates',%all,'caste_raw','attributes.phys_att_rates';
+    emit_addr 'caste_att_caps',%all,'caste_raw','attributes.phys_att_cap_perc';
+    emit_addr 'shearable_tissues_vector',%all,'caste_raw','shearable_tissue_layer';
+    emit_addr 'extracts',%all,'caste_raw','extracts.extract_matidx';
 
     emit_header 'hist_entity_offsets';
     emit_addr 'beliefs',%all,'historical_entity','resources.values';
@@ -208,8 +210,17 @@ sub generate_dt_ini($$$$) {
     emit_addr 'fake_name',%all,'identity','name';
     emit_addr 'fake_birth_year',%all,'identity','birth_year';
     emit_addr 'fake_birth_time',%all,'identity','birth_second';
+    emit_addr 'kills',%all,'historical_figure_info','kills';
+    emit_addr 'killed_race_vector',%all,'historical_kills','killed_race';
+    emit_addr 'killed_undead_vector',%all,'historical_kills','killed_undead';
+    emit_addr 'killed_counts_vector',%all,'historical_kills','killed_count';
 
-    emit_header 'item_offsets'; 
+    emit_header 'hist_event_offsets';
+    emit_addr 'event_year',%all,'history_event','year';
+    emit_addr 'id',%all,'history_event','id';
+    emit_addr 'killed_hist_id',%all,'history_event_hist_figure_diedst','victim_hf';
+
+    emit_header 'item_offsets';
     emit_addr 'item_def',%all,'item_ammost','subtype'; #currently same for all
     emit_addr 'id',%all,'item','id';
     emit_addr 'general_refs',%all,'item','general_refs';
@@ -239,11 +250,14 @@ sub generate_dt_ini($$$$) {
     emit_addr 'ranged_skill',%all,'itemdef_weaponst','skill_ranged';
 
     emit_header 'armor_subtype_offsets';
+    emit_addr 'layer',%all,'armor_properties','layer';
+    emit_addr 'mat_name',%all,'itemdef_armorst','material_placeholder';
+    emit_addr 'other_armor_level',%all,'itemdef_helmst','armorlevel';
+    emit_addr 'armor_adjective',%all,'itemdef_armorst','adjective';
+    emit_addr 'armor_level',%all,'itemdef_armorst','armorlevel';
     emit_addr 'chest_armor_properties',%all,'itemdef_armorst','props';
     emit_addr 'pants_armor_properties',%all,'itemdef_pantsst','props';
     emit_addr 'other_armor_properties',%all,'itemdef_helmst','props';
-    emit_addr 'layer',%all,'armor_properties','layer';
-    emit_addr 'mat_name',%all,'itemdef_armorst','material_placeholder';
 
     emit_header 'material_offsets';
     emit_addr 'solid_name',%all,'material_common','state_name[Solid]';
@@ -252,8 +266,9 @@ sub generate_dt_ini($$$$) {
     emit_addr 'powder_name',%all,'material_common','state_name[Powder]';
     emit_addr 'paste_name',%all,'material_common','state_name[Paste]';
     emit_addr 'pressed_name',%all,'material_common','state_name[Pressed]';
-    emit_addr 'inorganic_materials_vector',%all,'inorganic_raw','material';
     emit_addr 'flags',%all,'material_common','flags';
+    emit_addr 'inorganic_materials_vector',%all,'inorganic_raw','material';
+    emit_addr 'inorganic_flags',%all,'inorganic_raw','flags';
 
     emit_header 'plant_offsets';
     emit_addr 'name',%all,'plant_raw','name';
@@ -304,6 +319,7 @@ sub generate_dt_ini($$$$) {
     emit_addr 'current_job',%all,'unit','job.current_job';
     emit_addr 'physical_attrs',%all,'unit','body.physical_attrs';
     emit_addr 'body_size',%all,'unit','appearance.body_modifiers';
+    emit_addr 'size_info',%all,'unit','body.size_info';
     emit_addr 'curse',%all,'unit','curse.name';
     emit_addr 'curse_add_flags1',%all,'unit','curse.add_tags1';
     emit_addr 'turn_count',%all,'unit','curse.time_on_site';
@@ -325,13 +341,13 @@ sub generate_dt_ini($$$$) {
     emit_addr 'body_component_info',%all,'unit','body.components';
     emit_addr 'layer_status_vector',%all,'body_component_info','layer_status';
     emit_addr 'wounds_vector',%all,'unit','body.wounds';
-    emit_addr 'mood_skill',%all,'unit','job.mood_skill';    
+    emit_addr 'mood_skill',%all,'unit','job.mood_skill';
     emit_addr 'used_items_vector',%all,'unit','used_items';
     emit_addr 'affection_level',%all,'unit_item_use','affection_level';
     emit_addr 'inventory',%all,'unit','inventory';
     emit_addr 'inventory_item_mode',%all,'unit_inventory_item','mode';
     emit_addr 'inventory_item_bodypart',%all,'unit_inventory_item','body_part_id';
-    
+
     emit_header 'syndrome_offsets';
     emit_addr 'cie_effects',%all,'syndrome','ce';
     emit_addr 'cie_end',%all,'creature_interaction_effect','end';
@@ -356,6 +372,7 @@ sub generate_dt_ini($$$$) {
 
     emit_header 'soul_details';
     emit_addr 'name',%all,'unit_soul','name';
+    emit_addr 'orientation',%all,'unit_soul','orientation_flags';
     emit_addr 'mental_attrs',%all,'unit_soul','mental_attrs';
     emit_addr 'skills',%all,'unit_soul','skills';
     emit_addr 'preferences',%all,'unit_soul','preferences';

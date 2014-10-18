@@ -26,9 +26,7 @@ THE SOFTWARE.
 #include "viewcolumn.h"
 #include "global_enums.h"
 
-class ViewColumn;
 class Dwarf;
-class Attribute;
 
 class AttributeColumn : public ViewColumn {
     Q_OBJECT
@@ -47,8 +45,12 @@ public:
     //override
     void write_to_ini(QSettings &s) {ViewColumn::write_to_ini(s); s.setValue("attribute", m_attribute_type);}
 
+public slots:
+        void refresh_sort(COLUMN_SORT_TYPE sType);
+
 private:
     ATTRIBUTES_TYPE m_attribute_type;
+    void refresh_sort(Dwarf *d, COLUMN_SORT_TYPE sType = CST_LEVEL);
 };
 
 #endif

@@ -23,15 +23,12 @@ THE SOFTWARE.
 
 #include "traitcolumn.h"
 #include "columntypes.h"
-#include "viewcolumnset.h"
 #include "dwarfmodel.h"
 #include "dwarf.h"
 #include "trait.h"
 #include "gamedatareader.h"
-#include "dwarfstats.h"
-#include "dwarftherapist.h"
 
-TraitColumn::TraitColumn(const QString &title, const short &trait_id, ViewColumnSet *set, QObject *parent) 
+TraitColumn::TraitColumn(const QString &title, const short &trait_id, ViewColumnSet *set, QObject *parent)
     : ViewColumn(title, CT_TRAIT, set, parent)
     , m_trait_id(trait_id)
     , m_trait(0)
@@ -39,7 +36,7 @@ TraitColumn::TraitColumn(const QString &title, const short &trait_id, ViewColumn
     m_trait = GameDataReader::ptr()->get_trait(trait_id);
 }
 
-TraitColumn::TraitColumn(QSettings &s, ViewColumnSet *set, QObject *parent) 
+TraitColumn::TraitColumn(QSettings &s, ViewColumnSet *set, QObject *parent)
     : ViewColumn(s, set, parent)
     , m_trait_id(s.value("trait_id", -1).toInt())
     , m_trait(0)
@@ -61,23 +58,29 @@ QStandardItem *TraitColumn::build_cell(Dwarf *d) {
 
     short raw_value = d->trait(m_trait_id);
     QStringList infos;
-    if (m_trait)
+    if (m_trait){
         infos << m_trait->level_message(raw_value).append(m_trait->belief_conficts_msgs(raw_value,d->trait_conflicts(m_trait_id)));
+    }else{
+        infos << tr("Unknown trait");
+    }
 
     if (d->trait_is_active(m_trait_id)==false)
         infos << tr("Not an active trait for this dwarf.");
 
-    infos << m_trait->skill_conflicts_msgs(raw_value);
-    infos <<m_trait->special_messages(raw_value);
+    int conflicting_belief_count = 0;
+    if (m_trait){
+        infos << m_trait->skill_conflicts_msgs(raw_value);
+        infos << m_trait->special_messages(raw_value);
 
-    int conflicting_belief_count = m_trait->get_conflicting_beliefs().count();
-    if(conflicting_belief_count > 0){
-        infos << tr("<br/>This trait can conflict with %1").arg(m_trait->belief_conflicts_names());
+        conflicting_belief_count = m_trait->get_conflicting_beliefs().count();
+        if(conflicting_belief_count > 0){
+            infos << tr("<br/>This trait can conflict with %1").arg(m_trait->belief_conflicts_names());
+        }
     }
 
     infos.removeAll("");
 
-    if(d->trait_is_conflicted(m_trait_id)){
+    if(d->trait_is_conflicted(m_trait_id) && conflicting_belief_count > 0){
         int alpha = 255 * ((float)d->trait_conflicts(m_trait_id).count() / (float)conflicting_belief_count);
         item->setData(alpha, DwarfModel::DR_SPECIAL_FLAG);
     }
@@ -87,7 +90,7 @@ QStandardItem *TraitColumn::build_cell(Dwarf *d) {
     item->setData(raw_value, DwarfModel::DR_RATING);
     item->setData(raw_value, DwarfModel::DR_DISPLAY_RATING);
     set_export_role(DwarfModel::DR_RATING);
-    
+
     QString tooltip = QString("<center><h3>%1</h3><b>Value: %2</b></center><br/>%3<br/>%4")
             .arg(m_title)
             .arg(raw_value)
@@ -98,7 +101,7 @@ QStandardItem *TraitColumn::build_cell(Dwarf *d) {
     return item;
 }
 
-QStandardItem *TraitColumn::build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves) {    
+QStandardItem *TraitColumn::build_aggregate(const QString &group_name, const QVector<Dwarf*> &dwarves) {
     Q_UNUSED(dwarves);
     QStandardItem *item = init_aggregate(group_name);
     return item;

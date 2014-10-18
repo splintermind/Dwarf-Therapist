@@ -1,11 +1,12 @@
 TEMPLATE = app
 TARGET = DwarfTherapist
-QT += concurrent widgets
 lessThan(QT_MAJOR_VERSION, 5) {
+    message(Setting up for Qt 4)
     QT += script
 }
 else {
-    QT += qml
+    message(Setting up for Qt 5)
+    QT += qml widgets
 }
 CONFIG += debug_and_release \
     warn_on
@@ -30,98 +31,95 @@ Debug:OBJECTS_DIR = debug/.obj
 Debug:MOC_DIR = debug/.moc
 Debug:UI_DIR = debug/.ui
 
-win32 {
-    message(Setting up for Windows)
-    RC_FILE = DwarfTherapist.rc
-    LIBS += -luser32
-    LIBS += -lpsapi
-    HEADERS += inc/dfinstancewindows.h
-    SOURCES += src/dfinstancewindows.cpp
+build_pass {
+    win32 {
+        message(Setting up for Windows)
+        RC_FILE = DwarfTherapist.rc
+        LIBS += -luser32
+        LIBS += -lpsapi
+        HEADERS += inc/dfinstancewindows.h
+        SOURCES += src/dfinstancewindows.cpp
 
-    DEFINES += NOMINMAX
+        DEFINES += NOMINMAX
 
-    check_dirs.path = $$DESTDIR
-    check_dirs.extra = if not exist $$DESTDIR\\share\\memory_layouts\\windows mkdir "$$DESTDIR\\share\\memory_layouts\\windows";
+        PWD = $$replace(PWD, /, \\)
 
-    copy_game_data.path = $$DESTDIR
-    copy_game_data.extra = copy /Y "share\\game_data.ini" ".\\$$DESTDIR\\share";
+        check_dirs.path = $$DESTDIR
+        check_dirs.extra = if not exist \"$$DESTDIR\\share\\memory_layouts\\windows\" mkdir \"$$DESTDIR\\share\\memory_layouts\\windows\";
 
-    copy_mem_layouts.path = $$DESTDIR
-    copy_mem_layouts.extra = copy /Y "share\\memory_layouts\\windows\\*" ".\\$$DESTDIR\\share\\memory_layouts\\windows";
+        copy_mem_layouts.path = $$DESTDIR
+        copy_mem_layouts.extra = copy /Y \"$$PWD\\share\\memory_layouts\\windows\\*\" \".\\$$DESTDIR\\share\\memory_layouts\\windows\";
 
-    INSTALLS += check_dirs
-    INSTALLS += copy_game_data
-    INSTALLS += copy_mem_layouts
-}
-else:macx {
-    message(Setting up for OSX)
-    HEADERS += ./inc/dfinstanceosx.h
-    OBJECTIVE_SOURCES += ./src/dfinstanceosx.mm
-    ICON = hammer.icns
-    LIBS += -framework Cocoa
-    LIBS += -framework Carbon
-    LIBS += -framework Security
-    LIBS += -framework SecurityFoundation
-    LIBS += -framework Foundation
-    LIBS += -framework ApplicationServices
-    LIBS += -framework Accelerate
+        INSTALLS += check_dirs
+        INSTALLS += copy_mem_layouts
+    }
+    else:macx {
+        message(Setting up for OSX)
+        HEADERS += ./inc/dfinstanceosx.h
+        OBJECTIVE_SOURCES += ./src/dfinstanceosx.mm
+        ICON = hammer.icns
+        LIBS += -framework Cocoa
+        LIBS += -framework Carbon
+        LIBS += -framework Security
+        LIBS += -framework SecurityFoundation
+        LIBS += -framework Foundation
+        LIBS += -framework ApplicationServices
+        LIBS += -framework Accelerate
 
-    log.path = Contents/MacOS/log
-    QMAKE_BUNDLE_DATA += log
+        log.path = Contents/MacOS/log
+        QMAKE_BUNDLE_DATA += log
 
-    share.path = Contents/MacOS/share
-    share.files += share/game_data.ini
-    QMAKE_BUNDLE_DATA += share
+        share.path = Contents/MacOS/share
+        QMAKE_BUNDLE_DATA += share
 
-    layouts.path = Contents/MacOS/etc/memory_layouts/osx
-    layouts.path = Contents/MacOS/share/memory_layouts/osx
-    layouts.files += share/memory_layouts/osx/v0.40.04_osx.ini
-    layouts.files += share/memory_layouts/osx/v0.40.05_osx.ini
-    layouts.files += share/memory_layouts/osx/v0.40.06_osx.ini
-    layouts.files += share/memory_layouts/osx/v0.40.07_osx.ini
-    layouts.files += share/memory_layouts/osx/v0.40.08_osx.ini
-    layouts.files += share/memory_layouts/osx/v0.40.09_osx.ini
-    layouts.files += share/memory_layouts/osx/v0.40.10_osx.ini
-    QMAKE_BUNDLE_DATA += layouts
-}
-else:unix {
-    message(Setting up for Linux)
-    HEADERS += inc/dfinstancelinux.h
-    SOURCES += src/dfinstancelinux.cpp
+        memory_layouts.path = Contents/MacOS/share/memory_layouts/osx
+        memory_layouts.files += $$files(share/memory_layouts/osx/*)
+        QMAKE_BUNDLE_DATA += memory_layouts
+    }
+    else:unix {
+        message(Setting up for Linux)
+        HEADERS += inc/dfinstancelinux.h
+        SOURCES += src/dfinstancelinux.cpp
 
-    target.path = /usr/bin
-    INSTALLS += target
+        target.path = /usr/bin
+        INSTALLS += target
 
-    bin.path = /usr/bin
-    bin.files += dist/dwarftherapist
-    INSTALLS += bin
+        bin.path = /usr/bin
+        bin.files += dist/dwarftherapist
+        INSTALLS += bin
 
-    bin_mod.path = /usr/bin
-    bin_mod.extra = chmod +x $(INSTALL_ROOT)/usr/bin/dwarftherapist
-    bin_mod.depends = install_bin
-    INSTALLS += bin_mod
+        application.path = /usr/share/applications
+        application.files += dist/dwarftherapist.desktop
+        INSTALLS += application
 
-    application.path = /usr/share/applications
-    application.files += dist/dwarftherapist.desktop
-    INSTALLS += application
+        doc.path = /usr/share/doc/dwarftherapist
+        doc.files += LICENSE.txt
+        doc.files += README.rst
+        system("printf 'Checking for pdflatex... '; if ! command -v pdflatex; then echo 'not found'; exit 1; fi") {
+            manual.depends = "$$PWD/doc/Dwarf Therapist.tex" $$PWD/doc/images/*
+            manual.commands = [ -d doc ] || mkdir doc;
+            manual.commands += TEXINPUTS=".:$$PWD/doc/images:" pdflatex -output-directory=doc \"$<\"
+            manual.target = "doc/Dwarf Therapist.pdf"
+            QMAKE_EXTRA_TARGETS += manual
+            POST_TARGETDEPS += "$$manual.target"
+            doc.files += "$$manual.target"
+        }
+        INSTALLS += doc
 
-    doc.path = /usr/share/doc/dwarftherapist
-    doc.files += LICENSE.txt
-    doc.files += README.md
-    INSTALLS += doc
+        icon.path = /usr/share/pixmaps
+        icon.files += img/dwarftherapist.png
+        icon.files += img/dwarftherapist.xpm
+        INSTALLS += icon
 
-    icon.path = /usr/share/pixmaps
-    icon.files += img/dwarftherapist.png
-    icon.files += img/dwarftherapist.xpm
-    INSTALLS += icon
+        memory_layouts.path = /usr/share/dwarftherapist/memory_layouts/linux
+        memory_layouts.files += $$files(share/memory_layouts/linux/*)
+        INSTALLS += memory_layouts
+    }
 
-    memory_layouts.path = /usr/share/dwarftherapist/memory_layouts/linux
-    memory_layouts.files += share/memory_layouts/linux/*
-    INSTALLS += memory_layouts
-
-    game_data.path = /usr/share/dwarftherapist
-    game_data.files += share/game_data.ini
-    INSTALLS += game_data
+    unix {
+        HEADERS += inc/dfinstancenix.h
+        SOURCES += src/dfinstancenix.cpp
+    }
 }
 
 # Translation files
@@ -131,20 +129,14 @@ HEADERS += inc/viewmanager.h \
     inc/utils.h \
     inc/uberdelegate.h \
     inc/truncatingfilelogger.h \
-    inc/translationvectorsearchjob.h \
     inc/trait.h \
-    inc/stonevectorsearchjob.h \
     inc/statetableview.h \
     inc/squad.h \
     inc/skill.h \
     inc/scriptdialog.h \
-    inc/scannerthread.h \
-    inc/scannerjob.h \
-    inc/scanner.h \
     inc/rotatedheader.h \
     inc/profession.h \
     inc/optionsmenu.h \
-    inc/nullterminatedstringsearchjob.h \
     inc/memorysegment.h \
     inc/memorylayout.h \
     inc/mainwindow.h \
@@ -178,20 +170,8 @@ HEADERS += inc/viewmanager.h \
     inc/docks/gridviewdock.h \
     inc/docks/dwarfdetailsdock.h \
     thirdparty/qtcolorpicker-2.6/qtcolorpicker.h \
-    inc/vectorsearchjob.h \
-    inc/dwarfraceindexsearchjob.h \
-    inc/creaturevectorsearchjob.h \
-    inc/positionvectorsearchjob.h \
-    inc/stdstringsearchjob.h \
     inc/selectparentlayoutdialog.h \
-    inc/layoutcreator.h \
-    inc/narrowingvectorsearchjob.h \
-    inc/squadvectorsearchjob.h \
     inc/word.h \
-    inc/raws/rawnode.h \
-    inc/raws/rawobject.h \
-    inc/raws/rawreader.h \
-    inc/raws/rawobjectlist.h \
     inc/attribute.h \
     inc/grid_view/flagcolumn.h \
     inc/grid_view/rolecolumn.h \
@@ -202,8 +182,8 @@ HEADERS += inc/viewmanager.h \
     inc/roledialog.h \
     inc/reaction.h \
     inc/races.h \
-    inc/languages.h \    
-    inc/caste.h \    
+    inc/languages.h \
+    inc/caste.h \
     inc/fortressentity.h \
     inc/material.h \
     inc/plant.h \
@@ -232,7 +212,6 @@ HEADERS += inc/viewmanager.h \
     inc/bodypartlayer.h \
     inc/healthcategory.h \
     inc/bodypartdamage.h \
-    inc/currentyearsearchjob.h \
     inc/defaultfonts.h \
     inc/docks/basedock.h \
     inc/syndrome.h \
@@ -244,11 +223,9 @@ HEADERS += inc/viewmanager.h \
     inc/uniform.h \
     inc/itemammo.h \
     inc/itemarmorsubtype.h \
-    inc/itemammosubtype.h \
     inc/itemweaponsubtype.h \
     inc/cp437codec.h \
     inc/rolestats.h \
-    inc/ecdf.h \
     inc/contextmenuhelper.h \
     inc/belief.h \
     inc/unitbelief.h \
@@ -257,7 +234,18 @@ HEADERS += inc/viewmanager.h \
     inc/grid_view/customprofessioncolumn.h \
     inc/multilabor.h \
     inc/eventfilterlineedit.h \
-    inc/grid_view/beliefcolumn.h
+    inc/grid_view/beliefcolumn.h \
+    inc/histfigure.h \
+    inc/grid_view/unitkillscolumn.h \
+    inc/dtstandarditem.h \
+    inc/docks/informationdock.h \
+    inc/docks/equipmentoverviewdock.h \
+    inc/rolecalcminmax.h \
+    inc/rolecalcrecenter.h \
+    inc/rolecalcbase.h \
+    inc/itemsubtype.h \
+    inc/itemtoolsubtype.h \
+    inc/itemgenericsubtype.h
 SOURCES += src/viewmanager.cpp \
     src/uberdelegate.cpp \
     src/truncatingfilelogger.cpp \
@@ -265,8 +253,6 @@ SOURCES += src/viewmanager.cpp \
     src/squad.cpp \
     src/skill.cpp \
     src/scriptdialog.cpp \
-    src/scannerjob.cpp \
-    src/scanner.cpp \
     src/rotatedheader.cpp \
     src/optionsmenu.cpp \
     src/memorylayout.cpp \
@@ -299,9 +285,7 @@ SOURCES += src/viewmanager.cpp \
     src/docks/dwarfdetailsdock.cpp \
     thirdparty/qtcolorpicker-2.6/qtcolorpicker.cpp \
     src/selectparentlayoutdialog.cpp \
-    src/layoutcreator.cpp \
     src/word.cpp \
-    src/raws/rawreader.cpp \
     src/grid_view/flagcolumn.cpp \
     src/grid_view/rolecolumn.cpp \
     src/dwarfstats.cpp \
@@ -310,7 +294,7 @@ SOURCES += src/viewmanager.cpp \
     src/grid_view/weaponcolumn.cpp \
     src/roledialog.cpp \
     src/races.cpp \
-    src/languages.cpp \    
+    src/languages.cpp \
     src/caste.cpp \
     src/reaction.cpp \
     src/fortressentity.cpp \
@@ -338,7 +322,6 @@ SOURCES += src/viewmanager.cpp \
     src/item.cpp \
     src/uniform.cpp \
     src/itemweaponsubtype.cpp \
-    src/ecdf.cpp \
     src/rolestats.cpp \
     src/belief.cpp \
     src/grid_view/superlaborcolumn.cpp \
@@ -347,9 +330,16 @@ SOURCES += src/viewmanager.cpp \
     src/grid_view/customprofessioncolumn.cpp \
     src/syndrome.cpp \
     src/grid_view/beliefcolumn.cpp \
-    src/unitbelief.cpp
+    src/unitbelief.cpp \
+    src/histfigure.cpp \
+    src/grid_view/unitkillscolumn.cpp \
+    src/dtstandarditem.cpp \
+    src/docks/informationdock.cpp \
+    src/docks/equipmentoverviewdock.cpp \
+    src/rolecalcbase.cpp \
+    src/itemarmorsubtype.cpp \
+    src/flagarray.cpp
 FORMS += ui/scriptdialog.ui \
-    ui/scannerdialog.ui \
     ui/pendingchanges.ui \
     ui/optionsmenu.ui \
     ui/mainwindow.ui \
@@ -365,4 +355,5 @@ FORMS += ui/scriptdialog.ui \
     ui/roledialog.ui \
     ui/optimizereditor.ui \
     ui/superlabor.ui
-RESOURCES += images.qrc
+RESOURCES += \
+    resources.qrc

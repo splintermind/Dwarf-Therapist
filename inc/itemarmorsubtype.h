@@ -23,116 +23,33 @@ THE SOFTWARE.
 #ifndef ITEMARMORSUBTYPE_H
 #define ITEMARMORSUBTYPE_H
 
-#include <QObject>
-#include "utils.h"
-#include "dfinstance.h"
-#include "memorylayout.h"
+#include "itemsubtype.h"
+#include "global_enums.h"
 
-class ItemArmorSubtype : public QObject {
+class ItemArmorSubtype : public ItemSubtype {
     Q_OBJECT
 public:
-    ItemArmorSubtype(DFInstance *df, VIRTADDR address, QObject *parent = 0)
-        : QObject(parent)
-        , m_address(address)
-        , m_df(df)
-        , m_mem(df->memory_layout())
-    {
-        read_names();
-    }
+    ItemArmorSubtype(const ITEM_TYPE itype, DFInstance *df, const VIRTADDR address, QObject *parent = 0);
+    virtual ~ItemArmorSubtype();
 
-    static ItemArmorSubtype* get_armor(DFInstance *df, const VIRTADDR &address, QObject *parent = 0){
-        return new ItemArmorSubtype(df,address,parent);
-    }
+    typedef enum {
+        ARMOR_METAL=2,
+        ARMOR_BONE=3,
+        ARMOR_SHELL=4
+    } ARMOR_FLAGS;
 
-    virtual ~ItemArmorSubtype(){
-        m_df = 0;
-        m_mem = 0;
-    }
-
-    VIRTADDR address() {return m_address;}
-    QString name() const {return m_name;}
-    QString name_plural() const {return m_name_plural;}
     int layer() const {return m_layer;}
-
-    short subType() const {return m_subType;}
-
-    QString get_layer_name(){
-        switch(m_layer){
-        case 0:
-        {
-            return tr("Under");
-        }break;
-        case 1:
-        {
-            return tr("Over");
-        }break;
-        case 2:
-        {
-            return tr("Armor");
-        }break;
-        case 3:
-        {
-            return tr("Cover");
-        }break;
-        default:
-            return "";
-        }
-    }
-
-    void set_item_type(ITEM_TYPE i_type){
-        m_iType=i_type;
-        read_properties();
-    }
+    QString get_layer_name();
 
 private:
-    VIRTADDR m_address;
-    QString m_name;
-    QString m_name_plural;
-    DFInstance * m_df;
-    MemoryLayout * m_mem;
-    ITEM_TYPE m_iType;
     int m_layer;
-    short m_subType;
+    FlagArray m_armor_flags;
+    quint8 m_armor_level;
 
-    void read_names(){
-        m_subType = m_df->read_short(m_address + m_df->memory_layout()->item_subtype_offset("sub_type"));
-        m_name = capitalizeEach(m_df->read_string(m_address + m_df->memory_layout()->item_subtype_offset("name")));
-        m_name_plural = capitalizeEach(m_df->read_string(m_address + m_df->memory_layout()->item_subtype_offset("name_plural")));
-    }
-    void read_properties(){
-        int base_addr = find_property_offset();
-        if(base_addr != 0x0)
-            m_layer = m_df->read_int(m_address + base_addr+m_df->memory_layout()->armor_subtype_offset("layer"));
-        else
-            m_layer = -1;
-    }
+    int m_offset_props;
+    int m_offset_level;
 
-    int find_property_offset(){
-        switch(m_iType){
-        case ARMOR:
-        {
-            return m_df->memory_layout()->armor_subtype_offset("chest_armor_properties");
-        }break;
-        case HELM:
-        {
-            return m_df->memory_layout()->armor_subtype_offset("other_armor_properties");
-        }break;
-        case GLOVES:
-        {
-            return m_df->memory_layout()->armor_subtype_offset("other_armor_properties");
-        }break;
-        case PANTS:
-        {
-            return m_df->memory_layout()->armor_subtype_offset("pants_armor_properties");
-        }break;
-        case SHOES:
-        {
-            return m_df->memory_layout()->armor_subtype_offset("other_armor_properties");
-        }break;
-        default:
-            return 0x0;
-        }
-    }
+    void set_base_offsets();
+    void read_data();
 };
-
 #endif // ITEMARMORSUBTYPE_H

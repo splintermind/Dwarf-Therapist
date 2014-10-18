@@ -26,29 +26,45 @@ THE SOFTWARE.
 #include "dwarftherapist.h"
 #include "gamedatareader.h"
 #include "preference.h"
+#include "defines.h"
+#include "dwarf.h"
+#include "material.h"
+#include "item.h"
 
+#if QT_VERSION >= 0x050000
+# include <QRegularExpression>
+#else
+# include <QRegExp>
+#define QRegularExpression QRegExp
+#endif
 
 Role::Role()
-    :name("UNKNOWN")
-    ,script("")
-    ,is_custom(false)
+    : m_name("UNKNOWN")
+    , m_script("")
+    , m_is_custom(false)
+    , m_cur_pref_len(0)
 {
     QSettings *u = DT->user_settings();
     attributes_weight.weight = u->value("options/default_attributes_weight",1.0).toFloat();
     attributes_weight.is_default = true;
+    attributes_weight.is_neg = false;
     skills_weight.weight = u->value("options/default_skills_weight",1.0).toFloat();
     skills_weight.is_default = true;
+    skills_weight.is_neg = false;
     traits_weight.weight = u->value("options/default_traits_weight",1.0).toFloat();
     traits_weight.is_default = true;
+    traits_weight.is_neg = false;
     prefs_weight.weight = u->value("options/default_prefs_weight",1.0).toFloat();
     prefs_weight.is_default = true;
+    prefs_weight.is_neg = false;
 }
 
 Role::Role(QSettings &s, QObject *parent)
     : QObject(parent)
-    , name(s.value("name", "UNKNOWN ROLE").toString())
-    , script(s.value("script","").toString())
-    , is_custom(false)
+    , m_name(s.value("name", "UNKNOWN ROLE").toString())
+    , m_script(s.value("script","").toString())
+    , m_is_custom(false)
+    , m_cur_pref_len(0)
 {
     QSettings *u = new QSettings(QSettings::IniFormat, QSettings::UserScope, COMPANY, PRODUCT, this);
     parseAspect(s, "attributes", attributes_weight, attributes, u->value("options/default_attributes_weight",1.0).toFloat());
@@ -58,21 +74,21 @@ Role::Role(QSettings &s, QObject *parent)
 }
 
 Role::Role(const Role &r)
-    :QObject(r.parent())
-{
-    attributes = r.attributes;
-    skills = r.skills;
-    traits = r.traits;
-    prefs = r.prefs;
-    attributes_weight = r.attributes_weight;
-    skills_weight = r.skills_weight;
-    traits_weight = r.traits_weight;
-    prefs_weight = r.prefs_weight;
-    name = r.name;
-    script = r.script;
-    is_custom = r.is_custom;
-    role_details = r.role_details;
-}
+    : QObject(r.parent())
+    , attributes(r.attributes)
+    , skills(r.skills)
+    , traits(r.traits)
+    , prefs(r.prefs)
+    , attributes_weight(r.attributes_weight)
+    , skills_weight(r.skills_weight)
+    , traits_weight(r.traits_weight)
+    , prefs_weight(r.prefs_weight)
+    , m_name(r.m_name)
+    , m_script(r.m_script)
+    , m_is_custom(r.m_is_custom)
+    , role_details(r.role_details)
+    , m_cur_pref_len(0)
+{}
 
 Role::~Role(){
     qDeleteAll(attributes);
@@ -86,7 +102,7 @@ Role::~Role(){
     prefs.clear();
 }
 
-void Role::parseAspect(QSettings &s, QString node, global_weight &g_weight, QHash<QString,RoleAspect*> &list, float default_weight)
+void Role::parseAspect(QSettings &s, QString node, weight_info &g_weight, QHash<QString,RoleAspect*> &list, float default_weight)
 {
     qDeleteAll(list);
     list.clear();
@@ -105,7 +121,7 @@ void Role::parseAspect(QSettings &s, QString node, global_weight &g_weight, QHas
     int count = s.beginReadArray(node);
 
     for (int i = 0; i < count; ++i) {
-        a = new RoleAspect();
+        a = new RoleAspect(this);
         s.setArrayIndex(i);
         a->weight = s.value("weight",1.0).toFloat();
         if(a->weight < 0)
@@ -122,10 +138,10 @@ void Role::parseAspect(QSettings &s, QString node, global_weight &g_weight, QHas
     s.endArray();
 }
 
-void Role::parsePreferences(QSettings &s, QString node, global_weight &g_weight, float default_weight)
+void Role::parsePreferences(QSettings &s, QString node, weight_info &g_weight, float default_weight)
 {
     qDeleteAll(prefs);
-    prefs.clear();    
+    prefs.clear();
     g_weight.weight = s.value(QString("%1_weight").arg(node),-1).toFloat();
 
     //keep track of whether or not we're using the global default when we redraw if options are changed
@@ -151,6 +167,10 @@ void Role::parsePreferences(QSettings &s, QString node, global_weight &g_weight,
             p->pref_aspect->weight = 1.0;
 
         id = s.value("name",tr("Unknown")).toString();
+        if(id == "Unknown"){
+            LOGW << "Role" << m_name << "has an invalid preference, index:" << i;
+        }
+
         if(!id.isEmpty() && id.indexOf("-") >= 0){
             id.replace("-","");
             p->pref_aspect->is_neg = true;
@@ -160,18 +180,52 @@ void Role::parsePreferences(QSettings &s, QString node, global_weight &g_weight,
         p->set_name(id);
 
         int flag_count = s.beginReadArray("flags");
+        int first_flag = -1;
         for(int j = 0; j < flag_count; j++){
             s.setArrayIndex(j);
-            p->add_flag(s.value("flag").toInt());
+            int f = s.value("flag").toInt();
+            p->add_flag(f);
+            if(j==0)
+                first_flag = f;
         }
         s.endArray();
+
+        //update any old flags with new ones
+        check_pref_flags(p,first_flag);
+
         prefs.append(p);
     }
     s.endArray();
 }
 
-void Role::create_role_details(QSettings &s){
-    if(script.trimmed().isEmpty()){
+void Role::check_pref_flags(Preference *p, int first_flag){
+    //check and update any missing armor/clothing flags
+    if(Item::is_armor_type(p->get_item_type()) && !p->flags().has_flag(IS_ARMOR) && !p->flags().has_flag(IS_CLOTHING)){
+        p->add_flag(IS_ARMOR);
+    }
+
+    //add missing trade goods flags
+    if(Item::is_trade_good(p->get_item_type()) && !p->flags().has_flag(IS_TRADE_GOOD)){
+        p->add_flag(IS_TRADE_GOOD);
+    }
+
+    //add missing trainable, remove old flags
+    if(p->get_pref_category() == LIKE_CREATURE &&
+            p->flags().has_flag(TRAINABLE_HUNTING) && p->flags().has_flag(TRAINABLE_WAR) && !p->flags().has_flag(TRAINABLE)){
+        p->add_flag(TRAINABLE);
+        p->flags().set_flag(TRAINABLE_HUNTING,false);
+        p->flags().set_flag(TRAINABLE_WAR,false);
+    }
+
+    //update any general preference material names (eg. Horn -> Horn/Hoof)
+    if(p->get_item_type() == NONE && !p->exact_match() && p->get_pref_category() == LIKE_MATERIAL &&
+            first_flag >= 0 && first_flag < NUM_OF_MATERIAL_FLAGS){
+            p->set_name(Material::get_material_flag_desc(static_cast<MATERIAL_FLAGS>(first_flag)));
+    }
+}
+
+void Role::create_role_details(QSettings &s, Dwarf *d){
+    if(m_script.trimmed().isEmpty()){
         //unfortunate to have to loop through everything twice, but we need to handle the case where the users
         //change the global weights and re-build the string description. it's still better to do it here than when creating each cell
         role_details = "<h4>Aspects:</h4>";
@@ -184,9 +238,9 @@ void Role::create_role_details(QSettings &s){
         role_details += get_aspect_details("Attributes",attributes_weight,default_attributes_weight,attributes);
         role_details += get_aspect_details("Skills",skills_weight,default_skills_weight,skills);
         role_details += get_aspect_details("Traits",traits_weight,default_traits_weight,traits);
-        role_details += get_preference_details(default_prefs_weight);
+        role_details += get_preference_details(default_prefs_weight,d);
     }else{
-        role_details = script;
+        role_details = m_script;
         role_details.replace("d.","");
         role_details.replace("()", "");
         if(role_details.length() > 250)
@@ -195,69 +249,71 @@ void Role::create_role_details(QSettings &s){
     }
 }
 
-QString Role::get_role_details(){
+QString Role::get_role_details(Dwarf *d){
     if(role_details == "")
-        create_role_details(*DT->user_settings());
+        create_role_details(*DT->user_settings(),d);
+    else
+        refresh_preferences(d);
     return role_details;
 }
 
-QString Role::get_aspect_details(QString title, global_weight aspect_group_weight,
-                                  float aspect_default_weight, QHash<QString,RoleAspect*> &list){
+QString Role::get_aspect_details(QString title, weight_info aspect_group_weight,
+                                 float aspect_default_weight, QHash<QString,RoleAspect*> &list){
 
-    QMap<QString, global_weight> weight_info;
-    foreach(QString name, list.uniqueKeys()){
-        global_weight wi = {list.value(name)->is_neg,list.value(name)->weight};
-        weight_info.insert(name, wi);
+    QHash<QString, weight_info> weight_infos;
+    foreach(QString aspect_name, list.uniqueKeys()){
+        weight_info wi = {false,list.value(aspect_name)->is_neg,list.value(aspect_name)->weight};
+        weight_infos.insert(aspect_name, wi);
     }
-    return generate_details(title,aspect_group_weight, aspect_default_weight, weight_info);
+    return generate_details(title,aspect_group_weight, aspect_default_weight, weight_infos);
 }
 
-//this uses the global weight struct but is_default is used as is_neg
-QString Role::generate_details(QString title, global_weight aspect_group_weight,
-                               float aspect_default_weight, QMap<QString,global_weight> list){
+QString Role::generate_details(QString title, weight_info aspect_group_weight,
+                               float aspect_default_weight, QHash<QString,weight_info> weight_infos){
 
     float weight = 1.0;
     QString detail="";
     QString summary = "";
     QString title_formatted = title;
-    global_weight weight_info;
-    QString neg_string = tr("Not");
+    weight_info w_info;
 
-    if(list.count()>0){
+    if(weight_infos.count()>0){
         //sort the list by weight. if there are more than 3 values, group them by weights
         QMultiMap<float,QStringList> details;
         bool group_lines = false;
-        if(list.count() > 3)
+        if(weight_infos.count() > 3)
             group_lines = true;
 
         if(aspect_group_weight.weight != aspect_default_weight)
             title_formatted.append(tr("<i> (w %1)</i>").arg(aspect_group_weight.weight));
 
         summary = tr("<p style =\"margin:0; margin-left:10px; padding:0px;\"><b>%1:</b></p>").arg(title_formatted);
-
-        foreach(QString name, list.uniqueKeys()){
-            weight_info = list.value(name);
-            weight = weight_info.weight;
+        QString w_str;
+        foreach(QString id, weight_infos.uniqueKeys()){
+            w_info = weight_infos.value(id);
+            weight = w_info.weight;
 
             if(title.toLower()==tr("skills"))
-                name = GameDataReader::ptr()->get_skill_name(name.toInt());
+                id = GameDataReader::ptr()->get_skill_name(id.toInt());
             if(title.toLower()==tr("traits"))
-                name = GameDataReader::ptr()->get_trait_name(name.toInt());
-            if(title.toLower()==tr("preferences"))
-                neg_string = tr("Dislikes");
+                id = GameDataReader::ptr()->get_trait_name(id.toInt());
 
-            detail = tr("%1%2")
-                    .arg((weight_info.is_default ? QString("<u>%1</u> ").arg(neg_string) : "")) //again is_default is used as is_neg here
-                    .arg(capitalizeEach(name));
+            detail = capitalizeEach(id);
+
+            if(w_info.is_neg){
+                w_str = tr("<i> <font color=red>(w-%1)</font></i>").arg(weight,0,'f',2);
+            }else{
+                w_str = tr("<i> (w%1)</i>").arg(weight,0,'f',2);
+            }
 
             if(group_lines){
                 QStringList vals = details.take(weight);
                 if(vals.count() <= 0) //add the weight only to the first item
-                    vals.append(tr("<i>(w%1)</i>").arg(weight,0,'f',2));
+                    vals.append(w_str);
                 vals.append(detail);
                 details.insert(weight,vals);
             }else{
-                detail.append(tr("<i> (w%1)</i>").arg(weight,0,'f',2));
+                detail.append(w_str);
                 details.insertMulti(weight,QStringList(detail));
             }
         }
@@ -285,29 +341,68 @@ QString Role::generate_details(QString title, global_weight aspect_group_weight,
     return summary;
 }
 
-QString Role::get_preference_details(float aspect_default_weight){
-    QMap<QString, global_weight> weight_info;
+QString Role::get_preference_details(float aspect_default_weight, Dwarf *d){
+    QHash<QString, weight_info> weight_infos;
     for(int i = 0; i < prefs.count(); i++){
-        global_weight wi = {prefs.at(i)->pref_aspect->is_neg, prefs.at(i)->pref_aspect->weight};
-        weight_info.insert(prefs.at(i)->get_name(),wi);
+        weight_info wi = {false, prefs.at(i)->pref_aspect->is_neg, prefs.at(i)->pref_aspect->weight};
+        weight_infos.insert(prefs.at(i)->get_name(),wi);
     }
-    return generate_details("Preferences", prefs_weight, aspect_default_weight, weight_info);
+    m_pref_desc = generate_details(tr("Preferences"), prefs_weight, aspect_default_weight, weight_infos);
+    QString pref_desc = m_pref_desc;
+
+    highlight_pref_matches(d,pref_desc);
+    m_cur_pref_len = pref_desc.length();
+    return pref_desc;
 }
 
+void Role::refresh_preferences(Dwarf *d){
+    role_details.chop(m_cur_pref_len);
+    QString pref_desc = m_pref_desc;
+    if(d){
+        highlight_pref_matches(d,pref_desc);
+    }
+    m_cur_pref_len = pref_desc.length();
+    role_details.append(pref_desc);
+}
 
+void Role::highlight_pref_matches(Dwarf *d, QString &pref_desc){
+    if(d){
+        QStringList pref_names;
+        if(pref_desc != ""){
+            QList<QPair<QString, QString> > pref_matches = d->get_role_pref_matches(m_name);
+            QPair<QString,QString> p_match;
+            QRegularExpression re;
+#if QT_VERSION >= 0x050000
+                re.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
+#else
+                re.setCaseSensitivity(Qt::CaseInsensitive);
+#endif
+            foreach(p_match, pref_matches){
+                re.setPattern(QString("((?<=, )|(?<=>)|^)%1(?=[$,\\n]|\\s*[<])").arg(re.escape(p_match.first)));
+                pref_desc.replace(re, QString("<b>%2</b>").arg(p_match.first));
+                pref_names.append(p_match.second);
+            }
+
+            if(pref_names.count() > 0){
+                qSort(pref_names);
+                pref_desc.insert(pref_desc.lastIndexOf("</p>"),tr("<br/><b>Matches:</b> %1").arg(pref_names.join(", ")));
+            }
+        }
+    }
+}
 
 void Role::write_to_ini(QSettings &s, float default_attributes_weight, float default_traits_weight, float default_skills_weight, float default_prefs_weight){
     //name
-    s.setValue("name",name);
-    if(!script.trimmed().isEmpty())
-        s.setValue("script", script);
+    s.setValue("name",m_name);
+    if(!m_script.trimmed().isEmpty())
+        s.setValue("script", m_script);
     write_aspect_group(s,"attributes",attributes_weight,default_attributes_weight,attributes);
     write_aspect_group(s,"traits",traits_weight,default_traits_weight,traits);
     write_aspect_group(s,"skills",skills_weight,default_skills_weight,skills);
     write_pref_group(s,default_prefs_weight);
 }
 
-void Role::write_aspect_group(QSettings &s, QString group_name, global_weight group_weight, float group_default_weight, QHash<QString, RoleAspect*> &list){
+void Role::write_aspect_group(QSettings &s, QString group_name, weight_info group_weight, float group_default_weight, QHash<QString, RoleAspect*> &list){
     if(list.count()>0){
         RoleAspect *a;
         if(group_weight.weight > 0 && group_weight.weight != group_default_weight)
@@ -335,12 +430,17 @@ void Role::write_pref_group(QSettings &s, float default_prefs_weight){
         if(prefs_weight.weight > 0 && prefs_weight.weight != default_prefs_weight)
             s.setValue("prefs_weight", QString::number(prefs_weight.weight,'g',0));
 
+        int i_type = -1;
+        QList<int> active_flags;
         s.beginWriteArray("preferences", prefs.count());
         for(int i = 0; i < prefs.count(); i++){
             s.setArrayIndex(i);
             p = prefs.at(i);
             s.setValue("pref_category",QString::number((int)p->get_pref_category()));
-            s.setValue("item_type", QString::number((int)p->get_item_type()));
+            i_type = (int)p->get_item_type();
+            if(i_type != -1){
+                s.setValue("item_type", QString::number(i_type));
+            }
             s.setValue("exact", p->exact_match());
 
             QString id = tr("%1%2").arg(p->pref_aspect->is_neg ? "-" : "").arg(p->get_name());
@@ -349,12 +449,15 @@ void Role::write_pref_group(QSettings &s, float default_prefs_weight){
                 s.setValue("weight",QString::number(p->pref_aspect->weight,'g',2));
             }
 
-            s.beginWriteArray("flags",p->special_flags().count());
-            for(int j = 0; j < p->special_flags().count(); j++){
-                s.setArrayIndex(j);
-                s.setValue("flag",p->special_flags().at(j));
+            active_flags = p->flags().active_flags();
+            if(active_flags.count() > 0){
+                s.beginWriteArray("flags",active_flags.count());
+                for(int idx = 0; idx < active_flags.count(); idx++){
+                    s.setArrayIndex(idx);
+                    s.setValue("flag",active_flags.at(idx));
+                }
+                s.endArray();
             }
-            s.endArray();
         }
         s.endArray();
     }
