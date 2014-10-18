@@ -43,10 +43,10 @@ After everything is optimized, any haulers are assigned with less than the speci
 #include "skill.h"
 #include "rolestats.h"
 
-LaborOptimizer::LaborOptimizer(laborOptimizerPlan *plan, QObject *parent)    
+LaborOptimizer::LaborOptimizer(laborOptimizerPlan *plan, QObject *parent)
     :QObject(parent)
     , plan(plan)
-{    
+{
     check_conflicts = DT->user_settings()->value("options/labor_exclusions",true).toBool();
     gdr = GameDataReader::ptr();
 }
@@ -116,10 +116,10 @@ void LaborOptimizer::calc_population(bool load_labor_map){
                         dwarf_labor_map dlm;
                         dlm.d = d;
                         dlm.det = det;
-                        if(!det->role_name.isEmpty()){                                                        
+                        if(!det->role_name.isEmpty()){
                             dlm.rating = d->get_role_rating(det->role_name) * det->priority;
                         }else{
-                            dlm.rating = d->get_skill(GameDataReader::ptr()->get_labor(dlm.det->labor_id)->skill_id).get_rating(true) * 100.0f * det->priority;                            
+                            dlm.rating = d->get_skill(GameDataReader::ptr()->get_labor(dlm.det->labor_id)->skill_id).get_rating(true) * 100.0f * det->priority;
                         }
                         m_labor_map.append(dlm);
                     }
@@ -157,7 +157,7 @@ void LaborOptimizer::optimize(){
     //create the labor mapping
     calc_population(true);
 
-    //sort list by the weighted rating    
+    //sort list by the weighted rating
     std::sort(m_labor_map.begin(),m_labor_map.end(),LaborOptimizer::compare_rating());
 
     update_ratios();
@@ -233,23 +233,25 @@ void LaborOptimizer::optimize(){
 }
 
 void LaborOptimizer::update_ratios(){
+    int static_job_count = 0;
     m_ratio_sum = 0;
-    m_estimated_assigned_jobs = 0;
-    m_total_jobs = m_target_population * plan->max_jobs_per_dwarf;
-    m_raw_total_jobs = m_total_jobs;
-
     //get ratio sum
-    int count = 0;
     foreach(PlanDetail *det, plan->plan_details){
-        if(!det->is_overridden()) //don't clear overridden counts
+        if(!det->is_overridden()){ //don't clear overridden counts
             det->set_max_count(0,false);
+        }else{
+            static_job_count = det->get_max_count();
+        }
         det->group_ratio = 0;
         det->assigned_laborers = 0;
-        if(det->priority > 0 && det->ratio > 0)
+        if(det->priority > 0 && det->ratio > 0 && !det->is_overridden()){
             m_ratio_sum += det->ratio;
-
-        count++;
+        }
     }
+
+    m_estimated_assigned_jobs = 0;
+    m_total_jobs = m_target_population * plan->max_jobs_per_dwarf - static_job_count;
+    m_raw_total_jobs = m_total_jobs;
 
     labors_exceed_pop = false;
     if(check_conflicts){
