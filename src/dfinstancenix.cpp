@@ -35,6 +35,7 @@ QString DFInstanceNix::calculate_checksum() {
 }
 
 QString DFInstanceNix::read_string(const VIRTADDR &addr) {
+    // This should probably be a QTextDecoder scheme
     char buf[256];
     read_raw(read_addr(addr), sizeof(buf), (void *)buf);
 
@@ -63,14 +64,9 @@ VIRTADDR DFInstanceNix::get_string(const QString &str) {
     header.capacity = header.length = data.length();
     header.refcnt = -1; // huge refcnt to avoid dealloc
 
-    QByteArray buf((char*)&header, sizeof(header));
-    buf.append(data);
-    buf.append(char(0));
-
-    VIRTADDR addr = alloc_chunk(buf.length());
-
     if (addr) {
-        write_raw(addr, buf.length(), buf.data());
+        write_raw(addr, sizeof(header), header);
+        write_raw(addr + sizeof(header), data.length(), data.data());
         addr += sizeof(header);
     }
 
