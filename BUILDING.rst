@@ -2,6 +2,8 @@
 BUILDING DWARF THERAPIST
 ========================
 
+The following instructions reference Qt 4 and 5; see README.rst for information on the difference.
+
 Windows
 =======
 Download the Qt Creator IDE and open the dwarftherapist.pro project.
@@ -14,6 +16,9 @@ You must perform one of the following steps to have DT run properly in Qt Creato
 - Manually copy the ``share`` directory from the clone to the build location, i.e. ``%{buildDir}`` or ``%{buildDir}/<build type>``.
 
 In order to allow DT to run properly *outside* of Qt Creator, add a custom build step: ``<location of Git Bash>`` with argument ``%{sourceDir}/windeployqt.sh`` running in ``%{buildDir}``.
+This automatically copies the correct libraries to the build directory for packaging.
+
+To include debug symbols, select the "Debug" profile.
 
 Linux
 =====
@@ -34,10 +39,8 @@ Gentoo-based
 
 ::
 
-    sudo emerge -av qtcore # Qt 4 (Currently only Qt 4 is supported)
-
-* As Gentoo only supports Qt 4, qmake doesn't have a -qt parameter.
-  Otherwise, follow the instructions as below.
+    sudo emerge qtscript:4 # Qt 4
+    sudo emerge qtdeclarative:5 qtwidgets:5 # Qt 5
 
 Fedora 20+
 **********
@@ -61,6 +64,9 @@ For instructions on exactly where to find qmake and how to invoke it on other di
 
 This will take 2–10 minutes, depending on CPU.
 Get a cup of coffee.
+
+To include debug symbols (if you have a crash), add "debug" to the end of the make command (before the #).
+
 Once your build is complete, run::
 
     sudo make install

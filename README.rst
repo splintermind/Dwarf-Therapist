@@ -32,7 +32,7 @@ The Windows version is additionally compatible with versions 0.40.01 and 0.40.03
 Linux
 =====
 There is currently no official package for Linux.
-You can find the instructions to build from source `in BUILDING.rst`_.
+You can find the instructions to build from source in `BUILDING.rst`_.
 
 Running the program
 -------------------
@@ -53,6 +53,14 @@ Or, you can create a script that will run Dwarf Therapist as a child of Dwarf Fo
 
 Alternatively, you can use the ``dist/dwarftherapist`` wrapper to automatically grant DT permissions to attach to a running DF process.
 
+Qt 4 vs Qt 5
+============
+Qt 5 is newer.
+It usually looks better.
+On Linux, it usually requires slightly more work to use, due to poor distribution availability.
+
+Use Qt 5 when possible, but Dwarf Therapist is intentionally kept compatible with both versions.
+
 Support
 =======
 Primary support is available at the `Dwarf Therapist thread`_ at the Bay 12 Forums; if you are sure you have found a bug, file an issue at the `GitHub issue tracker`_.
@@ -62,9 +70,13 @@ You may also be requested to provide a log, which is saved in ``log/log.txt`` on
 
 You can also join us in `#dwarftherapist on Freenode`_.
 
+Reporting crashes
+-----------------
+Please report segmentation faults (SIGSEGV), bus errors, division by zero errors, etc to the `GitHub issue tracker`_, with a GDB backtrace (``bt full``) with debug symbols as outlined in BUILDING.rst.
+
 .. _Dwarf Therapist: http://code.google.com/p/dwarftherapist/
 .. _available at GitHub: https://github.com/splintermind/Dwarf-Therapist/wiki/Change-Log
-.. _in BUILDING.rst: https://github.com/splintermind/Dwarf-Therapist/blob/DF2014/BUILDING.rst
+.. _BUILDING.rst: https://github.com/splintermind/Dwarf-Therapist/blob/DF2014/BUILDING.rst
 .. _Yama ptrace LSM: https://www.kernel.org/doc/Documentation/security/Yama.txt
 .. _Dwarf Therapist thread: http://www.bay12forums.com/smf/index.php?topic=122968
 .. _GitHub issue tracker: https://github.com/splintermind/Dwarf-Therapist/issues
