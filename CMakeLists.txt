@@ -1,34 +1,35 @@
 cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
-project(DwarfTherapist)
+project(Dwarf-Therapist)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
+
 find_package(Qt5 REQUIRED COMPONENTS Qml Widgets)
 
-include(CPack)
 include(InstallRequiredSystemLibraries)
+set(CPACK_GENERATOR ZIP)
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY 1)
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Dwarf Therapist is an extension application for the fantastic game Dwarf Fortress.")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.rst")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
+set(CPACK_PACKAGE_VERSION_MAJOR "3")
+set(CPACK_PACKAGE_VERSION_MINOR "0")
+set(CPACK_PACKAGE_VERSION_PATCH "0")
+include(CPack)
+
 include_directories(src src/models src/grid_view src/docks thirdparty/qtcolorpicker-2.6)
 
 if(WIN32)
     set(SOURCES ${SOURCES} DwarfTherapist.rc src/dfinstancewindows.cpp)
     set(LIBS user32 psapi)
     add_definitions(-DNOMINMAX)
-
-#check_dirs.path = $$DESTDIR
-#check_dirs.extra = if not exist "$$DESTDIRsharememory_layoutswindows" mkdir "$$DESTDIRsharememory_layoutswindows";
-
-#copy_mem_layouts.path = $$DESTDIR
-#copy_mem_layouts.extra = copy /Y "$$PWDsharememory_layoutswindows*" ".$$DESTDIRsharememory_layoutswindows";
-
-#INSTALLS += check_dirs
-#INSTALLS += copy_mem_layouts
 elseif(UNIX)
     set(SOURCES ${SOURCES} src/dfinstancenix.cpp)
     if(APPLE)
         set(SOURCES ${SOURCES} DwarfTherapist.rc src/dfinstanceosx.mm)
-        #ICON = hammer.icns
         #LIBS += -framework Cocoa
         #    LIBS += -framework Carbon
         #    LIBS += -framework Security
@@ -48,47 +49,16 @@ elseif(UNIX)
     else()
         set(SOURCES ${SOURCES} src/dfinstancelinux.cpp)
 
-        #target.path = $$PREFIX/bin
-        #    INSTALLS += target
+        include(UseLATEX)
 
-        #    bin.path = $$PREFIX/bin
-        #    bin.files += dist/dwarftherapist
-        #    INSTALLS += bin
-
-        #    application.path = $$PREFIX/share/applications
-        #    application.files += dist/dwarftherapist.desktop
-        #    INSTALLS += application
-
-        #    doc.path = $$PREFIX/share/doc/dwarftherapist
-        #    doc.files += LICENSE.txt
-        #    doc.files += README.rst
-        #    system("printf 'Checking for pdflatex... '; if ! command -v pdflatex; then echo 'not found'; exit 1; fi") {
-        #        manual.depends = "$$PWD/doc/Dwarf Therapist.tex" $$PWD/doc/images/*
-        #        manual.commands = [ -d doc ] || mkdir doc;
-        #        manual.commands += TEXINPUTS=".:$$PWD/doc/images:" pdflatex -output-directory=doc "$<"
-        #        manual.target = "doc/Dwarf Therapist.pdf"
-        #        QMAKE_EXTRA_TARGETS += manual
-        #        POST_TARGETDEPS += "$$manual.target"
-        #        doc.files += "$$manual.target"
-        #    }
-        #    INSTALLS += doc
-
-        #    icon.path = $$PREFIX/share/pixmaps
-        #    icon.files += img/dwarftherapist.png
-        #    icon.files += img/dwarftherapist.xpm
-        #    INSTALLS += icon
-
-        #    memory_layouts.path = $$PREFIX/share/dwarftherapist/memory_layouts/linux
-        #    memory_layouts.files += $$files(share/memory_layouts/linux/*)
-        #    INSTALLS += memory_layouts
+        add_latex_document("doc/Dwarf-Therapist.tex" IMAGE_DIRS doc/images)
     endif()
 else()
     message(FATAL_ERROR "unsupported target")
 endif()
 
-
-# Translation files
-#TRANSLATIONS += ./dwarftherapist_en.ts
+find_package(Qt5LinguistTools)
+qt5_create_translation(qm_files dwarftherapist_en.ts)
 
 add_executable(DwarfTherapist WIN32 MACOSX_BUNDLE src/grid_view/cellcolordef.h
     src/roleaspect.h src/itemgenericsubtype.h src/itemtoolsubtype.h
@@ -138,4 +108,15 @@ add_executable(DwarfTherapist WIN32 MACOSX_BUNDLE src/grid_view/cellcolordef.h
     src/emotiongroup.cpp resources.qrc
     ${SOURCES})
 target_compile_features(DwarfTherapist PRIVATE cxx_generalized_initializers)
-target_link_libraries(DwarfTherapist Qt5::Widgets Qt5::Qml)
+target_link_libraries(DwarfTherapist Qt5::Widgets Qt5::Qml ${LIBS})
+
+if(UNIX)
+    if(APPLE)
+        install(FILES hammer.icns DESTINATION "${BUNDLE_PATH}/Contents/Resources/")
+    else()
+        install(TARGETS DwarfTherapist RUNTIME DESTINATION bin)
+        install(DIRECTORY share/memory_layouts/linux DESTINATION share/dwarftherapist/memory_layouts)
+        install(FILES dist/dwarftherapist.desktop DESTINATION share/applications)
+        install(FILES img/dwarftherapist.png img/dwarftherapist.xpm DESTINATION share/pixmaps)
+    endif()
+endif()
