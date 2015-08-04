@@ -20,40 +20,32 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#ifndef PROFESSION_H
-#define PROFESSION_H
 
-#include "qstring.h"
-#include "qstringlist.h"
+#include "basedock.h"
 
-class Profession {
-public:
-    Profession(QSettings &s)
-        : m_id(s.value("id", -1).toInt())
-        , m_name(s.value("name", "UNKNOWN PROFESSION").toString())
-        , m_female_name(s.value("female_name", m_name).toString())
-        , m_is_military(s.value("is_military", false).toBool())
-        , m_can_assign_labors(s.value("can_assign_labors", true).toBool())
-    {
+BaseDock::BaseDock(QWidget *parent, Qt::WindowFlags flags)
+    : QDockWidget(parent,flags)
+{
+    connect(this,SIGNAL(topLevelChanged(bool)),this,SLOT(floating_changed(bool)));
+}
+
+void BaseDock::floating_changed(bool floating){
+//it's currently pretty buggy to do this on linux. no idea why... yet..
+#ifdef Q_OS_LINUX
+    Q_UNUSED(floating);
+#else
+    bool vis = this->isVisible();
+    if(floating){
+        this->setWindowFlags(Qt::Window);
+        QPoint pos = this->pos();
+        if(pos.x() < 0)
+            pos.setX(0);
+        if(pos.y() < 0)
+            pos.setY(0);
+        this->move(pos);
+
+        if(vis)
+            this->show();
     }
-
-    const short &id() const {return m_id;}
-    QString name(const bool &male = true) const {
-        return male ? m_name : m_female_name;
-    }
-    const bool &is_military() const {return m_is_military;}
-    const bool &can_assign_labors() const {return m_can_assign_labors;}
-
-    bool operator<(const Profession &other) const {
-        return m_name < other.m_name;
-    }
-
-private:
-    short m_id;
-    QString m_name;
-    QString m_female_name;
-    bool m_is_military;
-    bool m_can_assign_labors;
-};
-
-#endif // PROFESSION_H
+#endif
+}

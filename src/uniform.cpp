@@ -22,6 +22,7 @@ THE SOFTWARE.
 */
 
 #include "uniform.h"
+#include "dfinstance.h"
 #include "item.h"
 
 Uniform::Uniform(DFInstance *df, QObject *parent)

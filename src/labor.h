@@ -20,59 +20,42 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#ifndef ITEMAMMO_H
-#define ITEMAMMO_H
+#ifndef LABOR_H
+#define LABOR_H
 
-#include "item.h"
-#include "itemgenericsubtype.h"
+#include <QObject>
 
-class ItemAmmo : public Item {
+class QSettings;
+
+class Labor : public QObject {
+    Q_OBJECT
 public:
+    Labor(QSettings &s, QObject *parent = 0);
 
-    ItemAmmo(const Item &baseItem)
-        : Item(baseItem)
-        , m_ammo_def(0)
+    inline const QList<int> &get_excluded_labors() {
+        return m_excluded_labors;
+    }
+
+    static inline bool hauling_compare(Labor *l1, Labor *l2)
     {
-        read_def();
+        return l1->is_hauling != l2->is_hauling ? l1->is_hauling < l2->is_hauling
+                                                : l1->name < l2->name;
     }
 
-    ItemAmmo(DFInstance *df, VIRTADDR item_addr)
-        : Item(df,item_addr)
-        , m_ammo_def(0)
+    static inline bool skilled_compare(Labor *l1, Labor *l2)
     {
-        read_def();
+        return l1->is_skilled != l2->is_skilled ? l1->is_skilled < l2->is_skilled
+                                                : l1->name < l2->name;
     }
 
-    ~ItemAmmo()
-    {
-        delete m_ammo_def;
-    }
+    QString name;
+    int labor_id;
+    int skill_id;
+    QList<int> m_excluded_labors; // list of other labors that this one is exclusive with
+    bool requires_equipment; // when first assigned the dwarf should go find
+                             // needed equipment (default is false)
+    bool is_hauling; //mark hauling labors for optimization purposes
+    bool is_skilled; //indicate if a labor requires some skill
 
-    short item_subtype() const {return m_ammo_def->subType();}
-
-    void stack_size_changed(){
-        set_name();
-    }
-
-    void set_name(){
-        if(m_ammo_def){
-            if(m_stack_size <= 1){
-                m_item_name = m_ammo_def->name();
-            }else{
-                m_item_name = m_ammo_def->name_plural();
-            }
-        }
-    }
-
-private:
-    ItemGenericSubtype *m_ammo_def;
-
-    void read_def(){
-        if(m_addr){
-            m_ammo_def = new ItemGenericSubtype(m_iType,m_df, m_df->read_addr(m_addr + m_df->memory_layout()->item_offset("item_def")), this);
-            set_name();
-        }
-    }
 };
-
-#endif // ITEMAMMO_H
+#endif

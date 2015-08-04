@@ -32,6 +32,7 @@
 #include "races.h"
 #include "dwarf.h"
 #include "sortabletableitems.h"
+#include "dfinstance.h"
 
 #if QT_VERSION >= 0x050000
 # include <QRegularExpression>

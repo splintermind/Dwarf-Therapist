@@ -23,10 +23,10 @@ THE SOFTWARE.
 #ifndef MOOD_H
 #define MOOD_H
 
-#include "utils.h"
 #include <QObject>
-#include <QSettings>
 #include <QColor>
+
+class QSettings;
 
 class Mood : public QObject
 {
@@ -34,42 +34,18 @@ class Mood : public QObject
 
 public:
 
-    Mood(QObject *parent=0)
-        : QObject(parent)
-        , m_name("")
-        , m_name_colored("")
-        , m_desc("")
-        , m_desc_colored("")
-        , m_color(QColor(Qt::black))
-    {
+    Mood(QObject *parent=0);
 
+    Mood(QSettings &s, QObject *parent = 0);
+
+    inline const QString get_mood_name(bool colored = false){
+        return colored ? m_name_colored
+                       : m_name;
     }
 
-    Mood(QSettings &s, QObject *parent = 0)
-        : QObject(parent)
-    {
-        m_name = s.value("name","").toString();
-        m_desc = capitalize(s.value("description","").toString());
-        m_color = QColor(s.value("color","#000000").toString());
-
-        m_name_colored = QString("<font color=%1>%2</font>").arg(m_color.name()).arg(m_name);
-        m_desc_colored = QString("<font color=%1>%2</font>").arg(m_color.name()).arg(m_desc);
-    }
-
-    QString get_mood_name(bool colored = false){
-        if(colored){
-            return m_name_colored;
-        }else{
-            return m_name;
-        }
-    }
-
-    QString get_mood_desc(bool colored = false){
-        if(colored){
-            return m_desc_colored;
-        }else{
-            return m_desc;
-        }
+    inline const QString get_mood_desc(bool colored = false){
+        return colored ? m_desc_colored
+                       : m_desc;
     }
 
     QColor get_mood_color() {return m_color;}

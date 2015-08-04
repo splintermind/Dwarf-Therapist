@@ -27,14 +27,14 @@ public:
     {
     }
 
-    bool is_overridden() const {return m_overridden;}
-    QColor color() const {return m_col;}
-    QString key() const {return m_key;}
-    QString title() const {return m_title;}
-    QString description() const {return m_desc;}
+    inline bool is_overridden() const {return m_overridden;}
+    inline QColor color() const {return m_col;}
+    inline QString key() const {return m_key;}
+    inline QString title() const {return m_title;}
+    inline QString description() const {return m_desc;}
 
-    void set_overridden(bool val) {m_overridden=val;}
-    void set_color(QColor c) {m_col = c;}
+    inline void set_overridden(bool val) {m_overridden=val;}
+    inline void set_color(QColor c) {m_col = c;}
 
 private:
     bool m_overridden;

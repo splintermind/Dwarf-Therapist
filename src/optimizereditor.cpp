@@ -11,6 +11,7 @@
 #include "sortabletableitems.h"
 #include "labor.h"
 #include "mainwindow.h"
+#include "role.h"
 
 #include <QComboBox>
 #include <QMessageBox>

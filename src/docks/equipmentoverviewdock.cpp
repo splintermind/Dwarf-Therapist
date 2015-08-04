@@ -26,6 +26,8 @@ THE SOFTWARE.
 #include <QPushButton>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include <QSettings>
+#include "dfinstance.h"
 #include "equipmentoverviewdock.h"
 #include "dwarftherapist.h"
 #include "sortabletableitems.h"

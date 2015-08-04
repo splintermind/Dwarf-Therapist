@@ -20,43 +20,24 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#ifndef BASEDOCK_H
-#define BASEDOCK_H
+#include "labor.h"
+#include <QSettings>
 
-#include <QDockWidget>
-
-class BaseDock : public QDockWidget {
-    Q_OBJECT
-public:
-    BaseDock(QWidget *parent = 0, Qt::WindowFlags flags = 0)
-        : QDockWidget(parent,flags)
-    {
-        connect(this,SIGNAL(topLevelChanged(bool)),this,SLOT(floating_changed(bool)));
+Labor::Labor(QSettings &s, QObject *parent)
+    : QObject(parent)
+    , name(s.value("name", "UNKNOWN LABOR").toString())
+    , labor_id(s.value("id", -1).toInt())
+    , skill_id(s.value("skill", -1).toInt())
+    , requires_equipment(s.value("requires_equipment", false).toBool())
+    , is_hauling(s.value("hauling", false).toBool())
+{
+    int excludes = s.beginReadArray("excludes");
+    for (int i = 0; i < excludes; ++i) {
+        s.setArrayIndex(i);
+        int labor = s.value("labor_id", -1).toInt();
+        if (labor != -1)
+            m_excluded_labors << labor;
     }
-    virtual ~BaseDock(){}
-
-public slots:
-    void floating_changed(bool floating){
-    //it's currently pretty buggy to do this on linux. no idea why... yet..
-#ifdef Q_OS_LINUX
-        Q_UNUSED(floating);
-#else
-        bool vis = this->isVisible();
-        if(floating){
-            this->setWindowFlags(Qt::Window);
-            QPoint pos = this->pos();
-            if(pos.x() < 0)
-                pos.setX(0);
-            if(pos.y() < 0)
-                pos.setY(0);
-            this->move(pos);
-
-            if(vis)
-                this->show();
-        }
-#endif
-    }
-
-};
-
-#endif // BASEDOCK_H
+    s.endArray();
+    is_skilled = (skill_id > -1);
+}

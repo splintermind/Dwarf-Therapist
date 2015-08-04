@@ -23,6 +23,7 @@ THE SOFTWARE.
 #include <QMessageBox>
 #include <QFile>
 #include "gamedatareader.h"
+#include "role.h"
 #include "labor.h"
 #include "trait.h"
 #include "attribute.h"

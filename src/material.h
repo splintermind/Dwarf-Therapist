@@ -27,6 +27,7 @@ THE SOFTWARE.
 #include "utils.h"
 #include "global_enums.h"
 #include "flagarray.h"
+#include "memorylayout.h"
 
 class DFInstance;
 class MemoryLayout;

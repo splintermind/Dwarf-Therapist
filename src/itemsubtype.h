@@ -20,48 +20,49 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#ifndef SUBTHOUGHTTYPES_H
-#define SUBTHOUGHTTYPES_H
+#ifndef ITEMSUBTYPE_H
+#define ITEMSUBTYPE_H
 
 #include <QObject>
-#include <QSettings>
+#include "utils.h"
+#include "global_enums.h"
+#include "flagarray.h"
 
-class SubThoughtTypes : public QObject
-{
+class DFInstance;
+class MemoryLayout;
+
+class ItemSubtype : public QObject {
     Q_OBJECT
-
-private:
-    QString m_placeholder;
-    QHash<int,QString> m_subthoughts;
-
 public:
-    SubThoughtTypes(QObject *parent = 0)
-        : QObject(parent)
-    {
-    }
+    ItemSubtype(ITEM_TYPE itype, DFInstance *df, VIRTADDR address, QObject *parent = 0);
 
-    SubThoughtTypes(QSettings &s, QObject *parent = 0)
-        : QObject(parent)
-    {
-        m_placeholder = s.value("placeholder","").toString();
-        int count = s.beginReadArray("subthoughts");
-        for (int idx = 0; idx < count; ++idx) {
-            s.setArrayIndex(idx);
-            m_subthoughts.insert(s.value("id",-1).toInt(),s.value("thought","??").toString());
-        }
-        s.endArray();
-    }
+    ItemSubtype(DFInstance *df, VIRTADDR address, QObject *parent = 0);
 
-    QString get_subthought(int id) {
-        if(m_subthoughts.contains(id)){
-            return m_subthoughts.value(id);
-        }else{
-            return m_subthoughts.value(-1);
-        }
-    }
-    QString get_placeholder(){return m_placeholder;}
-    bool has_placeholder(){return (!m_placeholder.isEmpty());}
+    virtual ~ItemSubtype();
 
+    inline VIRTADDR address() {return m_address;}
+    inline QString name() const {return m_name;}
+    inline QString name_plural() const {return m_name_plural;}
+    inline short subType() const {return m_subType;}
+    inline FlagArray flags() const {return m_flags;}
+
+protected:
+    VIRTADDR m_address;
+    QString m_name;
+    QString m_name_plural;
+    DFInstance * m_df;
+    MemoryLayout * m_mem;
+    ITEM_TYPE m_iType;
+    short m_subType;
+    FlagArray m_flags;
+
+    int m_offset_adj;
+    int m_offset_preplural;
+    int m_offset_mat;
+
+    virtual void read_data();
+
+    virtual void set_base_offsets();
 };
 
-#endif // SUBTHOUGHTTYPES_H
+#endif // ITEMSUBTYPE_H
