@@ -451,8 +451,13 @@ address('perf_histfig',df.activity_event_performancest::anon2,'histfig_id')
 local out = io.open('therapist.ini', 'w')
 
 out:write('[info]\n')
--- TODO: add an api function to retrieve the checksum
-out:write('checksum=<<fillme>>\n')
+if dfhack.getOSType() == 'windows' and dfhack.internal.getPE then
+    out:write(('checksum=0x%x\n'):format(dfhack.internal.getPE()))
+elseif dfhack.getOSType() ~= 'windows' and dfhack.internal.getMD5 then
+    out:write(('checksum=0x%s\n'):format(dfhack.internal.getMD5():sub(1, 8)))
+else
+    out:write('checksum=<<fillme>>\n')
+end
 out:write('version_name='..dfhack.getDFVersion()..'\n')
 out:write('complete='..(complete and 'true' or 'false')..'\n')
 
