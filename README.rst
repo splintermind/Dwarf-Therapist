@@ -25,9 +25,11 @@ Download
 The following downloads are compatible with Dwarf Fortress versions 0.40.04 through 0.40.24.
 The Windows version is additionally compatible with versions 0.40.01 and 0.40.03.
 
-`Windows 32-bit <http://dffd.wimbli.com/file.php?id=9040>`_
+Windows/OSX
+=====
+The last Dwarf Therapist release for Dwarf Fortress up to version 0.40.24 is `available here (32.0.0)`_.
 
-`OSX <http://dffd.wimbli.com/file.php?id=9127>`_
+For other Dwarf Therapist releases for newer versions of Dwarf Fortress, check the `GitHub releases`_ or other `code branches`_.
 
 Linux
 =====
@@ -70,3 +72,6 @@ You can also join us in `#dwarftherapist on Freenode`_.
 .. _GitHub issue tracker: https://github.com/splintermind/Dwarf-Therapist/issues
 .. _DFFD: http://dffd.wimbli.com/category.php?id=20
 .. _#dwarftherapist on Freenode: http://webchat.freenode.net/?channels=%23dwarftherapist
+.. _available here (32.0.0): https://github.com/splintermind/Dwarf-Therapist/releases/tag/v32.0.0
+.. _GitHub releases: https://github.com/splintermind/Dwarf-Therapist/releases
+.. _code branches: https://github.com/splintermind/Dwarf-Therapist/branches
