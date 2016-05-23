@@ -8,7 +8,7 @@ Below are links to the most recent layouts.
 
 Most Recent Layout (40.13)
 --------------------------
-Windows: `Right click here and 'Save link as..' <windows/v0.40.13_graphics.ini download>`_ to your **Dwarf-Therapist/share/memory_layouts/windows** directory
+Windows: `Right click here and 'Save link as..' <windows/v0.40.13_graphics.ini>`_ to your **Dwarf-Therapist/share/memory_layouts/windows** directory
 
 Linux: `Right click here and 'Save link as..' <linux/v040.13.ini>`_ to your **Dwarf-Therapist/share/memory_layouts/linux** directory
 
