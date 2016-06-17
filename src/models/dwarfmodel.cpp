@@ -252,7 +252,7 @@ void DwarfModel::build_rows() {
         //shared groupings for both animals and the fortress race
         if((only_animals && d->is_animal()) || (!d->is_animal() && !only_animals)){
             if(m_group_by == GB_NOTHING){
-                m_grouped_dwarves[0].append(d);
+                m_grouped_dwarves[tr("Nothing")].append(d);
             }else if(m_group_by == GB_PROFESSION){
                 m_grouped_dwarves[d->profession()].append(d);
             }else if(m_group_by == GB_SEX){
@@ -427,90 +427,88 @@ void DwarfModel::build_row(const QString &key) {
         return;
     }
 
-    if (m_group_by != GB_NOTHING) {
-        // we need a root element to hold group members...
-        QString title = QString("%1 (%2)").arg(key).arg(m_grouped_dwarves.value(key).size());
-        agg_first_col = new QStandardItem(title);
-        //bold aggregate titles
-        agg_first_col->setData(get_font(true), Qt::FontRole);
-        //        agg_first_col->setData(build_gradient_brush(QColor(Qt::gray),125,0,QPoint(0,0),QPoint(1,0)),Qt::BackgroundRole);
-        agg_first_col->setData(true, DR_IS_AGGREGATE);
-        agg_first_col->setData(key, DR_GROUP_NAME);
-        agg_first_col->setData(0, DR_RATING);
-        //root->setData(title, DR_SORT_VALUE);
-        // for integer based values we want to make sure they sort by the int
-        // values instead of the string values
-        if (m_group_by == GB_MIGRATION_WAVE) {
-            agg_first_col->setData(first_dwarf->migration_wave(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_HIGHEST_SKILL) {
-            agg_first_col->setData(first_dwarf->highest_skill().actual_exp(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_HIGHEST_MOODABLE) {
-            //show generic mood, random and had mood at the top/bottom
-            QList<Skill> skills = first_dwarf->get_moodable_skills().values();
-            if(first_dwarf->had_mood() || skills.at(0).capped_level() < 0 || skills.count() > 1){
-                agg_first_col->setData(QChar(128), DR_SORT_VALUE);
-            }else{
-                agg_first_col->setData(skills[0].name(), DR_SORT_VALUE);
-            }
-        } else if (m_group_by == GB_TOTAL_SKILL_LEVELS) {
-            agg_first_col->setData(first_dwarf->total_skill_levels(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_GOALS) {
-            agg_first_col->setData(first_dwarf->goals_realized(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_OCCUPATION) {
-            //keep no occupation at the top/bottom
-            if(first_dwarf->get_occupation() == Dwarf::OCC_NONE){
-                agg_first_col->setData(QString::number(first_dwarf->get_occupation()), DR_SORT_VALUE);
-            }else{
-                agg_first_col->setData(first_dwarf->occupation(), DR_SORT_VALUE);
-            }
-        } else if (m_group_by == GB_SKILL_RUST) {
-            agg_first_col->setData(first_dwarf->rust_level(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_HAPPINESS) {
-            agg_first_col->setData(first_dwarf->get_happiness(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_ASSIGNED_LABORS || m_group_by == GB_ASSIGNED_SKILLED_LABORS) {
-            bool include_hauling = (m_group_by == GB_ASSIGNED_LABORS);
-            agg_first_col->setData(first_dwarf->total_assigned_labors(include_hauling), DR_SORT_VALUE);
-        } else if (m_group_by == GB_PROFESSION) {
-            agg_first_col->setData(first_dwarf->profession(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_RACE){
-            agg_first_col->setData(first_dwarf->race_name(true,true), DR_SORT_VALUE);
-        } else if (m_group_by == GB_CASTE) {
-            agg_first_col->setData(first_dwarf->caste_name(true), DR_SORT_VALUE);
-        } else if (m_group_by == GB_CASTE_TAG){
-            agg_first_col->setData(first_dwarf->caste_tag(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_AGE){
-            agg_first_col->setData(first_dwarf->get_age(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_SEX){
-            agg_first_col->setData(first_dwarf->get_gender_orient_desc(), DR_SORT_VALUE);
-        } else if (m_group_by == GB_SQUAD){
-            int squad_id = first_dwarf->squad_id();
-            if(squad_id != -1){
-                Squad *s = m_df->get_squad(first_dwarf->squad_id());
-                if(s){
-                    int squad_count = s->assigned_count();
-                    title = QString("%1 (%2)").arg(key).arg(squad_count);
-                    agg_first_col->setText(title);
-                    if(squad_count != m_grouped_dwarves.value(key).size()){
-                        agg_first_col->setToolTip(tr("The count may be different as Dwarf Fortress keeps missing, dead dwarves in squads until they're found."));
-                        agg_first_col->setIcon(QIcon(":img/exclamation-red-frame.png"));
-                    }
-                    agg_first_col->setData(squad_id, DR_SORT_VALUE);
-                    agg_first_col->setData(squad_id,DR_ID);
-                    agg_first_col->setData(key,DR_GROUP_NAME);
-                }
-            }else{
-                //put non squads at the bottom of the groups when grouping by squad
-                agg_first_col->setData(QChar(128), DR_SORT_VALUE);
-            }
-        } else if (m_group_by == GB_CURRENT_JOB || m_group_by == GB_JOB_TYPE){
-            //put idle, on break and soldiers at the top/bottom
-            if(first_dwarf->current_job_id() == DwarfJob::JOB_IDLE || first_dwarf->current_job_id() == DwarfJob::JOB_ON_BREAK){
-                agg_first_col->setData(QString::number(first_dwarf->current_job_id()), DR_SORT_VALUE);
-            }
+    // we need a root element to hold group members...
+    QString title = QString("%1 (%2)").arg(key).arg(m_grouped_dwarves.value(key).size());
+    agg_first_col = new QStandardItem(title);
+    //bold aggregate titles
+    agg_first_col->setData(get_font(true), Qt::FontRole);
+    //        agg_first_col->setData(build_gradient_brush(QColor(Qt::gray),125,0,QPoint(0,0),QPoint(1,0)),Qt::BackgroundRole);
+    agg_first_col->setData(true, DR_IS_AGGREGATE);
+    agg_first_col->setData(key, DR_GROUP_NAME);
+    agg_first_col->setData(0, DR_RATING);
+    //root->setData(title, DR_SORT_VALUE);
+    // for integer based values we want to make sure they sort by the int
+    // values instead of the string values
+    if (m_group_by == GB_MIGRATION_WAVE) {
+        agg_first_col->setData(first_dwarf->migration_wave(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_HIGHEST_SKILL) {
+        agg_first_col->setData(first_dwarf->highest_skill().actual_exp(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_HIGHEST_MOODABLE) {
+        //show generic mood, random and had mood at the top/bottom
+        QList<Skill> skills = first_dwarf->get_moodable_skills().values();
+        if(first_dwarf->had_mood() || skills.at(0).capped_level() < 0 || skills.count() > 1){
+            agg_first_col->setData(QChar(128), DR_SORT_VALUE);
+        }else{
+            agg_first_col->setData(skills[0].name(), DR_SORT_VALUE);
         }
-        agg_first_col->setData(agg_first_col->data(DR_SORT_VALUE),DR_GLOBAL);
-        agg_items << agg_first_col;
+    } else if (m_group_by == GB_TOTAL_SKILL_LEVELS) {
+        agg_first_col->setData(first_dwarf->total_skill_levels(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_GOALS) {
+        agg_first_col->setData(first_dwarf->goals_realized(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_OCCUPATION) {
+        //keep no occupation at the top/bottom
+        if(first_dwarf->get_occupation() == Dwarf::OCC_NONE){
+            agg_first_col->setData(QString::number(first_dwarf->get_occupation()), DR_SORT_VALUE);
+        }else{
+            agg_first_col->setData(first_dwarf->occupation(), DR_SORT_VALUE);
+        }
+    } else if (m_group_by == GB_SKILL_RUST) {
+        agg_first_col->setData(first_dwarf->rust_level(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_HAPPINESS) {
+        agg_first_col->setData(first_dwarf->get_happiness(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_ASSIGNED_LABORS || m_group_by == GB_ASSIGNED_SKILLED_LABORS) {
+        bool include_hauling = (m_group_by == GB_ASSIGNED_LABORS);
+        agg_first_col->setData(first_dwarf->total_assigned_labors(include_hauling), DR_SORT_VALUE);
+    } else if (m_group_by == GB_PROFESSION) {
+        agg_first_col->setData(first_dwarf->profession(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_RACE){
+        agg_first_col->setData(first_dwarf->race_name(true,true), DR_SORT_VALUE);
+    } else if (m_group_by == GB_CASTE) {
+        agg_first_col->setData(first_dwarf->caste_name(true), DR_SORT_VALUE);
+    } else if (m_group_by == GB_CASTE_TAG){
+        agg_first_col->setData(first_dwarf->caste_tag(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_AGE){
+        agg_first_col->setData(first_dwarf->get_age(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_SEX){
+        agg_first_col->setData(first_dwarf->get_gender_orient_desc(), DR_SORT_VALUE);
+    } else if (m_group_by == GB_SQUAD){
+        int squad_id = first_dwarf->squad_id();
+        if(squad_id != -1){
+            Squad *s = m_df->get_squad(first_dwarf->squad_id());
+            if(s){
+                int squad_count = s->assigned_count();
+                title = QString("%1 (%2)").arg(key).arg(squad_count);
+                agg_first_col->setText(title);
+                if(squad_count != m_grouped_dwarves.value(key).size()){
+                    agg_first_col->setToolTip(tr("The count may be different as Dwarf Fortress keeps missing, dead dwarves in squads until they're found."));
+                    agg_first_col->setIcon(QIcon(":img/exclamation-red-frame.png"));
+                }
+                agg_first_col->setData(squad_id, DR_SORT_VALUE);
+                agg_first_col->setData(squad_id,DR_ID);
+                agg_first_col->setData(key,DR_GROUP_NAME);
+            }
+        }else{
+            //put non squads at the bottom of the groups when grouping by squad
+            agg_first_col->setData(QChar(128), DR_SORT_VALUE);
+        }
+    } else if (m_group_by == GB_CURRENT_JOB || m_group_by == GB_JOB_TYPE){
+        //put idle, on break and soldiers at the top/bottom
+        if(first_dwarf->current_job_id() == DwarfJob::JOB_IDLE || first_dwarf->current_job_id() == DwarfJob::JOB_ON_BREAK){
+            agg_first_col->setData(QString::number(first_dwarf->current_job_id()), DR_SORT_VALUE);
+        }
     }
+    agg_first_col->setData(agg_first_col->data(DR_SORT_VALUE),DR_GLOBAL);
+    agg_items << agg_first_col;
 
     if (agg_first_col) { // we have a parent, so we should draw an aggregate row
         m_total_row_count += 1;
