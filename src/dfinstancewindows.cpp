@@ -90,7 +90,7 @@ QString DFInstanceWindows::read_string(const uint &addr) {
     Q_ASSERT_X(len < (1 << 16), "read_string",
                "String must be of sane length!");
 
-    char *buf = new char[len];
+    char buf[len];
     read_raw(buffer_addr, len, buf);
     return QTextCodec::codecForName("IBM437")->toUnicode(buf, len);
 }
