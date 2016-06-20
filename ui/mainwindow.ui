@@ -325,7 +325,7 @@
      <x>0</x>
      <y>0</y>
      <width>1260</width>
-     <height>19</height>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
@@ -361,6 +361,7 @@
     <addaction name="separator"/>
     <addaction name="act_options"/>
     <addaction name="separator"/>
+    <addaction name="act_reload_stylesheet"/>
     <addaction name="separator"/>
     <addaction name="act_exit"/>
    </widget>
@@ -520,8 +521,8 @@
   <widget class="BaseDock" name="dock_pending_jobs_list">
    <property name="minimumSize">
     <size>
-     <width>150</width>
-     <height>143</height>
+     <width>190</width>
+     <height>156</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -633,8 +634,8 @@
   <widget class="BaseDock" name="dock_custom_professions">
    <property name="minimumSize">
     <size>
-     <width>223</width>
-     <height>143</height>
+     <width>307</width>
+     <height>156</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -1149,6 +1150,14 @@
    </property>
    <property name="toolTip">
     <string>Open the Dwarf Therapist manual.</string>
+   </property>
+  </action>
+  <action name="act_reload_stylesheet">
+   <property name="text">
+    <string>Reload Stylesheet</string>
+   </property>
+   <property name="toolTip">
+    <string>Reloads the stylesheets in real time</string>
    </property>
   </action>
  </widget>
