@@ -60,12 +60,12 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     , m_show_skill_learn_rates(false)
     , m_arena_mode(false) //manually set this to true to do arena testing (very hackish, all units will be animals)
     , m_log_mgr(0)
-    , stylesheet_location(":/resources/stylesheets/default.qss")
+    , m_stylesheet_location(":/resources/stylesheets/default.qss")
 {
     setup_logging();
     load_translator();
     setup_search_paths();
-    loadStyleSheet();
+    //loadStyleSheet();// temporarily comment out, for default style-sheet
 
     TRACE << "Creating settings object";
     m_user_settings = new QSettings(QSettings::IniFormat, QSettings::UserScope, COMPANY, PRODUCT, this);
@@ -86,6 +86,7 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     connect(m_main_window->ui->act_add_custom_profession, SIGNAL(triggered()), this, SLOT(add_custom_profession()));
     connect(m_main_window->ui->act_add_super_labor, SIGNAL(triggered()), this, SLOT(add_super_labor()));
     connect(m_main_window->ui->le_filter_text, SIGNAL(textChanged(const QString&)), m_main_window->get_proxy(), SLOT(setFilterFixedString(const QString&)));
+    connect(m_main_window->ui->act_reload_stylesheet, SIGNAL(triggered()), this, SLOT(loadStyleSheet()));
 
     read_settings();
     load_customizations();
@@ -117,9 +118,11 @@ DwarfTherapist::~DwarfTherapist(){
 
 void DwarfTherapist::loadStyleSheet()
 {
-    LOGI << "Retrieving style-sheet.";
+    // reset style-sheet
+    setStyleSheet("/* /");
 
-    QFile file(stylesheet_location.c_str());
+    LOGI << "Retrieving style-sheet.";
+    QFile file(m_stylesheet_location);
     if(file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
         LOGI << "Style-sheet retrieval sucessful.";

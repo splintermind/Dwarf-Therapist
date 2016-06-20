@@ -54,8 +54,6 @@ public:
 
     QList<Dwarf*> get_dwarves();
 
-    void loadStyleSheet();
-
     QList<CustomProfession*> get_custom_professions() {return m_custom_professions.values();}
     CustomProfession *get_custom_profession(QString name);
     CustomProfession *get_custom_prof_icon(int prof_id) {return m_custom_prof_icns.value(prof_id);}
@@ -108,6 +106,8 @@ public slots:
     void read_settings();
     void load_customizations();
 
+    void loadStyleSheet();
+
     void write_settings();
     void write_custom_professions();
     void write_super_labors();
@@ -146,7 +146,7 @@ private:
 
     LogManager *m_log_mgr;
 
-    std::string stylesheet_location;
+    QString m_stylesheet_location;
 
     QHash<GLOBAL_COLOR_TYPES,QSharedPointer<CellColorDef> > m_colors;
     QHash<DWARF_HAPPINESS,QColor> m_happiness_colors;
