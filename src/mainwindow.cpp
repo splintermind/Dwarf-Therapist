@@ -164,12 +164,12 @@ MainWindow::MainWindow(QWidget *parent)
     LOGD << "setting up connections for MainWindow";
     connect(ui->main_toolbar, SIGNAL(toolButtonStyleChanged(Qt::ToolButtonStyle)),this, SLOT(main_toolbar_style_changed(Qt::ToolButtonStyle)));
 
-    connect(m_model, SIGNAL(new_creatures_count(int,int,int, QString)), this, SLOT(new_creatures_count(int,int,int, QString)));
-    connect(m_model, SIGNAL(new_pending_changes(int)), this, SLOT(new_pending_changes(int)));
-    connect(ui->act_clear_pending_changes, SIGNAL(triggered()), m_model, SLOT(clear_pending()));
-    connect(ui->act_commit_pending_changes, SIGNAL(triggered()), this, SLOT(commit_changes()));
-    connect(ui->act_expand_all, SIGNAL(triggered()), m_view_manager, SLOT(expand_all()));
-    connect(ui->act_collapse_all, SIGNAL(triggered()), m_view_manager, SLOT(collapse_all()));
+    connect(m_model,                        SIGNAL(new_creatures_count(int,int,int, QString)), this,           SLOT(new_creatures_count(int,int,int, QString)));
+    connect(m_model,                        SIGNAL(new_pending_changes(int)),                  this,           SLOT(new_pending_changes(int)));
+    connect(ui->act_clear_pending_changes,  SIGNAL(triggered()),                               m_model,        SLOT(clear_pending()));
+    connect(ui->act_commit_pending_changes, SIGNAL(triggered()),                               this,           SLOT(commit_changes()));
+    connect(ui->act_expand_all,             SIGNAL(triggered()),                               m_view_manager, SLOT(expand_all()));
+    connect(ui->act_collapse_all,           SIGNAL(triggered()),                               m_view_manager, SLOT(collapse_all()));
 
     connect(ui->tree_pending, SIGNAL(currentItemChanged(QTreeWidgetItem *, QTreeWidgetItem *)),
             m_view_manager, SLOT(jump_to_dwarf(QTreeWidgetItem *, QTreeWidgetItem *)));
