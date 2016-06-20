@@ -60,10 +60,12 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     , m_show_skill_learn_rates(false)
     , m_arena_mode(false) //manually set this to true to do arena testing (very hackish, all units will be animals)
     , m_log_mgr(0)
+    , stylesheet_location(":/resources/stylesheets/default.qss")
 {
     setup_logging();
     load_translator();
     setup_search_paths();
+    loadStyleSheet();
 
     TRACE << "Creating settings object";
     m_user_settings = new QSettings(QSettings::IniFormat, QSettings::UserScope, COMPANY, PRODUCT, this);
@@ -111,6 +113,23 @@ DwarfTherapist::~DwarfTherapist(){
     delete m_options_menu;
     delete m_main_window;
     delete m_log_mgr;
+}
+
+void DwarfTherapist::loadStyleSheet()
+{
+    LOGI << "Retrieving style-sheet.";
+
+    QFile file(stylesheet_location.c_str());
+    if(file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        LOGI << "Style-sheet retrieval sucessful.";
+        setStyleSheet(file.readAll());
+        file.close();
+    }
+    else if(!file.exists())
+        LOGE << "Could not find style-sheet.";
+    else
+        LOGE << "Could not load style-sheet; unexpected error.";
 }
 
 void DwarfTherapist::setup_search_paths() {

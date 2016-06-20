@@ -1,0 +1,4 @@
+#main_widget{
+	background: #FF0000;
+	color: #DDDDDD;
+}
