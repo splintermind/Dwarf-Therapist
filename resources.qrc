@@ -69,7 +69,6 @@
         <file alias="img/minus-circle.png">resources/img/minus-circle.png</file>
         <file alias="img/plus-circle.png">resources/img/plus-circle.png</file>
         <file alias="img/plus-white.png">resources/img/plus-white.png</file>
-        <file>resources/stylesheets/default.qss</file>
     </qresource>
     <qresource prefix="/happiness">
         <file alias="Ecstatic.png">resources/img/Ecstatic.png</file>
