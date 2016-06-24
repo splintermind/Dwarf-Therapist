@@ -1157,7 +1157,10 @@
     <string>Reload Stylesheet</string>
    </property>
    <property name="toolTip">
-    <string>Reloads the stylesheets in real time</string>
+    <string>Reloads the stylesheets in real time (F5)</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
    </property>
   </action>
  </widget>
