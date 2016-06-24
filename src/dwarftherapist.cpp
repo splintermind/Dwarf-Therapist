@@ -60,7 +60,7 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     , m_show_skill_learn_rates(false)
     , m_arena_mode(false) //manually set this to true to do arena testing (very hackish, all units will be animals)
     , m_log_mgr(0)
-    , m_stylesheet_location(":/resources/stylesheets/default.qss")
+    , m_stylesheet_location("share/stylesheets/default.qss")
 {
     setup_logging();
     load_translator();
@@ -119,9 +119,9 @@ DwarfTherapist::~DwarfTherapist(){
 void DwarfTherapist::loadStyleSheet()
 {
     // reset style-sheet
-    setStyleSheet("/* /");
+    setStyleSheet(styleSheet());
 
-    LOGI << "Retrieving style-sheet.";
+    LOGI << "Retrieving style-sheet in" << QDir::currentPath();
     QFile file(m_stylesheet_location);
     if(file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
