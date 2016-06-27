@@ -1,0 +1,29 @@
+/**********
+*Title:  Dark Theme
+*Author: Maksym Gryb
+*Desc:   Style-sheet that creates a dark-color themed environment for Dwarf Therapist.
+**********/
+
+/* Overall */
+*{
+	background: #404040;
+	color: #DDDDDD;
+}
+
+*:disabled, * > *:disabled{
+	background: #404040;
+	color: #808080;
+}
+
+/* Docks */
+.BaseDock > * > *{
+	background: #707070;
+	color: #DDDDDD;
+	border: 0px;
+}
+
+/* Buttons */
+.QToolButton:enabled:hover, .QPushButton:enabled:hover{
+	background: #505050;
+	color: #D5D5D5;
+}

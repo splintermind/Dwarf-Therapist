@@ -107,6 +107,8 @@ public slots:
     void read_settings();
     void load_customizations();
 
+    void loadStyleSheet();
+
     void write_settings();
     void write_custom_professions();
     void write_super_labors();
@@ -145,6 +147,9 @@ private:
     bool m_arena_mode;
 
     LogManager *m_log_mgr;
+
+    QString m_stylesheet_location;
+
     QHash<GLOBAL_COLOR_TYPES,QSharedPointer<CellColorDef> > m_colors;
     QHash<DWARF_HAPPINESS,QColor> m_happiness_colors;
 

@@ -61,10 +61,12 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
     , m_show_skill_learn_rates(false)
     , m_arena_mode(false) //manually set this to true to do arena testing (very hackish, all units will be animals)
     , m_log_mgr(0)
+    , m_stylesheet_location("share/stylesheets/default.qss")
 {
     setup_logging();
     load_translator();
     setup_search_paths();
+    //loadStyleSheet();// temporarily comment out, for default style-sheet
 
     TRACE << "Creating settings object";
     m_user_settings = new QSettings(QSettings::IniFormat, QSettings::UserScope, COMPANY, PRODUCT, this);
@@ -78,13 +80,14 @@ DwarfTherapist::DwarfTherapist(int &argc, char **argv)
 
     TRACE << "connecting signals";
     //connect(m_options_menu, SIGNAL(settings_changed()), SIGNAL(settings_changed())); // the telephone game...
-    connect(m_options_menu, SIGNAL(settings_changed()), this, SLOT(read_settings()));
-    connect(m_main_window->ui->act_options, SIGNAL(triggered()), m_options_menu, SLOT(exec()));
-    connect(m_main_window->ui->act_import_existing_professions, SIGNAL(triggered()), this, SLOT(import_existing_professions()));
-    connect(m_main_window->ui->tree_custom_professions, SIGNAL(itemActivated(QTreeWidgetItem*,int)), this, SLOT(edit_customization(QTreeWidgetItem*)));
-    connect(m_main_window->ui->act_add_custom_profession, SIGNAL(triggered()), this, SLOT(add_custom_profession()));
-    connect(m_main_window->ui->act_add_super_labor, SIGNAL(triggered()), this, SLOT(add_super_labor()));
-    connect(m_main_window->ui->le_filter_text, SIGNAL(textChanged(const QString&)), m_main_window->get_proxy(), SLOT(setFilterFixedString(const QString&)));
+    connect(m_options_menu,                                     SIGNAL(settings_changed()),                  this,                       SLOT(read_settings()));
+    connect(m_main_window->ui->act_options,                     SIGNAL(triggered()),                         m_options_menu,             SLOT(exec()));
+    connect(m_main_window->ui->act_import_existing_professions, SIGNAL(triggered()),                         this,                       SLOT(import_existing_professions()));
+    connect(m_main_window->ui->tree_custom_professions,         SIGNAL(itemActivated(QTreeWidgetItem*,int)), this,                       SLOT(edit_customization(QTreeWidgetItem*)));
+    connect(m_main_window->ui->act_add_custom_profession,       SIGNAL(triggered()),                         this,                       SLOT(add_custom_profession()));
+    connect(m_main_window->ui->act_add_super_labor,             SIGNAL(triggered()),                         this,                       SLOT(add_super_labor()));
+    connect(m_main_window->ui->le_filter_text,                  SIGNAL(textChanged(const QString&)),         m_main_window->get_proxy(), SLOT(setFilterFixedString(const QString&)));
+    connect(m_main_window->ui->act_reload_stylesheet,           SIGNAL(triggered()),                         this,                       SLOT(loadStyleSheet()));
 
     read_settings();
     load_customizations();
@@ -112,6 +115,25 @@ DwarfTherapist::~DwarfTherapist(){
     delete m_options_menu;
     delete m_main_window;
     delete m_log_mgr;
+}
+
+void DwarfTherapist::loadStyleSheet()
+{
+    // reset style-sheet
+    setStyleSheet(styleSheet());
+
+    LOGI << "Retrieving style-sheet in" << QDir::currentPath();
+    QFile file(m_stylesheet_location);
+    if(file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        LOGI << "Style-sheet retrieval sucessful.";
+        setStyleSheet(file.readAll());
+        file.close();
+    }
+    else if(!file.exists())
+        LOGE << "Could not find style-sheet.";
+    else
+        LOGE << "Could not load style-sheet; unexpected error.";
 }
 
 void DwarfTherapist::setup_search_paths() {
