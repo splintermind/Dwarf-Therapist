@@ -25,10 +25,10 @@ QString DFInstanceNix::calculate_checksum() {
         return QString("UNKNOWN");
     }
     // Qt 4 doesn't support QCryptographicHash::addData(QIODevice*)
-    char buf[4096];
+    m_buffer.resize(4096);
     qint64 len;
-    while ((len = proc.read(buf, sizeof(buf))) > 0) {
-        hash.addData(buf, len);
+    while ((len = proc.read(m_buffer.data(), m_buffer.length())) > 0) {
+        hash.addData(m_buffer.data(), len);
     }
     QString md5 = hexify(hash.result().mid(0, 4)).toLower();
     TRACE << "GOT MD5:" << md5;
@@ -36,10 +36,9 @@ QString DFInstanceNix::calculate_checksum() {
 }
 
 QString DFInstanceNix::read_string(const VIRTADDR &addr) {
-    char buf[256];
-    read_raw(read_addr(addr), sizeof(buf), (void *)buf);
-
-    return QTextCodec::codecForName("IBM437")->toUnicode(buf);
+    m_buffer.resize(1024);
+    read_raw(read_addr(addr), m_buffer.length(), m_buffer.data());
+    return QTextCodec::codecForName("IBM437")->toUnicode(m_buffer.data());
 }
 
 bool DFInstanceNix::df_running(){

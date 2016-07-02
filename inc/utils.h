@@ -32,9 +32,9 @@ THE SOFTWARE.
 #include <math.h>
 
 // valid for as long as DF stays 32bit
-typedef quint32 VIRTADDR;
-typedef quint32 USIZE;
-typedef qint32 SSIZE;
+typedef quintptr VIRTADDR;
+typedef quintptr USIZE;
+typedef qintptr SSIZE;
 typedef quint8 BYTE;
 typedef quint16 WORD;
 

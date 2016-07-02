@@ -40,9 +40,6 @@ public:
 
     static Race* get_race(DFInstance *df, const VIRTADDR &address, int id);
 
-    //! Return the memory address (in hex) of this race in the remote DF process
-    VIRTADDR address() {return m_address;}
-
     int race_id() {return m_id;}
     QString name(int count = 1) {return (count > 1 ? m_name_plural : m_name);}
     QString plural_name() {return m_name_plural;}
@@ -52,20 +49,13 @@ public:
     QString baby_name_plural() {return m_baby_name_plural;}
     QString child_name() {return m_child_name;}
     QString child_name_plural() {return m_child_name_plural;}
-    VIRTADDR pref_string_vector() {return m_pref_string_vector;}
-    VIRTADDR pop_ratio_vector() {return m_pop_ratio_vector;}
-    VIRTADDR castes_vector() {return m_castes_vector;}
     Material *get_creature_material(int index);
     QHash<int, Material *> get_creature_materials();
     Caste *get_caste_by_id(int idx);
     int adult_size();
 
-    void load_data();
     FlagArray flags() {return m_flags;}
-
     bool caste_flag(CASTE_FLAGS cf);
-
-    void load_caste_ratios();
 
     VIRTADDR get_tissue_address(int index);
 private:
@@ -83,10 +73,6 @@ private:
     QList<Caste*> m_castes;
     QHash<int, Material*> m_creature_mats;
 
-    VIRTADDR m_pref_string_vector;
-    VIRTADDR m_pop_ratio_vector;
-    VIRTADDR m_castes_vector;
-
     QVector<VIRTADDR> m_materials_addr;
     QVector<VIRTADDR> m_tissues_addr;
 
@@ -96,8 +82,10 @@ private:
 
     bool loaded_stats;
 
+    void load_data();
     void read_race();
     void load_materials(int idx = -1);
+    void load_caste_ratios(VIRTADDR ratio_addr);
 };
 
 #endif // RACES_H

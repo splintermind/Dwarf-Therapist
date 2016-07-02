@@ -14,6 +14,8 @@ CONFIG += debug_and_release \
 QMAKE_CXXFLAGS += $$(CXXFLAGS)
 QMAKE_LFLAGS += $$(LDFLAGS)
 
+QMAKE_TARGET.arch = $$(BUILD_PROJ)
+
 INCLUDEPATH += inc \
     inc$${DIR_SEPARATOR}models \
     inc$${DIR_SEPARATOR}grid_view \
@@ -33,7 +35,12 @@ Debug:UI_DIR = debug/.ui
 
 build_pass {
     win32 {
-        message(Setting up for Windows)
+        !contains(QMAKE_TARGET.arch, x86_64){
+            message(Setting up for Windows x86)
+        } else {
+            message(Setting up for Windows x64)
+        }
+
         RC_FILE = DwarfTherapist.rc
         LIBS += -luser32
         LIBS += -lpsapi

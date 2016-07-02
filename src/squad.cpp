@@ -129,7 +129,7 @@ void Squad::read_members() {
 
         m_uniforms.insert(position,u);
         LOGD << "checking orders for position" << position;
-        foreach(VIRTADDR ord_addr, m_df->enumerate_vector(addr+0x4)){ //TODO: offset
+        foreach(VIRTADDR ord_addr, m_df->enumerate_vector(addr+sizeof(qint32))){ //TODO: offset
             read_order(ord_addr, histfig_id);
         }
         position++;
@@ -151,9 +151,9 @@ void Squad::read_orders(){
     int idx = m_df->read_addr(m_address + m_mem->squad_offset("alert"));
     int sched_size = m_mem->squad_offset("sched_size");
     int month = m_df->current_year_time() / m_df->ticks_per_month;
-    VIRTADDR base_addr = schedules.at(idx) + (sched_size * month);
-    QVector<VIRTADDR> orders = m_df->enumerate_vector(base_addr + m_mem->squad_offset("sched_orders"));
-    QVector<VIRTADDR> assigned = m_df->enumerate_vector(base_addr + m_mem->squad_offset("sched_assign"));
+    VIRTADDR curr_sched_addr = schedules.at(idx) + (sched_size * month); //get the schedule for the current month
+    QVector<VIRTADDR> orders = m_df->enumerate_vector(curr_sched_addr + m_mem->squad_offset("sched_orders"));
+    QVector<VIRTADDR> assigned = m_df->enumerate_vector(curr_sched_addr + m_mem->squad_offset("sched_assign"));
     for(int pos = 0; pos < assigned.count(); pos ++){
         int order_id = m_df->read_int(assigned.at(pos));
         int histfig_id = m_members.value(pos);

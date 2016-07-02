@@ -208,7 +208,9 @@ DFInstance::~DFInstance() {
 QVector<VIRTADDR> DFInstance::enumerate_vector(const VIRTADDR &addr) {
     return enum_vec<VIRTADDR>(addr);
 }
-
+QVector<qint32> DFInstance::enumerate_vector_int(const VIRTADDR &addr){
+    return enum_vec<qint32>(addr);
+}
 QVector<qint16> DFInstance::enumerate_vector_short(const VIRTADDR &addr){
     return enum_vec<qint16>(addr);
 }
@@ -216,8 +218,9 @@ QVector<qint16> DFInstance::enumerate_vector_short(const VIRTADDR &addr){
 template<typename T>
 QVector<T> DFInstance::enum_vec(const VIRTADDR &addr){
     QVector<T> out;
+    LOGI << sizeof(qintptr);
     VIRTADDR start = read_addr(addr);
-    VIRTADDR end = read_addr(addr + 4);
+    VIRTADDR end = read_addr(addr + sizeof(qintptr));
     USIZE bytes = end - start;
     if (check_vector(start,end,addr)){
         out.resize(bytes / sizeof(T));
@@ -1220,8 +1223,8 @@ VIRTADDR DFInstance::find_historical_figure(int hist_id){
 
 void DFInstance::load_hist_figures(){
     QVector<VIRTADDR> hist_figs = enumerate_vector(m_layout->address("historical_figures_vector"));
-    foreach(VIRTADDR fig, hist_figs){
-        m_hist_figures.insert(read_int(fig + m_layout->hist_figure_offset("id")),fig);
+    foreach(VIRTADDR addr, hist_figs){
+        m_hist_figures.insert(read_int(addr + m_layout->hist_figure_offset("id")),addr);
     }
 }
 

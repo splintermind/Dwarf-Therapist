@@ -68,7 +68,7 @@ QString DFInstanceWindows::calculate_checksum(const IMAGE_NT_HEADERS &pe_header)
     return hexify(compile_timestamp).toLower();
 }
 
-QString DFInstanceWindows::read_string(const uint &addr) {
+QString DFInstanceWindows::read_string(const VIRTADDR &addr) {
     int len = read_int(addr + memory_layout()->string_length_offset());
     int cap = read_int(addr + memory_layout()->string_cap_offset());
     VIRTADDR buffer_addr = addr + memory_layout()->string_buffer_offset();
@@ -76,7 +76,7 @@ QString DFInstanceWindows::read_string(const uint &addr) {
         buffer_addr = read_addr(buffer_addr);
 
     if (len > cap || len < 0 || len > 1024) {
-#ifdef _DEBUG
+#ifdef QT_DEBUG
         // probably not really a string
         LOGW << "Tried to read a string at" << hex << addr
             << "but it was totally not a string...";
@@ -89,9 +89,14 @@ QString DFInstanceWindows::read_string(const uint &addr) {
     Q_ASSERT_X(len < (1 << 16), "read_string",
                "String must be of sane length!");
 
-    char buf[len];
-    read_raw(buffer_addr, len, buf);
-    return QTextCodec::codecForName("IBM437")->toUnicode(buf, len);
+    if(addr == 0)
+        return QString();
+
+    m_buffer.resize(len);
+    read_raw(buffer_addr,m_buffer.length(),m_buffer.data());
+    if(m_buffer.size() <= 0)
+        return QString();
+    return QTextCodec::codecForName("IBM437")->toUnicode(m_buffer.data());
 }
 
 USIZE DFInstanceWindows::write_string(const VIRTADDR &addr, const QString &str) {
@@ -210,12 +215,12 @@ void DFInstanceWindows::find_running_copy() {
                 return;
             }
 
-            LOGI << "RAW BASE ADDRESS:" << base_addr;
+            //WORD machineType = pe_header.FileHeader.Machine; //0x14c=32bit 0x8664=64bit
+            LOGI << "RAW BASE ADDRESS:" << base_addr; //<< "MACHINE TYPE:" << hexify(machineType);
             m_base_addr = base_addr - 0x00400000;
 
             m_status = DFS_CONNECTED;
             set_memory_layout(calculate_checksum(pe_header));
-
         }
         CloseHandle(snapshot);     // Must clean up the snapshot object!
     }

@@ -89,6 +89,7 @@ public:
     qint16 read_short(const VIRTADDR &addr);
     qint32 read_int(const VIRTADDR &addr);
     QVector<VIRTADDR> enumerate_vector(const VIRTADDR &addr);
+    QVector<qint32> enumerate_vector_int(const VIRTADDR &addr);
     QVector<qint16> enumerate_vector_short(const VIRTADDR &addr);
     Word * read_dwarf_word(const VIRTADDR &addr);
     QString read_dwarf_name(const VIRTADDR &addr);
@@ -233,6 +234,7 @@ protected:
     QString m_df_checksum;
     MemoryLayout *m_layout;
     int m_attach_count;
+    QByteArray m_buffer;
     QTimer *m_heartbeat_timer;
     short m_dwarf_race_id;
     int m_dwarf_civ_id;

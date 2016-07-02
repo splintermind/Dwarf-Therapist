@@ -41,7 +41,6 @@ Race::Race(DFInstance *df, VIRTADDR address, int id, QObject *parent)
     , m_baby_name_plural(QString::null)
     , m_child_name(QString::null)
     , m_child_name_plural(QString::null)
-    , m_castes_vector(0)
     , m_df(df)
     , m_mem(df->memory_layout())
     , m_flags()
@@ -113,14 +112,14 @@ void Race::read_race() {
     m_baby_name = capitalizeEach(m_baby_name);
     m_baby_name_plural = capitalizeEach(m_baby_name_plural);
 
-    m_pref_string_vector = m_address + m_mem->race_offset("pref_string_vector");
-    m_pop_ratio_vector = m_address + m_mem->race_offset("pop_ratio_vector");
-    m_castes_vector = m_address + m_mem->race_offset("castes_vector");
+    //VIRTADDR pref_vector_addr = m_address + m_mem->race_offset("pref_string_vector");
+    VIRTADDR ratio_vector_addr = m_address + m_mem->race_offset("pop_ratio_vector");
+    VIRTADDR castes_vector_addr = m_address + m_mem->race_offset("castes_vector");
     m_materials_addr = m_df->enumerate_vector(m_address + m_mem->race_offset("materials_vector"));
     m_tissues_addr = m_df->enumerate_vector(m_address + m_mem->race_offset("tissues_vector"));
 
     //m_description = m_df->read_string(m_address + m_mem->caste_offset("caste_descr"));
-    QVector<VIRTADDR> castes = m_df->enumerate_vector(m_castes_vector);
+    QVector<VIRTADDR> castes = m_df->enumerate_vector(castes_vector_addr);
     //LOGD << "RACE " << m_name << " (index:" << m_id << ") with " << castes.size() << "castes";
 
     if (!castes.empty()) {
@@ -131,7 +130,7 @@ void Race::read_race() {
 
     //if this is the race that we're currently playing as, we need to load some extra data and set some flags
     if(m_id == m_df->dwarf_race_id()){
-        load_caste_ratios();
+        load_caste_ratios(ratio_vector_addr);
     }
 
     m_flags = FlagArray(m_df, m_address + m_mem->race_offset("flags"));
@@ -146,14 +145,9 @@ Caste * Race::get_caste_by_id(int idx){
     }
 }
 
-void Race::load_caste_ratios(){
+void Race::load_caste_ratios(VIRTADDR ratio_addr){
     if(!loaded_stats){
-        QVector<int> ratios;
-        QVector<VIRTADDR> addrs = m_df->enumerate_vector(m_pop_ratio_vector);
-
-        foreach(VIRTADDR addr, addrs){
-            ratios << (int)addr;
-        }
+        QVector<qint32> ratios = m_df->enumerate_vector_int(ratio_addr);
 
         if(ratios.count() > 0){
             int sum = 0;
