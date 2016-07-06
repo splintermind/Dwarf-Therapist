@@ -454,7 +454,7 @@ void Dwarf::read_id() {
 }
 
 void Dwarf::read_gender_orientation() {
-    BYTE sex = m_df->read_byte(m_address + m_mem->dwarf_offset("sex"));
+    quint8 sex = m_df->read_byte(m_address + m_mem->dwarf_offset("sex"));
     TRACE << "GENDER:" << sex;
     m_gender_info.gender = static_cast<GENDER_TYPE>(sex);
     m_gender_info.orientation = ORIENT_HETERO; //default
@@ -1236,7 +1236,7 @@ void Dwarf::read_current_job(){
             m_current_job_id = DwarfJob::JOB_IDLE;
         }
 
-        BYTE meeting = 0;
+        quint8 meeting = 0;
         int offset = m_mem->dwarf_offset("meeting");
         if(offset != -1){
             meeting = m_df->read_byte(m_address + offset);
@@ -2360,7 +2360,7 @@ void Dwarf::commit_pending(bool single) {
 
 void Dwarf::recheck_equipment(){
     // set the "recheck_equipment" flag if there was a labor change, or squad change
-    BYTE recheck_equipment = m_df->read_byte(m_address + m_mem->dwarf_offset("recheck_equipment"));
+    quint8 recheck_equipment = m_df->read_byte(m_address + m_mem->dwarf_offset("recheck_equipment"));
     recheck_equipment |= 1;
     m_df->write_raw(m_address + m_mem->dwarf_offset("recheck_equipment"), 1, &recheck_equipment);
 }

@@ -32,6 +32,8 @@ THE SOFTWARE.
 #include "defaultfonts.h"
 #include "ui_optionsmenu.h"
 #include "gamedatareader.h"
+#include "dfinstance.h"
+
 #include <QMessageBox>
 #include <QSettings>
 #include <QFontDialog>

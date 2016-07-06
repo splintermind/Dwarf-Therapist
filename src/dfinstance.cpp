@@ -218,7 +218,6 @@ QVector<qint16> DFInstance::enumerate_vector_short(const VIRTADDR &addr){
 template<typename T>
 QVector<T> DFInstance::enum_vec(const VIRTADDR &addr){
     QVector<T> out;
-    LOGI << sizeof(qintptr);
     VIRTADDR start = read_addr(addr);
     VIRTADDR end = read_addr(addr + sizeof(qintptr));
     USIZE bytes = end - start;
@@ -235,15 +234,9 @@ USIZE DFInstance::read_raw(const VIRTADDR &addr, const USIZE &bytes, QByteArray 
     return read_raw(addr, bytes, buffer.data());
 }
 
-BYTE DFInstance::read_byte(const VIRTADDR &addr) {
+quint8 DFInstance::read_byte(const VIRTADDR &addr) {
     BYTE out;
     read_raw(addr, sizeof(BYTE), &out);
-    return out;
-}
-
-WORD DFInstance::read_word(const VIRTADDR &addr) {
-    WORD out;
-    read_raw(addr, sizeof(WORD), &out);
     return out;
 }
 
@@ -772,7 +765,7 @@ void DFInstance::refresh_data(){
 
     VIRTADDR current_year_tick = m_layout->address("cur_year_tick");
     m_cur_year_tick = read_int(current_year_tick);
-    m_current_year = read_word(current_year);
+    m_current_year = read_short(current_year);
     LOGI << "current year:" << m_current_year;
     m_cur_time = (int)m_current_year * ticks_per_year + m_cur_year_tick;
 
@@ -938,7 +931,7 @@ QVector<VIRTADDR> DFInstance::get_creatures(bool report_progress){
         //there are active units, but are they ours?
         int civ_offset = m_layout->dwarf_offset("civ");
         foreach(VIRTADDR entry, entries){
-            if(read_word(entry + civ_offset)==m_dwarf_civ_id){
+            if(read_short(entry + civ_offset)==m_dwarf_civ_id){
                 if(report_progress){
                     LOGI << "using active units";
                 }

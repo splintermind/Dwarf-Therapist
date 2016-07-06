@@ -72,19 +72,18 @@ public:
     const QString df_checksum() {return m_df_checksum;}
     const QString layout_subdir();
     DFI_STATUS status() const {return m_status;}
-    WORD dwarf_race_id() {return m_dwarf_race_id;}
+    quint16 dwarf_race_id() {return m_dwarf_race_id;}
     QList<MemoryLayout*> get_layouts() { return m_memory_layouts.values(); }
     QDir get_df_dir() { return m_df_dir; }
-    WORD current_year() {return m_current_year;}
-    WORD dwarf_civ_id() {return m_dwarf_civ_id;}
+    quint16 current_year() {return m_current_year;}
+    quint16 dwarf_civ_id() {return m_dwarf_civ_id;}
     const QStringList status_err_msg();
 
     // memory reading
     virtual USIZE read_raw(const VIRTADDR &addr, const USIZE &bytes, void *buf) = 0;
     virtual QString read_string(const VIRTADDR &addr) = 0;
     USIZE read_raw(const VIRTADDR &addr, const USIZE &bytes, QByteArray &buffer);
-    BYTE read_byte(const VIRTADDR &addr);
-    WORD read_word(const VIRTADDR &addr);
+    quint8 read_byte(const VIRTADDR &addr);
     VIRTADDR read_addr(const VIRTADDR &addr);
     qint16 read_short(const VIRTADDR &addr);
     qint32 read_int(const VIRTADDR &addr);
@@ -238,7 +237,7 @@ protected:
     QTimer *m_heartbeat_timer;
     short m_dwarf_race_id;
     int m_dwarf_civ_id;
-    WORD m_current_year;
+    quint16 m_current_year;
     QDir m_df_dir;
     QVector<Dwarf*> m_actual_dwarves;
     QVector<Dwarf*> m_labor_capable_dwarves;

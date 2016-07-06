@@ -26,11 +26,14 @@ THE SOFTWARE.
 #include <QPushButton>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include <QSettings>
+
 #include "equipmentoverviewdock.h"
 #include "dwarftherapist.h"
 #include "sortabletableitems.h"
 #include "item.h"
 #include "equipwarn.h"
+#include "dfinstance.h"
 
 QString EquipmentOverviewDock::m_option_name = "options/docks/equipoverview_include_mats";
 

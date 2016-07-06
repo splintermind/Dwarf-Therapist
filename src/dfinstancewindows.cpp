@@ -78,8 +78,7 @@ QString DFInstanceWindows::read_string(const VIRTADDR &addr) {
     if (len > cap || len < 0 || len > 1024) {
 #ifdef QT_DEBUG
         // probably not really a string
-        LOGW << "Tried to read a string at" << hex << addr
-            << "but it was totally not a string...";
+        LOGD << "Size check failed for a string at" << hex << addr << "Length:" << len << "Capacity:" << cap;
 #endif
         return QString();
     }

@@ -19,7 +19,7 @@ FlagArray::FlagArray(DFInstance *df, VIRTADDR base_addr)
         LOGW << "aborting reading flags, size too large" << size_in_bytes;
         return;
     }
-    BYTE b;
+    quint8 b;
     int position;
     for(uint i = 0; i < size_in_bytes; i++){
         position = 7;
