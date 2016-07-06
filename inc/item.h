@@ -25,13 +25,16 @@ THE SOFTWARE.
 
 #include "truncatingfilelogger.h"
 #include "global_enums.h"
-#include "material.h"
-#include "itemdefuniform.h"
-#include "itemsubtype.h"
+#include "utils.h"
+#include "flagarray.h"
+
 #include <QObject>
 #include <QColor>
 
 class QString;
+class ItemSubtype;
+class ItemDefUniform;
+class Material;
 
 class Item : public QObject {
     Q_OBJECT

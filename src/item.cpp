@@ -23,6 +23,9 @@ THE SOFTWARE.
 #include "item.h"
 #include "gamedatareader.h"
 #include "itemammo.h"
+#include "itemdefuniform.h"
+#include "itemsubtype.h"
+#include "material.h"
 #include <QPalette>
 
 const QList<ITEM_TYPE> Item::m_items_subtypes=Item::init_subtypes();
@@ -100,7 +103,7 @@ Item::~Item(){
 
 const QList<ITEM_TYPE> Item::init_subtypes(){
     QList<ITEM_TYPE> tmp;
-    tmp << SHOES << PANTS << ARMOR << GLOVES << HELM << WEAPON << AMMO << TRAPCOMP << SHIELD << TOOL << INSTRUMENT;
+    tmp << SHOES << PANTS << ARMOR << GLOVES << HELM << WEAPON << AMMO << SIEGEAMMO << TRAPCOMP << SHIELD << TOOL << INSTRUMENT;
     return tmp;
 }
 const QList<MATERIAL_FLAGS> Item::init_mat_cats(){

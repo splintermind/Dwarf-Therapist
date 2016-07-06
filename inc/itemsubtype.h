@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include "dfinstance.h"
 #include "memorylayout.h"
 #include "flagarray.h"
+#include "item.h"
 
 class ItemSubtype : public QObject {
     Q_OBJECT
@@ -84,7 +85,7 @@ protected:
     int m_offset_mat;
 
     virtual void read_data(){
-        if(m_address){
+        if(m_address && Item::has_subtypes(m_iType)){
             m_subType = m_df->read_short(m_address + m_mem->item_subtype_offset("sub_type"));
 
             QString mat_name;
@@ -106,7 +107,11 @@ protected:
     }
 
     virtual void set_base_offsets(){
-        m_offset_adj = m_mem->item_subtype_offset("adjective");
+        if(Item::has_subtypes(m_iType) && !m_iType == INSTRUMENT){
+            m_offset_adj = m_mem->item_subtype_offset("adjective");
+        }else{
+            m_offset_adj = -1;
+        }
         m_offset_mat = -1;
         m_offset_preplural = -1;
     }
