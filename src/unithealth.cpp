@@ -430,6 +430,7 @@ void UnitHealth::read_health_info(){
     }else{
         LOGW << "skipping health status read due to invalid caste for unit" << m_dwarf->nice_name();
     }
+    mem = 0;
 }
 
 void UnitHealth::read_wounds(){

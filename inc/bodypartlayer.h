@@ -71,6 +71,7 @@ public:
                 }
             }
         }
+        mem = 0;
     }
 
     virtual ~BodyPartLayer(){

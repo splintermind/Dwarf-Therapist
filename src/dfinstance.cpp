@@ -102,7 +102,7 @@ DFInstance::DFInstance(QObject* parent)
     d.setSorting(QDir::Name | QDir::Reversed);
     QFileInfoList files = d.entryInfoList();
     foreach(QFileInfo info, files) {
-        MemoryLayout *temp = new MemoryLayout(this,info);
+        MemoryLayout *temp = new MemoryLayout(this,info,this);
         if (temp->is_valid()) {
             LOGI << "adding valid layout" << temp->game_version() << "checksum:" << temp->checksum() << "SHA:" << temp->git_sha();
             m_memory_layouts.insert(temp->checksum().toLower(), temp);
@@ -163,11 +163,9 @@ bool DFInstance::check_vector(const VIRTADDR start, const VIRTADDR end, const VI
 }
 
 DFInstance::~DFInstance() {
-    foreach(MemoryLayout *l, m_memory_layouts) {
-        delete(l);
-    }
-    m_memory_layouts.clear();
     m_layout = 0;
+    qDeleteAll(m_memory_layouts);
+    m_memory_layouts.clear();
 
     delete m_languages;
     delete m_fortress;
@@ -1131,7 +1129,7 @@ bool DFInstance::add_new_layout(const QString & filename, const QString data, QS
 
     if(ok){
         file_info.refresh();
-        MemoryLayout *temp = new MemoryLayout(this,file_info);
+        MemoryLayout *temp = new MemoryLayout(this,file_info,this);
         if(temp && temp->is_valid()) {
             LOGI << "adding valid layout" << temp->game_version() << temp->checksum();
             m_memory_layouts.insert(temp->checksum().toLower(), temp);

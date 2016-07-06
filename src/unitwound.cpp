@@ -328,6 +328,7 @@ void UnitWound::read_wound(){
 
         m_wounded_parts.append(wpd);
     }
+    mem = 0;
 }
 
 void UnitWound::add_detail(wounded_part_details &wpd, eHealth::H_INFO id, bool idx0, bool idx1, bool idx2){

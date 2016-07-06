@@ -7,10 +7,11 @@
 
 class DFInstance;
 
-class MemoryLayout {
+class MemoryLayout : public QObject {
+    Q_OBJECT
 public:
-    explicit MemoryLayout(DFInstance *df, const QFileInfo &fileinfo);
-    MemoryLayout(DFInstance *df, const QFileInfo &fileinfo, const QSettings &data);
+    explicit MemoryLayout(DFInstance *df, const QFileInfo &fileinfo, QObject *parent = 0);
+    MemoryLayout(DFInstance *df, const QFileInfo &fileinfo, const QSettings &data, QObject *parent = 0);
     ~MemoryLayout();
 
     typedef enum{

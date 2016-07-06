@@ -171,6 +171,7 @@ void ActivityEvent::read_data(){
                 add_action(histfig_id,event_type);
             }
         }
+        mem = 0;
     }
 }
 

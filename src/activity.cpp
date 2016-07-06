@@ -66,6 +66,7 @@ void Activity::read_data(){
                 m_events.insert(ae->id(),ae);
             }
         }
+        mem = 0;
     }
 }
 

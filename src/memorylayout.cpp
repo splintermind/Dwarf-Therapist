@@ -5,8 +5,9 @@
 #include <QSettings>
 #include <QCryptographicHash>
 
-MemoryLayout::MemoryLayout(DFInstance *df, const QFileInfo &fileinfo)
-    : m_df(df)
+MemoryLayout::MemoryLayout(DFInstance *df, const QFileInfo &fileinfo, QObject *parent)
+    : QObject(parent)
+    , m_df(df)
     , m_fileinfo(fileinfo)
     , m_checksum(QString::null)
     , m_git_sha(QString::null)
@@ -22,8 +23,9 @@ MemoryLayout::MemoryLayout(DFInstance *df, const QFileInfo &fileinfo)
     }
 }
 
-MemoryLayout::MemoryLayout(DFInstance *df, const QFileInfo &fileinfo, const QSettings &data)
-    : m_df(df)
+MemoryLayout::MemoryLayout(DFInstance *df, const QFileInfo &fileinfo, const QSettings &data, QObject *parent)
+    : QObject(parent)
+    , m_df(df)
     , m_fileinfo(fileinfo)
     , m_checksum(QString::null)
     , m_git_sha(QString::null)
@@ -94,29 +96,22 @@ bool MemoryLayout::is_valid() {
 
 void MemoryLayout::read_group(const MEM_SECTION &section) {
     QString ini_name = section_name(section);
-    AddressHash map;
-    if(m_offsets.contains(section)){
-        map = m_offsets.take(section);
-    }
     m_data.beginGroup(ini_name);
     foreach(QString k, m_data.childKeys()) {
-        map.insert(k, read_hex(k));
+        m_offsets[section].insert(k,read_hex(k));
     }
     m_data.endGroup();
-    m_offsets.insert(section,map);
 }
 
 void MemoryLayout::read_flags(const UNIT_FLAG_TYPE &flag_type){
     QString ini_name = flag_type_name(flag_type);
-    QHash<uint,QString> map = m_flags[flag_type];
     int flag_count = m_data.beginReadArray(ini_name);
     for (int idx = 0; idx < flag_count; ++idx) {
         m_data.setArrayIndex(idx);
-        map.insert(read_hex("value"),
-            m_data.value("name", QString("unk_%1.%2").arg(ini_name).arg(idx)).toString());
+        m_flags[flag_type].insert(read_hex("value"),
+                                  m_data.value("name", QString("unk_%1.%2").arg(ini_name).arg(idx)).toString());
     }
     m_data.endArray();
-    m_flags.insert(flag_type,map);
 }
 
 uint MemoryLayout::string_buffer_offset() {
