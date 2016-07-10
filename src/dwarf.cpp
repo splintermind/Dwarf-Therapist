@@ -1212,8 +1212,10 @@ void Dwarf::read_current_job(){
                 QString material_name;
                 short mat_type = m_df->read_short(current_job_addr + m_mem->job_detail("mat_type"));
                 int mat_index = m_df->read_int(current_job_addr + m_mem->job_detail("mat_index"));
+                Material *m;
                 if(mat_index >= 0 || mat_type >= 0){
                     material_name = m_df->find_material_name(mat_index ,mat_type, NONE);
+                    m = m_df->find_material(mat_index,mat_type);
                 }
                 if(material_name.isEmpty()){
                     quint32 mat_category = m_df->read_addr(current_job_addr + m_mem->job_detail("mat_category"));
@@ -1221,7 +1223,15 @@ void Dwarf::read_current_job(){
                 }
                 if(!material_name.isEmpty()){
                     m_current_job = job->name(capitalize(material_name));
+                    if(m_current_job.contains(tr("Forge/Make"))){
+                        if(m && m->flags().has_flag(ITEMS_HARD)){
+                            m_current_job.replace(tr("/Make"),"");
+                        }else{
+                            m_current_job.replace(tr("Forge/"),"");
+                        }
+                    }
                 }
+                m = 0;
             }
 
         }else{
