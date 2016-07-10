@@ -41,36 +41,31 @@ public:
     //! Return the memory address (in hex) of this creature in the remote DF process
     VIRTADDR address() {return m_address;}
 
-    QString base() {return m_base;}
-    QString noun() {return m_noun;}
-    QString plural_noun() {return m_plural_noun;}
-    QString adjective() {return m_adjective;}
-//    QString prefix() {return m_prefix;}
-    QString verb() {return m_verb;}
-    QString present_simple_verb() {return m_present_simple_verb;}
-    QString past_simple_verb() {return m_past_simple_verb;}
-    QString past_participle_verb() {return m_past_participle_verb;}
-    QString present_participle_verb() {return m_present_participle_verb;}
+    typedef enum {
+        WF_NOUN,
+        WF_NOUN_PL,
+        WF_ADJ,
+        WF_PRE,
+        WF_VERB,
+        WF_VERB_PRES,
+        WF_VERB_PST,
+        WF_VERB_PPP,
+        WF_VERB_PRESP,
+        WF_MAX
+    } WORD_FORM;
+
+    QString get_form(const WORD_FORM w_form);
 
     void refresh_data();
 
 private:
     VIRTADDR m_address;
-    QString m_base;
-    QString m_noun;
-    QString m_plural_noun;
-    QString m_adjective;
-//    QString m_prefix;
-    QString m_verb;
-    QString m_present_simple_verb;
-    QString m_past_simple_verb;
-    QString m_past_participle_verb;
-    QString m_present_participle_verb;
+    QStringList m_forms;
 
     DFInstance * m_df;
     MemoryLayout * m_mem;
 
-    void read_members();
+    void read_forms();
 };
 
 #endif

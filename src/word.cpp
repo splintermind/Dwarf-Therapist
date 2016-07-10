@@ -30,15 +30,6 @@ THE SOFTWARE.
 Word::Word(DFInstance *df, VIRTADDR address, QObject *parent)
     : QObject(parent)
     , m_address(address)
-    , m_base(QString::null)
-    , m_noun(QString::null)
-    , m_plural_noun(QString::null)
-    , m_adjective(QString::null)
-    , m_verb(QString::null)
-    , m_present_simple_verb(QString::null)
-    , m_past_simple_verb(QString::null)
-    , m_past_participle_verb(QString::null)
-    , m_present_participle_verb(QString::null)
     , m_df(df)
     , m_mem(df->memory_layout())
 {
@@ -61,20 +52,24 @@ void Word::refresh_data() {
     m_mem = m_df->memory_layout();
     TRACE << "Starting refresh of Word data at" << hexify(m_address);
 
-    read_members();
+    read_forms();
 }
 
-void Word::read_members() {
-    m_base = m_df->read_string(m_address + m_mem->word_offset("base"));
-    TRACE << "read word " << m_base;
-    m_noun = m_df->read_string(m_address + m_mem->word_offset("noun_singular"));
-    m_plural_noun = m_df->read_string(m_address + m_mem->word_offset("noun_plural"));
-    m_adjective = m_df->read_string(m_address + m_mem->word_offset("adjective"));
-//    m_prefix = m_df->read_string(m_address + m_mem->word_offset("prefix"));
-    m_verb = m_df->read_string(m_address + m_mem->word_offset("verb"));
-    m_present_simple_verb = m_df->read_string(m_address + m_mem->word_offset("present_simple_verb"));
-    m_past_simple_verb = m_df->read_string(m_address + m_mem->word_offset("past_simple_verb"));
-    m_past_participle_verb = m_df->read_string(m_address + m_mem->word_offset("past_participle_verb"));
-    m_present_participle_verb = m_df->read_string(m_address + m_mem->word_offset("present_participle_verb"));
+void Word::read_forms() {
+    m_forms.clear();
+    //m_forms << m_df->read_string(m_address + m_mem->word_offset("base"));
+    TRACE << "read word " << m_forms.value(0,"UNK");
+    m_forms << m_df->read_string(m_address + m_mem->word_offset("noun_singular"));
+    m_forms << m_df->read_string(m_address + m_mem->word_offset("noun_plural"));
+    m_forms << m_df->read_string(m_address + m_mem->word_offset("adjective"));
+    m_forms << "";//m_df->read_string(m_address + m_mem->word_offset("prefix"));
+    m_forms << m_df->read_string(m_address + m_mem->word_offset("verb"));
+    m_forms << m_df->read_string(m_address + m_mem->word_offset("present_simple_verb"));
+    m_forms << m_df->read_string(m_address + m_mem->word_offset("past_simple_verb"));
+    m_forms << m_df->read_string(m_address + m_mem->word_offset("past_participle_verb"));
+    m_forms << m_df->read_string(m_address + m_mem->word_offset("present_participle_verb"));
 }
 
+QString Word::get_form(const WORD_FORM w_form){
+    return m_forms.value((int)w_form,"");
+}

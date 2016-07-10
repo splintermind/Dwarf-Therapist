@@ -40,15 +40,13 @@ QString DFInstanceNix::read_string(const VIRTADDR &addr) {
     int len = read_int(str_addr);
     int cap = read_int(str_addr + offsetof(STLStringHeader,capacity));
 
-    if (len > cap || len < 0 || len > 1024) {
-        // probably not really a string
-        LOGD << "Size check failed for a string at" << hex << addr << "Length:" << len << "Capacity:" << cap;
+    if (validate_string(addr,len,cap)) {
+        m_buffer.resize(len);
+        read_raw(read_addr(addr), m_buffer.length(), m_buffer.data());
+        return QTextCodec::codecForName("IBM437")->toUnicode(m_buffer.data());
+    } else {
         return QString();
     }
-
-    m_buffer.resize(len);
-    read_raw(read_addr(addr), m_buffer.length(), m_buffer.data());
-    return QTextCodec::codecForName("IBM437")->toUnicode(m_buffer.data());
 }
 
 bool DFInstanceNix::df_running(){

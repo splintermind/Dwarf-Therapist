@@ -24,7 +24,8 @@ THE SOFTWARE.
 #include "dfinstance.h"
 #include "memorylayout.h"
 #include "truncatingfilelogger.h"
-#include "word.h"
+
+#include <QStringBuilder>
 
 Languages::Languages(DFInstance *df, QObject *parent)
     : QObject(parent)
@@ -54,6 +55,10 @@ void Languages::load_data() {
     }
     // make sure our reference is up to date to the active memory layout
     m_mem = m_df->memory_layout();
+    m_offset_lang = m_mem->word_offset("language_id");
+    m_offset_words = m_mem->word_offset("words");
+    m_offset_word_type =m_mem->word_offset("word_type");
+
     TRACE << "Starting refresh of Language data at" << hexify(m_address);
 
     LOGD << "Loading language translation tables";
@@ -100,99 +105,65 @@ void Languages::load_data() {
 
 QString Languages::language_word(VIRTADDR addr)
 {
-    QString out;
-    // front_compound, rear_compound, first_adjective, second_adjective, hypen_compound
+    // front_compound, rear_compound, first_adjective, second_adjective, hyphen_compound
     // the_x, of_x
-    QVector<QString> words;
-    int language_id = m_df->read_int(addr + m_df->memory_layout()->word_offset("language_id")); //language_name.language
-    //language_name.words
-    for (int i=0; i< 7; i++){
-        QString word = word_chunk(m_df->read_int(addr + m_df->memory_layout()->word_offset("words") + i*4), language_id);
-        words.append(word);
-    }
-    QString first, second, third;
-    first = capitalize(first.append(words[0]).append(words[1]));
-    if (!words[5].isEmpty())
-    {
-        second.append(words[2]).append(words[3]).append(words[4]).append(words[5]);
-        second = capitalize(second);
-    }
-    if (!words[6].isEmpty())
-        third.append(capitalize(words[6]));
+    int language_id = m_df->read_int(addr + m_offset_lang); //language_name.language
+    QStringList words = read_words(addr,language_id);
 
-    out.append(first + " " + second + " " + third);
-    return out.trimmed();
+    QStringList name_parts;
+    name_parts << words.at(0) % words.at(1);
+    if (!words.value(5).isEmpty())
+    {
+        name_parts << words.at(2) % words.at(3) % words.at(4) % words.at(5);
+    }
+    name_parts << words.at(6);
+
+    return capitalizeEach(name_parts.join(" ").simplified());
 }
 
 QString Languages::english_word(VIRTADDR addr)
 {
-    QString out;
-    // front_compound, rear_compound, first_adjective, second_adjective, hypen_compound
+    // front_compound, rear_compound, first_adjective, second_adjective, hyphen_compound
     // the_x, of_x
-    QVector<QString> words;
-    for (int i=0; i< 7; i++){
-        //enum for what word type
-        short val = m_df->read_short(addr + m_df->memory_layout()->word_offset("word_type") + 2*i);
-        //words id to lookup based on the word type
-        QString word = word_chunk_declined(m_df->read_int(addr + m_df->memory_layout()->word_offset("words") + i*4), val);
-        words.append(word);
-    }
-    QString first, second, third;
-    first = capitalize(first.append(words[0]).append(words[1]));
-    if (!words[5].isEmpty())
+    QStringList words = read_words(addr);
+    QStringList name_parts;
+    name_parts << words.at(0) % words.at(1);
+    if (!words.value(5).isEmpty())
     {
-        second = "The";
-        second.append(" " + capitalize(words[2]));
-        second = second.trimmed();
-        second.append(" " + capitalize(words[3]));
-        second = second.trimmed();
-        if (words[4].isEmpty())
-            second.append(" " + capitalize(words[5]));
+        name_parts << "The" << words.at(2) << words.at(3);
+        if (words.value(4).isEmpty())
+            name_parts << words.at(5);
         else
         {
-            second.append(" " + capitalize(words[4]) + "-" + capitalize(words[5]));
+            name_parts << words.at(4) % "-" % capitalize(words.at(5));
         }
     }
-    if (!words[6].isEmpty())
-        third.append("of " + capitalize(words[6]));
+    if (!words.value(6).isEmpty()){
+        name_parts << "of" << words.at(6);
+    }
 
-    out.append(first + " " + second + " " + third);
-    return out.trimmed();
+    return capitalizeEach(name_parts.join(" ").simplified());
 }
 
-QString Languages::word_chunk_declined(uint word, short pos) {
+QStringList Languages::read_words(VIRTADDR addr, int lang_id){
+    QStringList words;
+    for (int i=0; i< 7; i++){
+        if (lang_id < 0){
+            Word::WORD_FORM w_form = static_cast<Word::WORD_FORM>(
+                        m_df->read_short(addr + m_offset_word_type + i*sizeof(qint16)));
+            //words id to lookup based on the word type
+            words << word_chunk_declined(m_df->read_int(addr + m_offset_words + i*sizeof(qint32)), w_form);
+        }else{
+            words << word_chunk(m_df->read_int(addr + m_offset_words + i*sizeof(qint32)), lang_id);
+        }
+    }
+    return words;
+}
+
+QString Languages::word_chunk_declined(uint word, Word::WORD_FORM w_form) {
     QString out = "";
     if (word != 0xFFFFFFFF) {
-        switch(pos)
-        {
-            case 0:
-                out=m_language[word]->noun();
-                break;
-            case 1:
-                out=m_language[word]->plural_noun();
-                break;
-            case 2:
-                out=m_language[word]->adjective();
-                break;
-            case 3:
-                //out=m_language[word]->prefix();
-                break;
-            case 4:
-                out=m_language[word]->verb();
-                break;
-            case 5:
-                out=m_language[word]->present_simple_verb();
-                break;
-            case 6:
-                out=m_language[word]->past_simple_verb();
-                break;
-            case 7:
-                out=m_language[word]->past_participle_verb();
-                break;
-            case 8:
-                out=m_language[word]->present_participle_verb();
-                break;
-        }
+        out=m_language[word]->get_form(w_form);
     }
     return out;
 }

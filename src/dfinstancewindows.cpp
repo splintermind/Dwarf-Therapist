@@ -72,30 +72,20 @@ QString DFInstanceWindows::read_string(const VIRTADDR &addr) {
     int len = read_int(addr + memory_layout()->string_length_offset());
     int cap = read_int(addr + memory_layout()->string_cap_offset());
     VIRTADDR buffer_addr = addr + memory_layout()->string_buffer_offset();
-    if (cap >= 16)
+    if (cap >= 16) {
         buffer_addr = read_addr(buffer_addr);
-
-    if (len > cap || len < 0 || len > 1024) {
-#ifdef QT_DEBUG
-        // probably not really a string
-        LOGD << "Size check failed for a string at" << hex << addr << "Length:" << len << "Capacity:" << cap;
-#endif
+    }
+    if (validate_string(buffer_addr,len,cap)) {
+        m_buffer.resize(len);
+        read_raw(buffer_addr,m_buffer.length(),m_buffer.data());
+        if (m_buffer.size() <= 0) {
+            return QString();
+        } else {
+            return QTextCodec::codecForName("IBM437")->toUnicode(m_buffer.data());
+        }
+    } else {
         return QString();
     }
-    Q_ASSERT_X(len <= cap, "read_string",
-               "Length must be less than or equal to capacity!");
-    Q_ASSERT_X(len >= 0, "read_string", "Length must be >=0!");
-    Q_ASSERT_X(len < (1 << 16), "read_string",
-               "String must be of sane length!");
-
-    if(addr == 0)
-        return QString();
-
-    m_buffer.resize(len);
-    read_raw(buffer_addr,m_buffer.length(),m_buffer.data());
-    if(m_buffer.size() <= 0)
-        return QString();
-    return QTextCodec::codecForName("IBM437")->toUnicode(m_buffer.data());
 }
 
 USIZE DFInstanceWindows::write_string(const VIRTADDR &addr, const QString &str) {

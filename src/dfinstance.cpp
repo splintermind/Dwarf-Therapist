@@ -134,7 +134,7 @@ DFInstance * DFInstance::newInstance(){
 #endif
 }
 
-bool DFInstance::check_vector(const VIRTADDR start, const VIRTADDR end, const VIRTADDR addr){
+bool DFInstance::validate_vector(const VIRTADDR start, const VIRTADDR end, const VIRTADDR addr){
     TRACE << "beginning vector enumeration at" << hex << addr;
     TRACE << "start of vector" << hex << start;
     TRACE << "end of vector" << hex << end;
@@ -160,6 +160,19 @@ bool DFInstance::check_vector(const VIRTADDR start, const VIRTADDR end, const VI
     }
 
     return is_acceptable_size;
+}
+
+bool DFInstance::validate_string(const VIRTADDR addr, const int len, const int cap){
+    if(addr < 1)
+        return false;
+    if (len > cap || len < 0 || len > 1024) {
+        // probably not really a string
+        Q_ASSERT_X(len <= cap, "read_string","Length must be less than or equal to capacity!");
+        Q_ASSERT_X(len >= 0, "read_string", "Length must be >=0!");
+        Q_ASSERT_X(len < (1 << 16), "read_string","String must be of sane length!");
+        return false;
+    }
+    return true;
 }
 
 DFInstance::~DFInstance() {
@@ -219,7 +232,7 @@ QVector<T> DFInstance::enum_vec(const VIRTADDR &addr){
     VIRTADDR start = read_addr(addr);
     VIRTADDR end = read_addr(addr + sizeof(qintptr));
     USIZE bytes = end - start;
-    if (check_vector(start,end,addr)){
+    if (validate_vector(start,end,addr)){
         out.resize(bytes / sizeof(T));
         USIZE bytes_read = read_raw(start, bytes, out.data());
         TRACE << "FOUND" << bytes_read / sizeof(VIRTADDR) << "addresses in vector at" << hexify(addr);
@@ -978,80 +991,6 @@ QString DFInstance::pprint(const QByteArray &ba) {
         out.append("\n");
     }
     return out;
-}
-
-Word * DFInstance::read_dwarf_word(const VIRTADDR &addr) {
-    Word * result = NULL;
-    uint word_id = read_int(addr);
-    if(word_id != 0xFFFFFFFF) {
-        result = DT->get_word(word_id);
-    }
-    return result;
-}
-
-QString DFInstance::read_dwarf_name(const VIRTADDR &addr) {
-    QString result = "The";
-
-    //7 parts e.g.  ffffffff ffffffff 000006d4
-    //      ffffffff ffffffff 000002b1 ffffffff
-
-    //Unknown
-    Word * word = read_dwarf_word(addr);
-    if(word)
-        result.append(" " + capitalize(word->base()));
-
-    //Unknown
-    word = read_dwarf_word(addr + 0x04);
-    if(word)
-        result.append(" " + capitalize(word->base()));
-
-    //Verb
-    word = read_dwarf_word(addr + 0x08);
-    if(word) {
-        result.append(" " + capitalize(word->adjective()));
-    }
-
-    //Unknown
-    word = read_dwarf_word(addr + 0x0C);
-    if(word)
-        result.append(" " + capitalize(word->base()));
-
-    //Unknown
-    word = read_dwarf_word(addr + 0x10);
-    if(word)
-        result.append(" " + capitalize(word->base()));
-
-    //Noun
-    word = read_dwarf_word(addr + 0x14);
-    bool singular = false;
-    if(word) {
-        if(word->plural_noun().isEmpty()) {
-            result.append(" " + capitalize(word->noun()));
-            singular = true;
-        } else {
-            result.append(" " + capitalize(word->plural_noun()));
-        }
-    }
-
-    //of verb(noun)
-    word = read_dwarf_word(addr + 0x18);
-    if(word) {
-        if( !word->verb().isEmpty() ) {
-            if(singular) {
-                result.append(" of " + capitalize(word->verb()));
-            } else {
-                result.append(" of " + capitalize(word->present_participle_verb()));
-            }
-        } else {
-            if(singular) {
-                result.append(" of " + capitalize(word->noun()));
-            } else {
-                result.append(" of " + capitalize(word->plural_noun()));
-            }
-        }
-    }
-
-    return result.trimmed();
 }
 
 void DFInstance::set_memory_layout(QString checksum){

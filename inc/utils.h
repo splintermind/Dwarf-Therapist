@@ -31,7 +31,6 @@ THE SOFTWARE.
 #include <QString>
 #include <math.h>
 
-// valid for as long as DF stays 32bit
 typedef quintptr VIRTADDR;
 typedef quintptr USIZE;
 typedef qintptr SSIZE;

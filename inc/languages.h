@@ -25,10 +25,10 @@ THE SOFTWARE.
 
 #include <QObject>
 #include "utils.h"
+#include "word.h"
 
 class DFInstance;
 class MemoryLayout;
-class Word;
 
 class Languages : public QObject {
     Q_OBJECT
@@ -41,18 +41,22 @@ public:
     QString language_word(VIRTADDR address);
     QString english_word(VIRTADDR address);
 
-    void load_data();
-
 private:
     VIRTADDR m_address;
     QVector<Word *> m_language;
     QHash<int, QStringList> m_words;
+    qint16 m_offset_lang;
+    qint16 m_offset_words;
+    qint16 m_offset_word_type;
 
     DFInstance * m_df;
     MemoryLayout * m_mem;
 
+    void load_data();
+    QStringList read_words(VIRTADDR addr, int lang_id = -1);
+
     QString word_chunk(uint word, int language_id);
-    QString word_chunk_declined(uint word, short pos);
+    QString word_chunk_declined(uint word, Word::WORD_FORM w_form);
 
 };
 
