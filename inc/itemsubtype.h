@@ -107,7 +107,7 @@ protected:
     }
 
     virtual void set_base_offsets(){
-        if(Item::has_subtypes(m_iType) && !m_iType == INSTRUMENT){
+        if(Item::has_subtypes(m_iType) && m_iType != INSTRUMENT){
             m_offset_adj = m_mem->item_subtype_offset("adjective");
         }else{
             m_offset_adj = -1;
