@@ -246,8 +246,8 @@ USIZE DFInstance::read_raw(const VIRTADDR &addr, const USIZE &bytes, QByteArray 
 }
 
 quint8 DFInstance::read_byte(const VIRTADDR &addr) {
-    BYTE out;
-    read_raw(addr, sizeof(BYTE), &out);
+    quint8 out;
+    read_raw(addr, sizeof(quint8), &out);
     return out;
 }
 
