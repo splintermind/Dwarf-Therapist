@@ -33,6 +33,9 @@ THE SOFTWARE.
 
 typedef quintptr VIRTADDR;
 typedef quintptr USIZE;
+#if QT_MAJOR_VERSION < 5
+    typedef qint64 qintptr;
+#endif
 typedef qintptr SSIZE;
 
 static inline QColor complement(const QColor &in_color, float brightness_threshold = 0.50) {
