@@ -1212,7 +1212,7 @@ void Dwarf::read_current_job(){
                 QString material_name;
                 short mat_type = m_df->read_short(current_job_addr + m_mem->job_detail("mat_type"));
                 int mat_index = m_df->read_int(current_job_addr + m_mem->job_detail("mat_index"));
-                Material *m;
+                Material *m = 0;
                 if(mat_index >= 0 || mat_type >= 0){
                     material_name = m_df->find_material_name(mat_index ,mat_type, NONE);
                     m = m_df->find_material(mat_index,mat_type);
@@ -1231,7 +1231,6 @@ void Dwarf::read_current_job(){
                         }
                     }
                 }
-                m = 0;
             }
 
         }else{
