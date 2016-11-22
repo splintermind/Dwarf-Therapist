@@ -53,6 +53,7 @@ THE SOFTWARE.
 #include "itemweapon.h"
 #include "itemarmor.h"
 #include "itemammo.h"
+#include "iteminstrument.h"
 
 #include <QVector>
 #include <QAction>
@@ -119,6 +120,7 @@ Dwarf::Dwarf(DFInstance *df, const uint &addr, QObject *parent)
     , m_uniform(0x0)
     , m_goals_realized(0)
     , m_worst_rust_level(0)
+    , m_labor_reason("")
     , m_curse_type(eCurse::NONE)
 {
     read_settings();
@@ -185,7 +187,7 @@ Dwarf::~Dwarf() {
 
 Dwarf *Dwarf::get_dwarf(DFInstance *df, const VIRTADDR &addr) {
     MemoryLayout *mem = df->memory_layout();
-    TRACE << "attempting to load dwarf at" << addr << "using memory layout" << mem->game_version();
+    TRACE << "attempting to load unit at" << addr << "using memory layout" << mem->game_version();
 
     //only for test
     if(DT->arena_mode){
@@ -196,35 +198,49 @@ Dwarf *Dwarf::get_dwarf(DFInstance *df, const VIRTADDR &addr) {
     quint32 flags1 = df->read_addr(addr + mem->dwarf_offset("flags1"));
     quint32 flags2 = df->read_addr(addr + mem->dwarf_offset("flags2"));
     quint32 flags3 = df->read_addr(addr + mem->dwarf_offset("flags3"));
+    //quint32 flags4 = df->read_addr(addr + mem->dwarf_offset("flags3")+0x4);
 
     int civ_id = df->read_int(addr + mem->dwarf_offset("civ"));
     int race_id = df->read_int(addr + mem->dwarf_offset("race"));
 
-    TRACE << "examining creature at" << hex << addr;
-    TRACE << "FLAGS1 :" << hexify(flags1);
-    TRACE << "FLAGS2 :" << hexify(flags2);
-    TRACE << "FLAGS3 :" << hexify(flags3);
-    TRACE << "RACE   :" << hexify(race_id);
+    TRACE << "examining unit at" << hex << addr;
+    TRACE << "  FLAGS1:" << hexify(flags1);
+    TRACE << "  FLAGS2:" << hexify(flags2);
+    TRACE << "  FLAGS3:" << hexify(flags3);
+    //LOGI << "  FLAGS4:" << hexify(flags4);
+    TRACE << "  RACE:" << race_id;
+    TRACE << "  CIV:" << civ_id;
 
     bool is_caged = flags1 & (1 << FLAG_CAGED);
     bool is_tame = flags1 & (1 << FLAG_TAME);
 
+    Race *r = df->get_race(race_id);
+    QString r_name = r->name();
+    TRACE << "   RACE NAME:" << r_name;
+    FlagArray r_flags;
+    FlagArray c_flags;
+    if(r){
+        r_flags = r->flags();
+        c_flags = r->get_caste_by_id(0)->flags();
+        r = 0;
+    }
+
     if(!is_caged){
-        if(civ_id != df->dwarf_civ_id()){ //non-animal, but wrong civ
+        //if not caged, not part of our civ, not another sentient civ and not livestock, then ignore it
+        if(civ_id != df->dwarf_civ_id() || (civ_id > 0 && !r_flags.has_flag(CAN_SPEAK) && !c_flags.has_flag(TRAINABLE))){
+            LOGI << "ignoring unit of race" << r_name << "as it doesn't seem to be part of the fortress";
             return 0;
         }
     }else{
         if(!is_tame){
             bool is_ok = false;
             //if it's a caged, trainable beast, keep it in our list, but only if it's alive
-            Race *r = df->get_race(race_id);
-            if(r){
+            if(r_flags.count() > 0){
                 //check if it's one of our civilians
-                if(r->race_id()==df->dwarf_race_id() && civ_id == df->dwarf_civ_id()){
+                if(race_id==df->dwarf_race_id() && civ_id == df->dwarf_civ_id()){
                     is_ok = true;
                 }else{
-                    is_ok = r->caste_flag(TRAINABLE);
-                    r = 0;
+                    is_ok = c_flags.has_flag(TRAINABLE);
                 }
             }
             if(!is_ok){
@@ -270,17 +286,16 @@ void Dwarf::read_settings() {
 
 void Dwarf::refresh_data() {
     if (!m_df || !m_df->memory_layout() || !m_df->memory_layout()->is_valid()) {
-        LOGW << "refresh of dwarf called but we're not connected";
+        LOGW << "refresh unit called but we're not connected";
         return;
     }
     // make sure our reference is up to date to the active memory layout
     m_mem = m_df->memory_layout();
-    TRACE << "Starting refresh of dwarf data at" << hexify(m_address);
+    TRACE << "Starting refresh of unit data at" << hexify(m_address);
 
     //read only the base information we need to validate if we should continue loading this dwarf
     read_id();
     read_flags();
-    //LOGD << "checking unit id:" << m_id;
     read_race(); //also sets m_is_animal
     read_first_name();
     read_last_name(m_address + m_mem->dwarf_offset("first_name"));
@@ -295,7 +310,6 @@ void Dwarf::refresh_data() {
     if(m_is_valid){
         read_hist_fig(); //read before noble positions, curse
         read_caste(); //read before age
-        read_labors();
         read_squad_info(); //read squad before job
         read_uniform();
         read_gender_orientation(); //read before profession
@@ -303,6 +317,7 @@ void Dwarf::refresh_data() {
         set_age_and_migration(m_address + m_mem->dwarf_offset("birth_year"), m_address + m_mem->dwarf_offset("birth_time")); //set age before profession
         read_profession(); //read profession before building the names, and before job
         read_mood(); //read after profession and before job, emotions/skills (soul aspect)
+        read_labors(); //read after profession and mood
         read_current_job();
         read_syndromes(); //read syndromes before attributes
         read_body_size(); //body size after caste and age
@@ -315,10 +330,7 @@ void Dwarf::refresh_data() {
 
         if(!m_is_animal || DT->user_settings()->value("options/animal_health", false).toBool()){
             bool req_diagnosis = !DT->user_settings()->value("options/diagnosis_not_required", false).toBool();
-
-            //        LOGD << "Loading health for " << m_nice_name;
             m_unit_health = UnitHealth(m_df,this,req_diagnosis);
-            //        LOGD << "Finished!";
         }
         read_inventory();
 
@@ -374,7 +386,7 @@ bool Dwarf::is_valid(){
 
             //check for migrants (which aren't dead/killed/ghosts)
             if(this->state_value(7) > 0
-                    && !get_flag_value(FLAG_DEAD)
+                    && (!get_flag_value(FLAG_DEAD) || get_flag_value(FLAG_INCOMING))
                     && !get_flag_value(FLAG_KILLED)
                     && !get_flag_value(FLAG_GHOST)){
                 LOGI << "Found migrant " << this->nice_name();
@@ -415,8 +427,7 @@ bool Dwarf::is_valid(){
         }
 
         if(!this->m_first_soul){
-            LOGI << "Ignoring" << this->nice_name() <<
-                    "who appears to be soulless.";
+            LOGI << "Ignoring" << this->nice_name() << "who appears to be soulless.";
             m_validated = true;
             m_is_valid = false;
             return false;
@@ -589,7 +600,6 @@ void Dwarf::read_mood(){
                 (m_mood_id == MT_BERSERK || m_mood_id == MT_INSANE || m_mood_id == MT_MELANCHOLY || m_mood_id == MT_TRAUMA) ||
                 (int)m_mood_id <= 4)
             ){
-        m_can_set_labors = false;
         m_locked_mood = true;
     }
 }
@@ -715,7 +725,9 @@ void Dwarf::read_race() {
     m_race_id = m_df->read_int(m_address + m_mem->dwarf_offset("race"));
     m_race = m_df->get_race(m_race_id);
     TRACE << "RACE ID:" << m_race_id;
-    m_is_animal = m_df->dwarf_race_id()!=m_race_id;
+    if(m_race){
+        m_is_animal = (m_race->caste_flag(TRAINABLE));
+    }
 }
 
 void Dwarf::read_first_name() {
@@ -816,15 +828,8 @@ void Dwarf::read_profession() {
     m_raw_profession = m_df->read_byte(addr);
     Profession *p = GameDataReader::ptr()->get_profession(m_raw_profession);
     QString prof_name = tr("Unknown Profession %1").arg(m_raw_profession);
-    if (p) {
-        m_can_set_labors = p->can_assign_labors();
-        if(!m_is_baby && DT->labor_cheats_allowed()){
-            m_can_set_labors = true;
-        }
+    if(p){
         prof_name = p->name(is_male());
-    } else {
-        LOGE << tr("Read unknown profession with id '%1' for dwarf '%2'").arg(m_raw_profession).arg(m_nice_name);
-        m_can_set_labors = false;
     }
     if (!m_custom_profession.isEmpty()) {
         m_profession =  m_custom_profession;
@@ -867,6 +872,7 @@ void Dwarf::read_profession() {
 void Dwarf::read_noble_position(){
     m_noble_position = m_df->fortress()->get_noble_positions(m_hist_figure->id(),is_male());
 }
+
 void Dwarf::read_preferences(){
     if(m_is_animal)
         return;
@@ -875,39 +881,42 @@ void Dwarf::read_preferences(){
     int pref_id;
     int item_sub_type;
     short mat_type;
+    MATERIAL_STATES mat_state;
     int mat_index;
 
     QString pref_name = "Unknown";
-    ITEM_TYPE itype;
-    PREF_TYPES ptype;
+    ITEM_TYPE i_type;
+    PREF_TYPES p_type;
     Preference *p;
+
     foreach(VIRTADDR pref, preferences){
         pref_type = m_df->read_short(pref);
-        pref_id = m_df->read_short(pref + 0x2);
-        item_sub_type = m_df->read_short(pref + 0x4);
-        mat_type = m_df->read_short(pref + 0x6);
-        mat_index = m_df->read_int(pref + 0x8);
-        //short pref_string = m_df->read_short(pref + 0x10);
+        //0x2 unk
+        pref_id = m_df->read_short(pref + 0x4);
+        //0x6 unk
+        item_sub_type = m_df->read_short(pref + 0x8);
+        mat_type = m_df->read_int(pref + 0xc);
+        mat_index = m_df->read_int(pref + 0x10);
+        mat_state = static_cast<MATERIAL_STATES>(m_df->read_short(pref + 0x14));
 
-        itype = static_cast<ITEM_TYPE>(pref_id);
-        ptype = static_cast<PREF_TYPES>(pref_type);
+        i_type = static_cast<ITEM_TYPE>(pref_id);
+        p_type = static_cast<PREF_TYPES>(pref_type);
 
-        p = new Preference(ptype, pref_name, this);
+        p = new Preference(p_type, pref_name, this);
 
         //for each preference type, we have some flags we need to check and add so we get matches to the role's preferences
         //materials are the exception as all flags are passed in, moving forward it may be better to pass in flagarrays instead
-
         switch(pref_type){
-        case 0: //like material
+        case LIKE_MATERIAL:
         {
-            pref_name = m_df->find_material_name(mat_index,mat_type,NONE);
+            pref_name = m_df->find_material_name(mat_index,mat_type,i_type,mat_state);
             Material *m = m_df->find_material(mat_index,mat_type);
             if(m && m->id() >= 0){
                 p->set_pref_flags(m->flags());
             }
         }
             break;
-        case 1: //like creature
+        case LIKE_CREATURE:
         {
             Race* r = m_df->get_race(pref_id);
             if(r){
@@ -916,43 +925,43 @@ void Dwarf::read_preferences(){
             }
         }
             break;
-        case 2: //like food/drink
+        case LIKE_FOOD:
         {
-            if(mat_index < 0 || itype==MEAT){
-                if(itype==FISH)
+            if(mat_index < 0 || i_type==MEAT){
+                if(i_type==FISH)
                     mat_index = mat_type;
                 Race* r = m_df->get_race(mat_index);
                 if(r){
                     pref_name = r->name().toLower();
                 }
             }else{
-                pref_name = m_df->find_material_name(mat_index,mat_type,itype);
+                pref_name = m_df->find_material_name(mat_index,mat_type,i_type,mat_state);
             }
-            p->set_item_type(itype);
+            p->set_item_type(i_type);
         }
             break;
-        case 3: //hate creature
+        case HATE_CREATURE:
         {
             Race* r = m_df->get_race(pref_id);
             if(r)
                 pref_name = r->plural_name();
         }
             break;
-        case 4: //like item
+        case LIKE_ITEM:
         {
-            p->set_item_type(itype);
+            p->set_item_type(i_type);
             pref_name = m_df->get_preference_item_name(pref_id,item_sub_type);
-            if(item_sub_type >= 0 && Item::has_subtypes(itype)){
-                ItemSubtype *s = m_df->get_item_subtype(itype,item_sub_type);
+            if(item_sub_type >= 0 && Item::has_subtypes(i_type)){
+                ItemSubtype *s = m_df->get_item_subtype(i_type,item_sub_type);
                 if(s){
                     p->set_pref_flags(s->flags());
                 }
-            }else if(Item::is_trade_good(itype)){
+            }else if(Item::is_trade_good(i_type)){
                 p->add_flag(IS_TRADE_GOOD);
             }
         }
             break;
-        case 5: //like plant
+        case LIKE_PLANT:
         {
             Plant *plnt = m_df->get_plant(pref_id);
             if(plnt){
@@ -961,24 +970,18 @@ void Dwarf::read_preferences(){
             }
         }
             break;
-        case 6: //like tree
+        case LIKE_TREE:
         {
             Plant *plnt = m_df->get_plant(pref_id);
             if (plnt)
                 pref_name = plnt->name_plural();
         }
             break;
-        case 7: //like color
+        default:
         {
-            pref_name = m_df->get_color(pref_id);
+            pref_name = m_df->get_preference_other_name(pref_id, p_type);
         }
             break;
-        case 8: //like shape
-        {
-            pref_name = m_df->get_shape(pref_id);
-        }
-            break;
-
         }
         p->set_name(capitalize(pref_name));
         if(!pref_name.isEmpty())
@@ -1032,6 +1035,12 @@ void Dwarf::read_preferences(){
                         likes.append(tr("the color ").append(pref_name));
                     }else if(pType == LIKE_SHAPE){
                         likes.append(tr("the shape of ").append(pref_name));
+                    }else if(pType == LIKE_POETRY){
+                        likes.append(tr("the words of ").append(pref_name));
+                    }else if(pType == LIKE_MUSIC){
+                        likes.append(tr("the sound of ").append(pref_name));
+                    }else if(pType == LIKE_DANCE){
+                        likes.append(tr("the sight of ").append(pref_name));
                     }else if(pType == HATE_CREATURE){
                         hates.append(pref_name);
                     }else{
@@ -1188,6 +1197,34 @@ void Dwarf::read_labors() {
         m_labors[l->labor_id] = enabled;
         m_pending_labors[l->labor_id] = enabled;
     }
+
+    //check that labors can be toggled
+    if(m_locked_mood){
+        m_can_set_labors = false;
+        m_labor_reason = tr("due to mood (%1)").arg(gdr->get_mood_name(m_mood_id,true));
+    }else if(m_race_id != m_df->dwarf_race_id()){
+        m_can_set_labors = false; //other races that have joined the fortress can't have labors set?
+        m_labor_reason = tr("for non-citizens.");
+    }else{
+        Profession *p = GameDataReader::ptr()->get_profession(m_raw_profession);
+        if(p){
+            m_can_set_labors = p->can_assign_labors();
+            if(!m_is_baby && DT->labor_cheats_allowed()){
+                m_can_set_labors = true;
+            }
+            if(!m_can_set_labors){
+                if(!is_adult()){
+                    m_labor_reason = tr("for children and babies.");
+                }else{
+                    m_labor_reason = tr("for this profession.");
+                }
+            }
+        }else{
+            LOGE << tr("Read unknown profession with id '%1' for dwarf '%2'").arg(m_raw_profession).arg(m_nice_name);
+            m_can_set_labors = false;
+            m_labor_reason = tr("due to unknown profession");
+        }
+    }
 }
 
 void Dwarf::read_current_job() {
@@ -1224,8 +1261,8 @@ void Dwarf::read_current_job() {
 
             if(m_current_sub_job_id.isEmpty()){
                 QString material_name;
-                int mat_index = m_df->read_int(current_job_addr + m_mem->job_detail("mat_index"));
                 short mat_type = m_df->read_short(current_job_addr + m_mem->job_detail("mat_type"));
+                int mat_index = m_df->read_int(current_job_addr + m_mem->job_detail("mat_index"));
                 if(mat_index >= 0 || mat_type >= 0){
                     material_name = m_df->find_material_name(mat_index ,mat_type, NONE);
                 }
@@ -1385,7 +1422,7 @@ bool Dwarf::toggle_flag_bit(int bit_pos) {
         return false;
 
     //currently flags are only for animals
-    if(m_animal_type==hostile || m_animal_type==wild_untamed || m_animal_type==unknown_trained){
+    if(m_animal_type >= unknown_trained){
         return false;
     }
 
@@ -1504,6 +1541,10 @@ void Dwarf::read_inventory(){
                 ItemWeapon *iw = new ItemWeapon(*i);
                 process_inv_item(category_name,iw);
                 LOGD << "  + found weapon:" << iw->display_name(false);
+            }else if(i_type == INSTRUMENT){
+                ItemInstrument *ii = new ItemInstrument(*i);
+                process_inv_item(category_name,ii);
+                LOGD << "  + found instrument:" << ii->display_name(false);
             }else if(Item::is_armor_type(i_type,true)){
                 ItemArmor *ir = new ItemArmor(*i);
                 process_inv_item(category_name,ir);
@@ -2605,7 +2646,7 @@ QString Dwarf::tooltip_text() {
 
     if(!m_is_animal && s->value("tooltip_show_mood",false).toBool())
         tt.append(tr("<b>Highest Moodable Skill:</b> %1")
-                  .arg(gdr->get_skill_name(m_highest_moodable_skill, true)));
+                  .arg(gdr->get_skill_name(m_highest_moodable_skill, true, true)));
 
     if(!personality_summary.isEmpty())
         tt.append(tr("<p style=\"margin:0px;\"><b>Personality:</b> %1</p>").arg(personality_summary));

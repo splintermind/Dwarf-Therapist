@@ -611,15 +611,18 @@ void DFInstance::load_reactions(){
 
 void DFInstance::load_main_vectors(){
     //material templates
+    LOGD << "reading material templates";
     QVector<VIRTADDR> temps = enumerate_vector(m_layout->address("material_templates_vector"));
     foreach(VIRTADDR addr, temps){
         m_material_templates.insert(read_string(addr),addr);
     }
 
     //syndromes
+    LOGD << "reading syndromes";
     m_all_syndromes = enumerate_vector(m_layout->address("all_syndromes_vector"));
 
     //load item types/subtypes
+    LOGD << "reading item and subitem types";
     m_itemdef_vectors.insert(WEAPON,enumerate_vector(m_layout->address("itemdef_weapons_vector")));
     m_itemdef_vectors.insert(TRAPCOMP,enumerate_vector(m_layout->address("itemdef_trap_vector")));
     m_itemdef_vectors.insert(TOY,enumerate_vector(m_layout->address("itemdef_toy_vector")));
@@ -635,9 +638,14 @@ void DFInstance::load_main_vectors(){
     m_itemdef_vectors.insert(PANTS,enumerate_vector(m_layout->address("itemdef_pant_vector")));
     m_itemdef_vectors.insert(FOOD,enumerate_vector(m_layout->address("itemdef_food_vector")));
 
+    LOGD << "reading colors, shapes, poems, music and dances";
     m_color_vector = enumerate_vector(m_layout->address("colors_vector"));
     m_shape_vector = enumerate_vector(m_layout->address("shapes_vector"));
+    m_poetic_vector = enumerate_vector(m_layout->address("poetic_forms_vector"));
+    m_music_vector = enumerate_vector(m_layout->address("musical_forms_vector"));
+    m_dance_vector = enumerate_vector(m_layout->address("dance_forms_vector"));
 
+    LOGD << "reading base materials";
     VIRTADDR addr = m_layout->address("base_materials");
     int i = 0;
     for(i = 0; i < 256; i++){
@@ -650,6 +658,7 @@ void DFInstance::load_main_vectors(){
     }
 
     //inorganics
+    LOGD << "reading inorganics";
     addr = m_layout->address("inorganics_vector");
     i = 0;
     foreach(VIRTADDR mat, enumerate_vector(addr)){
@@ -660,6 +669,7 @@ void DFInstance::load_main_vectors(){
     }
 
     //plants
+    LOGD << "reading plants";
     addr = m_layout->address("plants_vector");
     i = 0;
     QVector<VIRTADDR> vec = enumerate_vector(addr);
@@ -752,6 +762,8 @@ void DFInstance::refresh_data(){
 void DFInstance::load_items(){
     m_mapped_items.clear();
     m_items_vectors.clear();
+
+    //these item vectors appear to contain unclaimed items!
     //load actual weapons and armor
     m_items_vectors.insert(WEAPON,enumerate_vector(m_layout->address("weapons_vector")));
     m_items_vectors.insert(SHIELD,enumerate_vector(m_layout->address("shields_vector")));
@@ -1181,30 +1193,54 @@ QString DFInstance::get_artifact_name(ITEM_TYPE itype, int item_id){
 
 void DFInstance::index_item_vector(ITEM_TYPE itype){
     QHash<int,VIRTADDR> items;
-    int offset = 0x18; //TODO: should be set from item.id (df-structures)
-    if(itype == ARTIFACTS)
+    int offset = m_layout->item_offset("id");
+    if(itype == ARTIFACTS){
         offset = 0x0;
+    }
     foreach(VIRTADDR addr, m_items_vectors.value(itype)){
         items.insert(read_int(addr+offset),addr);
     }
     m_mapped_items.insert(itype,items);
 }
 
-QString DFInstance::get_color(int index){
-    if(index < m_color_vector.count())
-        return read_string(m_color_vector.at(index) + m_layout->descriptor_offset("color_name"));
-    else
-        return "unknown color";
+QString DFInstance::get_preference_other_name(int index, PREF_TYPES p_type){
+    QVector<VIRTADDR> target_vec;
+    int offset = 0x4; //default for poem/music/dance
+    bool translate = true;
+
+    if(p_type == LIKE_SHAPE || p_type == LIKE_COLOR){
+        translate = false;
+        if(LIKE_COLOR){
+            target_vec = m_color_vector;
+            offset = m_layout->descriptor_offset("color_name");
+        }else{
+            target_vec = m_shape_vector;
+            offset = m_layout->descriptor_offset("shape_name_plural");
+        }
+    }
+
+    if(p_type == LIKE_POETRY || p_type == LIKE_MUSIC || p_type == LIKE_DANCE){
+        if(p_type == LIKE_POETRY)
+            target_vec = m_poetic_vector;
+        if(p_type == LIKE_MUSIC)
+            target_vec = m_music_vector;
+        if(p_type == LIKE_DANCE)
+            target_vec = m_dance_vector;
+    }
+
+    if(index > -1 && index < target_vec.count()){
+        VIRTADDR addr = target_vec.at(index);
+        if(translate){
+            return get_translated_word(addr + offset);
+        }else{
+            return read_string(addr + offset);
+        }
+    }else{
+        return "unknown";
+    }
 }
 
-QString DFInstance::get_shape(int index){
-    if(index < m_shape_vector.count())
-        return read_string(m_shape_vector.at(index) + m_layout->descriptor_offset("shape_name_plural"));
-    else
-        return "unknown shape";
-}
-
-QString DFInstance::find_material_name(int mat_index, short mat_type, ITEM_TYPE itype){
+QString DFInstance::find_material_name(int mat_index, short mat_type, ITEM_TYPE itype, MATERIAL_STATES mat_state){
     Material *m = find_material(mat_index, mat_type);
     QString name = "";
 
@@ -1212,22 +1248,21 @@ QString DFInstance::find_material_name(int mat_index, short mat_type, ITEM_TYPE 
         return name;
 
     if (mat_index < 0 || mat_type < 19) {
-        name = m->get_material_name(SOLID);
+        name = m->get_material_name(mat_state);
     }
     else if(mat_type < 219){
-        Race* r = get_race(mat_index);
-        if(r)
+        if(itype == DRINK || itype == LIQUID_MISC){
+            name = m->get_material_name(LIQUID);
+        }else if(itype == CHEESE)
+            name = m->get_material_name(mat_state);
+        else
         {
-            if(itype == DRINK || itype == LIQUID_MISC)
-                name = m->get_material_name(LIQUID);
-            else if(itype == CHEESE)
-                name = m->get_material_name(SOLID);
-            else
-            {
-                name = r->name().toLower();
-                name.append(" ");
-                name.append(m->get_material_name(SOLID));
+            name = "";
+            Race* r = get_race(mat_index);
+            if(r){
+                name = r->name().toLower().append(" ");
             }
+            name.append(m->get_material_name(mat_state));
         }
     }
     else if(mat_type < 419)
@@ -1235,10 +1270,10 @@ QString DFInstance::find_material_name(int mat_index, short mat_type, ITEM_TYPE 
         VIRTADDR hist_figure = find_historical_figure(mat_index);
         if(hist_figure){
             Race *r = get_race(read_short(hist_figure + m_layout->hist_figure_offset("hist_race")));
-            QString fig_name = read_string(hist_figure + m_layout->hist_figure_offset("hist_name"));
             if(r){
-                name = fig_name.append("'s ");
-                name.append(m->get_material_name(LIQUID));
+                name = QString(tr("%1's %2"))
+                        .arg(read_string(hist_figure + m_layout->hist_figure_offset("hist_name")))
+                        .arg(m->get_material_name(mat_state));
             }
         }
     }
@@ -1256,17 +1291,24 @@ QString DFInstance::find_material_name(int mat_index, short mat_type, ITEM_TYPE 
 
             //specific plant material
             if(m){
-                if(itype == DRINK || itype == LIQUID_MISC)
+                if(itype == DRINK || itype == LIQUID_MISC){
                     name = m->get_material_name(LIQUID);
-                else if(itype == POWDER_MISC || itype == CHEESE)
+                }else if(itype == POWDER_MISC || itype == CHEESE){
                     name = m->get_material_name(POWDER);
-                else if(Item::is_armor_type(itype)){
+                }else if(Item::is_armor_type(itype)){
                     //don't include the 'fabric' part if it's a armor (item?) ie. pig tail fiber coat, not pig tail fiber fabric coat
-                    name = p->name().append(" ").append(m->get_material_name(SOLID));
+                    //this appears to have changed now (42.x) and the solid name is used simply: pig tail coat
+                    name = m->get_material_name(SOLID);
+                }else if(mat_state != SOLID){
+                    name = m->get_material_name(mat_state);
                 }else if(m->flags().has_flag(LEAF_MAT) && m->flags().has_flag(STRUCTURAL_PLANT_MAT)){
                     name = p->name().append(" ").append(m->get_material_name(GENERIC));//fruit
                 }else if(itype == NONE || m->flags().has_flag(IS_WOOD)){
-                    name.append(" ").append(m->get_material_name(GENERIC));
+                    if(p->flags().has_flag(P_TREE)){
+                        name.append(" ").append(m->get_material_name(GENERIC));
+                    }else{
+                        name = m->get_material_name(SOLID) + " " + m->get_material_name(GENERIC);
+                    }
                 }
 
             }

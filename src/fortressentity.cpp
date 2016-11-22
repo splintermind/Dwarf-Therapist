@@ -93,7 +93,8 @@ void FortressEntity::read_entity(){
         //don't bother searching in non-civilization entities,
         //however as some reports have other races as nobles this is the only filtering we can do
         //make sure to include the fortress positions as well
-        if(m_df->read_int(ent) == 0 || ent == m_address){
+        short ent_type = m_df->read_short(ent);
+        if(ent_type == 0 || ent == m_address){
 
             //load assignments and positions, mapping them to historical figure ids
             QVector<VIRTADDR> addr_positions = m_df->enumerate_vector(ent + m_mem->hist_entity_offset("positions")); //positions in the fortress
@@ -127,7 +128,7 @@ void FortressEntity::read_entity(){
 
     VIRTADDR beliefs_addr = m_address + m_mem->hist_entity_offset("beliefs");
     for(int i = 0; i < GameDataReader::ptr()->get_total_belief_count();i++){
-        short val = m_df->read_short(beliefs_addr + i * 4);
+        int val = m_df->read_int(beliefs_addr + i * 4);
         if(val > 100)
             val = 100;
         m_beliefs.insert(i, val);

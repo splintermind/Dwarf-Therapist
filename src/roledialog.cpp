@@ -465,13 +465,13 @@ void roleDialog::draw_skill_context_menu(const QPoint &p) {
     ContextMenuHelper cmh;
 
     cmh.add_sub_menus(m,gdr->get_ordered_skills().count()/15,false);
-    QPair<int, QString> skill_pair;
+    QPair<int, QPair<QString,QString> > skill_pair;
     foreach(skill_pair, gdr->get_ordered_skills()) {
         if(!m_role->skills.contains((QString)skill_pair.first)){
-            QMenu *menu_to_use = cmh.find_menu(m,skill_pair.second);
-            a = menu_to_use->addAction(skill_pair.second, this, SLOT(add_skill()));
+            QMenu *menu_to_use = cmh.find_menu(m,skill_pair.second.first);
+            a = menu_to_use->addAction(skill_pair.second.first, this, SLOT(add_skill()));
             a->setData(skill_pair.first);
-            a->setToolTip(tr("Include %1 (ID %2) as an aspect for this role.)").arg(skill_pair.second).arg(skill_pair.first));
+            a->setToolTip(tr("Include %1 (ID %2) as an aspect for this role.)").arg(skill_pair.second.first).arg(skill_pair.first));
         }
     }
 
@@ -741,7 +741,7 @@ void roleDialog::load_items(){
     //weapons are also ignored because we'll handle them manually to split them into ranged and melee categories
     item_ignore << BAR << SMALLGEM << BLOCKS << ROUGH << BOULDER << WOOD << CORPSE << CORPSEPIECE << REMAINS
                 << FISH_RAW << VERMIN << IS_PET << SKIN_TANNED << THREAD << CLOTH << BALLISTAARROWHEAD
-                << TRAPPARTS << FOOD << GLOB << ROCK << PIPE_SECTION << ORTHOPEDIC_CAST << EGG << BOOK << WEAPON;
+                << TRAPPARTS << FOOD << GLOB << ROCK << PIPE_SECTION << ORTHOPEDIC_CAST << EGG << BOOK << SHEET << WEAPON;
 
     //additionally ignore food types, since they can only be a preference as a consumable
     item_ignore << MEAT << FISH << CHEESE << PLANT << DRINK << POWDER_MISC << LEAVES_FRUIT << LIQUID_MISC << SEEDS;

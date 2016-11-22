@@ -20,29 +20,26 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#include "unitbelief.h"
-#include "gamedatareader.h"
-#include "trait.h"
+#ifndef ITEMINSTRUMENT_H
+#define ITEMINSTRUMENT_H
 
-UnitBelief::UnitBelief()
-    : m_belief_id(-1)
-    , m_belief_value(-999)
-    , m_is_personal(true)
-    , m_is_active(false)
-{
-}
+#include "item.h"
 
-UnitBelief::UnitBelief(int id, int value, bool is_personal)
-    : m_belief_id(id)
-    , m_belief_value(value)
-    , m_is_personal(is_personal)
-{
-    check_active(id,value);
-}
+class ItemGenericSubtype;
 
-void UnitBelief::check_active(int id, int val){
-    Belief *b = GameDataReader::ptr()->get_belief(id);
-    if(b){
-        m_is_active = b->is_active(val);
-    }
-}
+class ItemInstrument : public Item {
+public:
+
+    ItemInstrument(const Item &baseItem);
+    ItemInstrument(DFInstance *df, VIRTADDR item_addr);
+
+    virtual ~ItemInstrument();
+
+    short item_subtype() const;
+
+private:
+    ItemGenericSubtype *m_Instrument_def;
+    void read_def();
+};
+
+#endif // ITEMINSTRUMENT_H
