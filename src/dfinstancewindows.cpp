@@ -20,7 +20,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#include <memory>
 #include <QDateTime>
 #include <QTimer>
 #include <QMessageBox>
@@ -90,9 +89,13 @@ QString DFInstanceWindows::read_string(const uint &addr) {
     Q_ASSERT_X(len < (1 << 16), "read_string",
                "String must be of sane length!");
 
-    std::unique_ptr<char[]> buf(new char[len]);
-    read_raw(buffer_addr, len, buf.get());
-    return QTextCodec::codecForName("IBM437")->toUnicode(buf.get(), len);
+#ifdef __GNUC__
+    char buf[len];
+#else
+    char buf[1024];
+#endif
+    read_raw(buffer_addr, len, buf);
+    return QTextCodec::codecForName("IBM437")->toUnicode(buf, len);
 }
 
 USIZE DFInstanceWindows::write_string(const VIRTADDR &addr, const QString &str) {
