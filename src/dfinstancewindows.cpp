@@ -83,11 +83,6 @@ QString DFInstanceWindows::read_string(const uint &addr) {
 #endif
         return QString();
     }
-    Q_ASSERT_X(len <= cap, "read_string",
-               "Length must be less than or equal to capacity!");
-    Q_ASSERT_X(len >= 0, "read_string", "Length must be >=0!");
-    Q_ASSERT_X(len < (1 << 16), "read_string",
-               "String must be of sane length!");
 
 #ifdef __GNUC__
     char buf[len];
