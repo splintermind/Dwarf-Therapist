@@ -1,9 +1,9 @@
 -- Exports an ini file for Dwarf Therapist.
---[[=begin
+--[====[
 devel/export-dt-ini
 ===================
 Exports an ini file containing memory addresses for Dwarf Therapist.
-=end]]
+]====]
 
 local utils = require 'utils'
 local ms = require 'memscan'
@@ -44,6 +44,7 @@ local function address(name,base,field,...)
         if addr and select('#',...) > 0 then
             _,addr = df.sizeof(ms.field_ref(base,field,...))
         end
+        addr = addr - rdelta
     elseif base._kind == 'class-type' then
         -- field_offset crashes with classes due to vtable problems,
         -- so we have to create a real temporary object here.
@@ -312,9 +313,9 @@ address('squad_id',df.unit,'military','squad_id')
 address('squad_position',df.unit,'military','squad_position')
 address('recheck_equipment',df.unit,'military','pickup_flags')
 address('mood',df.unit,'mood')
-address('birth_year',df.unit,'relations','birth_year')
-address('birth_time',df.unit,'relations','birth_time')
-address('pet_owner_id',df.unit,'relations','pet_owner_id')
+address('birth_year',df.unit,'birth_year')
+address('birth_time',df.unit,'birth_time')
+address('pet_owner_id',df.unit,'relationship_ids',df.unit_relationship_type.Pet)
 address('current_job',df.unit,'job','current_job')
 address('physical_attrs',df.unit,'body','physical_attrs')
 address('body_size',df.unit,'appearance','body_modifiers')
