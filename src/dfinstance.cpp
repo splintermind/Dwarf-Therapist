@@ -214,8 +214,8 @@ QVector<VIRTADDR> DFInstance::enumerate_vector(const VIRTADDR &addr) {
     return enum_vec<VIRTADDR>(addr);
 }
 
-QVector<quint32> DFInstance::enumerate_vector_quint32(const VIRTADDR &addr) {
-    return enum_vec<quint32>(addr);
+QVector<qint32> DFInstance::enumerate_vector_int(const VIRTADDR &addr){
+    return enum_vec<qint32>(addr);
 }
 
 QVector<qint16> DFInstance::enumerate_vector_short(const VIRTADDR &addr){
@@ -1229,8 +1229,8 @@ VIRTADDR DFInstance::find_historical_figure(int hist_id){
 
 void DFInstance::load_hist_figures(){
     QVector<VIRTADDR> hist_figs = enumerate_vector(m_layout->address("historical_figures_vector"));
-    foreach(VIRTADDR fig, hist_figs){
-        m_hist_figures.insert(read_int(fig + m_layout->hist_figure_offset("id")),fig);
+    foreach(VIRTADDR addr, hist_figs){
+        m_hist_figures.insert(read_int(addr + m_layout->hist_figure_offset("id")),addr);
     }
 }
 
@@ -1341,7 +1341,7 @@ QString DFInstance::get_artifact_name(ITEM_TYPE itype, int item_id){
     if(itype == ARTIFACTS){
         VIRTADDR addr = m_mapped_items.value(itype).value(item_id);
         if(addr){
-            QString name = get_language_word(addr+sizeof(VIRTADDR)); //TODO: offset
+            QString name = get_language_word(addr+sizeof(VIRTADDR));
             if(name.isEmpty()){
                 name = read_string(addr+sizeof(VIRTADDR));
             }
@@ -1368,7 +1368,7 @@ void DFInstance::index_item_vector(ITEM_TYPE itype){
 
 QString DFInstance::get_preference_other_name(int index, PREF_TYPES p_type){
     QVector<VIRTADDR> target_vec;
-    USIZE offset = sizeof(VIRTADDR); //default for poem/music/dance
+    int offset = sizeof(VIRTADDR); //default for poem/music/dance
     bool translate = true;
 
     if(p_type == LIKE_SHAPE || p_type == LIKE_COLOR){

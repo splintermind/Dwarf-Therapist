@@ -68,7 +68,7 @@ QString DFInstanceWindows::calculate_checksum(const IMAGE_NT_HEADERS &pe_header)
     return hexify(compile_timestamp).toLower();
 }
 
-QString DFInstanceWindows::read_string(const uint &addr) {
+QString DFInstanceWindows::read_string(const VIRTADDR &addr) {
     int len = read_int(addr + memory_layout()->string_length_offset());
     int cap = read_int(addr + memory_layout()->string_cap_offset());
     VIRTADDR buffer_addr = addr + memory_layout()->string_buffer_offset();

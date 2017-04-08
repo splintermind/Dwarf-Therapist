@@ -89,7 +89,7 @@ public:
     qint16 read_short(const VIRTADDR &addr);
     qint32 read_int(const VIRTADDR &addr);
     QVector<VIRTADDR> enumerate_vector(const VIRTADDR &addr);
-    QVector<quint32> enumerate_vector_quint32(const VIRTADDR &addr);
+    QVector<qint32> enumerate_vector_int(const VIRTADDR &addr);
     QVector<qint16> enumerate_vector_short(const VIRTADDR &addr);
     Word * read_dwarf_word(const VIRTADDR &addr);
     QString read_dwarf_name(const VIRTADDR &addr);

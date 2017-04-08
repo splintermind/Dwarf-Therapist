@@ -104,7 +104,7 @@ void Caste::read_caste() {
         m_flags.set_flag(TRAINABLE,true);
     }
 
-    if(m_df->enumerate_vector_quint32(m_address + m_mem->caste_offset("extracts")).count() > 0){
+    if(m_df->enumerate_vector_short(m_address + m_mem->caste_offset("extracts")).count() > 0){
         m_flags.set_flag(HAS_EXTRACTS,true);
     }
     int offset = m_mem->caste_offset("shearable_tissues_vector");

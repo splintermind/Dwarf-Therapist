@@ -110,7 +110,7 @@ public:
 private:
     DFInstance *m_df;
     VIRTADDR m_address;
-    QHash<int,QPair<int, QString> > *m_histfig_actions;
+    QHash<qint32,QPair<int, QString> > *m_histfig_actions;
 
     short m_id;
     ACT_EVT_TYPE m_type;
