@@ -74,7 +74,7 @@ THE SOFTWARE.
 # define QJSValue QScriptValue
 #endif
 
-Dwarf::Dwarf(DFInstance *df, const uint &addr, QObject *parent)
+Dwarf::Dwarf(DFInstance *df, const VIRTADDR &addr, QObject *parent)
     : QObject(parent)
     , m_id(-1)
     , m_df(df)
@@ -471,7 +471,7 @@ void Dwarf::read_gender_orientation() {
 
     int orient_offset = m_mem->soul_detail("orientation");
     if(m_gender_info.gender != SEX_UNK && m_first_soul && orient_offset != -1){
-        quint32 orientation = m_df->read_addr(m_first_soul + orient_offset);
+        VIRTADDR orientation = m_df->read_addr(m_first_soul + orient_offset);
         m_gender_info.male_interest = orientation & (1 << 1);
         m_gender_info.male_commit = orientation & (1 << 2);
         m_gender_info.female_interest = orientation & (1 << 3);
@@ -596,8 +596,8 @@ void Dwarf::read_states(){
     uint states_offset = m_mem->dwarf_offset("states");
     if(states_offset) {
         VIRTADDR states_addr = m_address + states_offset;
-        QVector<uint> entries = m_df->enumerate_vector(states_addr);
-        foreach(uint entry, entries) {
+        QVector<VIRTADDR> entries = m_df->enumerate_vector(states_addr);
+        foreach(VIRTADDR entry, entries) {
             m_states.insert(m_df->read_short(entry), m_df->read_int(entry+0x4));
         }
     }
@@ -654,11 +654,11 @@ void Dwarf::read_caste() {
 
 void Dwarf::read_flags(){
     m_unit_flags.clear();
-    quint32 flags1 = m_df->read_addr(m_address + m_mem->dwarf_offset("flags1"));
+    VIRTADDR flags1 = m_df->read_addr(m_address + m_mem->dwarf_offset("flags1"));
     TRACE << "  FLAGS1:" << hexify(flags1);
-    quint32 flags2 = m_df->read_addr(m_address + m_mem->dwarf_offset("flags2"));
+    VIRTADDR flags2 = m_df->read_addr(m_address + m_mem->dwarf_offset("flags2"));
     TRACE << "  FLAGS2:" << hexify(flags2);
-    quint32 flags3 = m_df->read_addr(m_address + m_mem->dwarf_offset("flags3"));
+    VIRTADDR flags3 = m_df->read_addr(m_address + m_mem->dwarf_offset("flags3"));
     TRACE << "  FLAGS3:" << hexify(flags3);
     m_unit_flags << flags1 << flags2 << flags3;
     m_pending_flags = m_unit_flags;
@@ -1216,7 +1216,7 @@ void Dwarf::read_current_job(){
                     material_name = m_df->find_material_name(mat_index ,mat_type, NONE);
                 }
                 if(material_name.isEmpty()){
-                    quint32 mat_category = m_df->read_addr(current_job_addr + m_mem->job_detail("mat_category"));
+                    VIRTADDR mat_category = m_df->read_addr(current_job_addr + m_mem->job_detail("mat_category"));
                     material_name = DwarfJob::get_job_mat_category_name(mat_category);
                 }
                 if(!material_name.isEmpty()){
@@ -2278,7 +2278,7 @@ void Dwarf::clear_pending() {
 }
 
 void Dwarf::commit_pending(bool single) {
-    int addr = m_address + m_mem->dwarf_offset("labors");
+    VIRTADDR addr = m_address + m_mem->dwarf_offset("labors");
 
     QByteArray buf(94, 0);
     m_df->read_raw(addr, 94, buf); // set the buffer as it is in-game

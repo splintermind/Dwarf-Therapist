@@ -89,6 +89,7 @@ public:
     qint16 read_short(const VIRTADDR &addr);
     qint32 read_int(const VIRTADDR &addr);
     QVector<VIRTADDR> enumerate_vector(const VIRTADDR &addr);
+    QVector<quint32> enumerate_vector_quint32(const VIRTADDR &addr);
     QVector<qint16> enumerate_vector_short(const VIRTADDR &addr);
     Word * read_dwarf_word(const VIRTADDR &addr);
     QString read_dwarf_name(const VIRTADDR &addr);
@@ -249,7 +250,7 @@ protected:
 
     void load_population_data();
     void load_role_ratings();
-    bool check_vector(const VIRTADDR start, const VIRTADDR end, const VIRTADDR addr);
+    bool check_vector(const VIRTADDR start, const VIRTADDR end, const VIRTADDR addr, USIZE wordsize);
 
     template<typename T>
     QVector<T> enum_vec(const VIRTADDR &addr);

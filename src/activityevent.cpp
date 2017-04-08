@@ -69,9 +69,9 @@ void ActivityEvent::read_data(){
             GameDataReader *gdr = GameDataReader::ptr();
             int participant_offset = mem->activity_offset("participants");
             VIRTADDR participant_addr = m_address + participant_offset;
-            QVector<quint32> participants = m_df->enumerate_vector(participant_addr);
+            QVector<quint32> participants = m_df->enumerate_vector_quint32(participant_addr);
 
-            QVector<quint32> other_participants = m_df->enumerate_vector(participant_addr + participant_offset - 0x14); //TODO: offset
+            QVector<quint32> other_participants = m_df->enumerate_vector_quint32(participant_addr + participant_offset - 0x14); //TODO: offset
             foreach(quint32 h_id,other_participants){
                 if(!participants.contains(h_id)){
                     participants << h_id;

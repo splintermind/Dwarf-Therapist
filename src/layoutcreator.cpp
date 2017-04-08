@@ -78,7 +78,7 @@ bool LayoutCreator::write_file()
 }
 
 
-void LayoutCreator::report_global_address(const QString& name, const quint32& addr)
+void LayoutCreator::report_global_address(const QString& name, const VIRTADDR& addr)
 {
     VIRTADDR corrected_addr = addr - m_df->memory_layout()->get_base_addr();
 

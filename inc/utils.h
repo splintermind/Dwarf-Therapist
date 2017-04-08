@@ -31,10 +31,15 @@ THE SOFTWARE.
 #include <QString>
 #include <math.h>
 
-// valid for as long as DF stays 32bit
-typedef quint32 VIRTADDR;
-typedef quint32 USIZE;
-typedef qint32 SSIZE;
+#if _WIN64 || __x86_64__ || __ppc64__
+    typedef quint64 VIRTADDR;
+    typedef quint64 USIZE;
+    typedef qint64 SSIZE;
+#else
+    typedef quint32 VIRTADDR;
+    typedef quint32 USIZE;
+    typedef qint32 SSIZE;
+#endif
 typedef quint8 BYTE;
 typedef quint16 WORD;
 

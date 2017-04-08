@@ -155,6 +155,7 @@ void Race::load_caste_ratios(){
             ratios << (int)addr;
         }
 
+        //TODO did ratios change?
         if(ratios.count() > 0){
             int sum = 0;
             int valid_castes = 0;
@@ -166,9 +167,13 @@ void Race::load_caste_ratios(){
 
             float commonality = 0.0;
             for(int idx=0; idx < m_castes.count();idx++){
-                commonality = (float)ratios.at(idx) / (float)sum;
-                if(commonality > 0.0001){
+                if (idx >= ratios.count()) {
                     valid_castes++;
+                } else {
+                    commonality = (float)ratios.at(idx) / (float)sum;
+                    if(commonality > 0.0001){
+                        valid_castes++;
+                    }
                 }
             }
             //castes usually come in male/female pairs, vanilla only has 2 castes (dwarf male/female)

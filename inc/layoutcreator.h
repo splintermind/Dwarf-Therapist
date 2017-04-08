@@ -20,15 +20,15 @@ protected:
     QString m_file_name;
     QString m_version_name;
 
-    quint32 m_dwarf_race_index;
-    quint32 m_translation_vector;
-    quint32 m_language_vector;
-    quint32 m_creature_vector;
-    quint32 m_squad_vector;
-    quint32 m_current_year;
+    VIRTADDR m_dwarf_race_index;
+    VIRTADDR m_translation_vector;
+    VIRTADDR m_language_vector;
+    VIRTADDR m_creature_vector;
+    VIRTADDR m_squad_vector;
+    VIRTADDR m_current_year;
 
 private slots:
-    void report_global_address(const QString&, const quint32&);
+    void report_global_address(const QString&, const VIRTADDR&);
 };
 
 #endif // LAYOUT_CREATOR_H

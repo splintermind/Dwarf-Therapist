@@ -134,16 +134,21 @@ DFInstance * DFInstance::newInstance(){
 #endif
 }
 
-bool DFInstance::check_vector(const VIRTADDR start, const VIRTADDR end, const VIRTADDR addr){
+bool DFInstance::check_vector(const VIRTADDR start, const VIRTADDR end, const VIRTADDR addr, USIZE wordsize){
     TRACE << "beginning vector enumeration at" << hex << addr;
     TRACE << "start of vector" << hex << start;
     TRACE << "end of vector" << hex << end;
+    TRACE << "word size in vector" << hex << wordsize;
 
-    int entries = (end - start) / sizeof(VIRTADDR);
+  
+    int entries = (end - start) / sizeof(wordsize);
     TRACE << "there appears to be" << entries << "entries in this vector";
 
     bool is_acceptable_size = true;
-
+    if ((end-start) % wordsize != 0) {
+        LOGW << "invalid vector size" << hexify(addr) << "start" << hexify(start) << "end" << hexify(end) << "bytes" << (end-start) << "wordsize" << wordsize;
+        is_acceptable_size = false;
+    }  
     if (entries > 1000000) {
         LOGW << "vector at" << hexify(addr) << "has over 1.000.000 entries! (" << entries << ")";
         is_acceptable_size = false;
@@ -209,6 +214,10 @@ QVector<VIRTADDR> DFInstance::enumerate_vector(const VIRTADDR &addr) {
     return enum_vec<VIRTADDR>(addr);
 }
 
+QVector<quint32> DFInstance::enumerate_vector_quint32(const VIRTADDR &addr) {
+    return enum_vec<quint32>(addr);
+}
+
 QVector<qint16> DFInstance::enumerate_vector_short(const VIRTADDR &addr){
     return enum_vec<qint16>(addr);
 }
@@ -217,9 +226,9 @@ template<typename T>
 QVector<T> DFInstance::enum_vec(const VIRTADDR &addr){
     QVector<T> out;
     VIRTADDR start = read_addr(addr);
-    VIRTADDR end = read_addr(addr + 4);
+    VIRTADDR end = read_addr(addr + sizeof(VIRTADDR));
     USIZE bytes = end - start;
-    if (check_vector(start,end,addr)){
+    if (check_vector(start,end,addr,sizeof(T))){
         out.resize(bytes / sizeof(T));
         USIZE bytes_read = read_raw(start, bytes, out.data());
         TRACE << "FOUND" << bytes_read / sizeof(VIRTADDR) << "addresses in vector at" << hexify(addr);
@@ -663,7 +672,7 @@ void DFInstance::load_main_vectors(){
             Material* m = Material::get_material(this, mat_addr, i, false, this);
             m_base_materials.append(m);
         }
-        addr += 0x4;
+        addr += sizeof(VIRTADDR);
     }
 
     //inorganics
@@ -1332,9 +1341,9 @@ QString DFInstance::get_artifact_name(ITEM_TYPE itype, int item_id){
     if(itype == ARTIFACTS){
         VIRTADDR addr = m_mapped_items.value(itype).value(item_id);
         if(addr){
-            QString name = get_language_word(addr+0x4); //TODO: offset
+            QString name = get_language_word(addr+sizeof(VIRTADDR)); //TODO: offset
             if(name.isEmpty()){
-                name = read_string(addr+0x4);
+                name = read_string(addr+sizeof(VIRTADDR));
             }
             return name;
         }else{
@@ -1359,7 +1368,7 @@ void DFInstance::index_item_vector(ITEM_TYPE itype){
 
 QString DFInstance::get_preference_other_name(int index, PREF_TYPES p_type){
     QVector<VIRTADDR> target_vec;
-    int offset = 0x4; //default for poem/music/dance
+    USIZE offset = sizeof(VIRTADDR); //default for poem/music/dance
     bool translate = true;
 
     if(p_type == LIKE_SHAPE || p_type == LIKE_COLOR){
