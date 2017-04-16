@@ -13,6 +13,7 @@ CONFIG += debug_and_release \
 
 QMAKE_CXXFLAGS += $$(CXXFLAGS)
 QMAKE_LFLAGS += $$(LDFLAGS)
+QMAKE_RESOURCE_FLAGS += -no-compress
 
 INCLUDEPATH += inc \
     inc$${DIR_SEPARATOR}models \
