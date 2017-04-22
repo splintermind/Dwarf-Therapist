@@ -49,6 +49,11 @@ Fedora 20+
 Building
 --------
 
+First of all clone splintermind GitHub repository (green button on the right) by downloading ".zip" file. Unzip it to your desired location and for ease of use navigate to it using the Terminal (example: cd ./Downloaded/DF/). We will assume that you will be installing DT in this newly unziped directory. Also you should type console commands without "" sign- did them for the sake of clarity.
+
+Versions of qmake
+**********
+
 ::
 
     qmake -qt=4 # Qt 4 on Debian-based
@@ -57,25 +62,31 @@ Building
     qmake # Qt 4 on most other distros
     make -j$(nproc) # Run as many jobs as processing units
 
-To configure where DT is installed, pass the PREFIX variable, for example:
+For instructions on exactly where to find "qmake" and how to invoke it on other distros, consult your distribution's documentation.
+
+Step 1:
+**********
+
+To configure where DT will be installed, pass the "PREFIX" variable, for example :
 
 ::
-    qmake PREFIX=~/.local
+    qmake -qt=5 PREFIX=~/./Downloaded/DF/
 
-For instructions on exactly where to find qmake and how to invoke it on other distros, consult your distribution's documentation.
-
+You can stick with unziped directory or choose your own.
 This will take 2–10 minutes, depending on CPU.
+
+Step 2:
+**********
+
 Get a cup of coffee.
 
-Once your build is complete, run make install. Use sudo if installing into the
-default /usr/local directory (i.e, if you didn't pass the PREFIX variable to
-qmake)
+Once your build is complete, run "make install" or "sudo make install". [Use sudo if you wish to install into the
+default /usr/local directory (i.e, if you didn't pass the "PREFIX" variable to
+"qmake")]
 
     make install
     OR
     sudo make install
-
-If you want, you can now remove the folder you cloned from github.
 
 Troubleshooting
 ---------------
