@@ -34,10 +34,17 @@ fi
 ##
 ##########################################
 
+## Get full path to location of this script at runtime
+CWD=`dirname $(realpath $0)`
 ## $_DT_BINARY
 ## Set path to 'DwarfTherapist' binary
-_DT_BINARY="`which DwarfTherapist`"
-PREFIX="${_DT_BINARY%%/bin/DwarfTherapist}"
+if [ -f "$CWD/DwarfTherapist" ]; then                      #Evaluates to true if DT is distributed with LNP
+    _DT_BINARY="$CWD/DwarfTherapist"
+    PREFIX=$CWD
+else                                   
+    _DT_BINARY="`which DwarfTherapist`"
+    PREFIX="${_DT_BINARY%%/bin/DwarfTherapist}"
+fi
 
 ## $_ETC_BASE_FOLDER
 ## Set folder containing 'etc/memory_layouts/linux/*'
