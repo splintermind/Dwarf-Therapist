@@ -31,6 +31,10 @@ THE SOFTWARE.
 #include <QString>
 #include <math.h>
 
+#if QT_MAJOR_VERSION < 5
+  typedef qint64 quintptr
+#endif
+
 typedef quintptr VIRTADDR;
 typedef quintptr USIZE;
 typedef qintptr SSIZE;
