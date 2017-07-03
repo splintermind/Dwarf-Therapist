@@ -89,9 +89,9 @@ QString DFInstanceWindows::read_string(const uint &addr) {
     Q_ASSERT_X(len < (1 << 16), "read_string",
                "String must be of sane length!");
 
-    char buf[len];
-    read_raw(buffer_addr, len, buf);
-    return QTextCodec::codecForName("IBM437")->toUnicode(buf, len);
+    std::unique_ptr<char[]> buf = std::make_unique<char[]>(len);
+    read_raw(buffer_addr, len, buf.get());
+    return QTextCodec::codecForName("IBM437")->toUnicode(buf.get(), len);
 }
 
 USIZE DFInstanceWindows::write_string(const VIRTADDR &addr, const QString &str) {
