@@ -26,6 +26,7 @@ THE SOFTWARE.
 #include <windows.h>
 #include <tlhelp32.h>
 #include "dfinstance.h"
+#include <memory>
 
 class Dwarf;
 class MemoryLayout;
