@@ -32,7 +32,7 @@ THE SOFTWARE.
 #include <math.h>
 
 #if QT_MAJOR_VERSION < 5
-  typedef qint64 quintptr
+  typedef qint64 qintptr;
 #endif
 
 typedef quintptr VIRTADDR;
