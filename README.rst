@@ -1,3 +1,11 @@
+Unmaintained version
+====================
+
+see https://github.com/Dwarf-Therapist/Dwarf-Therapist
+------------------------------------------------------
+
+Historical
+==========
 ===============
 Dwarf Therapist
 ===============
